@@ -1,7 +1,7 @@
 import os
 from fpdf import FPDF
 from io import BytesIO
-from typing import Union
+from typing import Union, Dict, Any, List
 
 
 class PDFGenerator(FPDF):
@@ -15,7 +15,7 @@ class PDFGenerator(FPDF):
         You can customize fonts, colors, or add logos as needed.
         """
         self.set_font("Arial", "B", 12)
-        self.cell(0, 10, "AI-Powered Report", border=False, ln=1, align="C")
+        self.cell(0, 10, "GFV Investment Readiness Report", border=False, ln=1, align="C")
         self.ln(5)
 
     def footer(self):
@@ -27,15 +27,26 @@ class PDFGenerator(FPDF):
         self.cell(0, 10, f"Page {self.page_no()}", 0, 0, "C")
 
 
-def generate_pdf(report_content: dict, output_path: str = None) -> Union[bytes, str]:
+def generate_pdf(
+    report_id: int,
+    report_title: str,
+    tier2_sections: List[Dict[str, Any]],
+    output_path: str = None
+) -> Union[bytes, str]:
     """
-    Generates a PDF from a structured report (dict) using FPDF.
+    Generates a PDF from a structured Tier‑2 report using FPDF.
 
     Args:
-        report_content (dict): A dictionary containing the report sections.
-            Expected keys include 'executive_summary', 'market_analysis', 'recommendations', etc.
+        report_id (int): The report's ID.
+        report_title (str): The title or main heading for the report.
+        tier2_sections (List[Dict[str, Any]]): A list of sections. Each item should have:
+            {
+              "id": "section_1",
+              "title": "Executive Summary & Investment Rationale",
+              "content": "Text content for this section..."
+            }
         output_path (str, optional): A path to save the generated PDF file.
-            - If provided, the file is saved to disk, and this function returns the file path.
+            - If provided, the file is saved to disk, returning the file path.
             - If omitted, a bytes object containing the PDF data is returned.
 
     Returns:
@@ -46,41 +57,34 @@ def generate_pdf(report_content: dict, output_path: str = None) -> Union[bytes, 
     pdf = PDFGenerator(orientation="P", unit="mm", format="A4")
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
-    pdf.set_font("Arial", size=12)
-
-    # Optional cover or title page
     pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, "Complete Report", ln=1, align="C")
+
+    # Main Title
+    pdf.cell(0, 10, f"Report #{report_id}: {report_title}", ln=1, align="C")
     pdf.ln(10)
 
-    # Define the order and titles for each section
-    section_order = [
-        ("executive_summary", "Executive Summary"),
-        ("market_analysis", "Market Analysis"),
-        ("recommendations", "Recommendations"),
-    ]
-
-    # Populate the PDF with content
-    for key, title in section_order:
-        content = report_content.get(key, "No content available.")
+    # Now iterate over Tier‑2 sections
+    for section in tier2_sections:
+        section_title = section.get("title", "Untitled Section")
+        section_content = section.get("content", "No content available.")
 
         # Section header
         pdf.set_font("Arial", "B", 14)
-        pdf.cell(0, 10, title, ln=1)
+        pdf.multi_cell(0, 8, section_title)
         pdf.ln(2)
 
         # Section body
         pdf.set_font("Arial", size=12)
-        pdf.multi_cell(0, 10, content)
+        pdf.multi_cell(0, 7, section_content)
         pdf.ln(5)
 
-    # Output the PDF to a file if output_path is specified, otherwise return bytes
+    # Output the PDF
     if output_path:
         pdf.output(output_path)
         return output_path
     else:
         pdf_buffer = BytesIO()
-        pdf.output(pdf_buffer)  # Writes PDF content to the BytesIO buffer
+        pdf.output(pdf_buffer)
         pdf_bytes = pdf_buffer.getvalue()
         pdf_buffer.close()
         return pdf_bytes

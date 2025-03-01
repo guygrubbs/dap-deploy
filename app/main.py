@@ -10,11 +10,12 @@ from sqlalchemy.orm import Session
 
 # Import the session factory from your database module.
 from app.database.database import SessionLocal
+# Import your new router(s). For example:
+from app.api.routes import router as reports_router
 
 # Initialize the Google Cloud Logging client.
 client = google.cloud.logging.Client()
 default_handler = client.get_default_handler()
-# Optionally configure a JSON formatter for structured logs.
 json_formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s %(message)s')
 default_handler.setFormatter(json_formatter)
 logging.getLogger().addHandler(default_handler)
@@ -27,19 +28,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize the FastAPI application.
-app = FastAPI(title="AI-Powered Report Generation API")
+app = FastAPI(title="GFV Investment Readiness Report API")
 
-# Set up CORS middleware; in production, limit allowed origins as needed.
+# CORS: in production, restrict allowed_origins as needed.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Replace with specific origins in production.
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Middleware to log each incoming request and its outcome.
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     logger.info(json.dumps({
@@ -50,7 +49,6 @@ async def log_requests(request: Request, call_next):
     try:
         response = await call_next(request)
     except Exception as e:
-        # Log at ERROR level with traceback for unhandled exceptions
         logger.error(json.dumps({
             "event": "request_error",
             "error": str(e)
@@ -63,14 +61,11 @@ async def log_requests(request: Request, call_next):
     }))
     return response
 
-# Define the OAuth2 scheme for Bearer token extraction.
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 def verify_token(token: str = Depends(oauth2_scheme)):
     """
-    Dependency to verify the OAuth2 Bearer token.
-    This stub function performs a static check for demonstration purposes.
-    Extend this logic with proper token validation (e.g., JWT verification) as needed.
+    Simple stub function to validate a token. Replace with real JWT or OAuth checks.
     """
     expected_token = "expected_static_token"
     if token != expected_token:
@@ -85,8 +80,7 @@ def verify_token(token: str = Depends(oauth2_scheme)):
 
 def get_db():
     """
-    Dependency that provides a SQLAlchemy database session.
-    This function yields a session and ensures it is properly closed after use.
+    Yields a database session for each request, ensuring it is closed afterward.
     """
     db = SessionLocal()
     try:
@@ -94,36 +88,22 @@ def get_db():
     finally:
         db.close()
 
-@app.get("/reports", dependencies=[Depends(verify_token)])
-def get_reports(db: Session = Depends(get_db)):
-    """
-    Protected endpoint to retrieve reports.
-    Requires a valid OAuth2 Bearer token and access to the database.
-    """
-    logger.info("Fetching reports from the database")
-    return {"message": "Access granted to reports endpoint", "reports": []}
+# Attach your routes (from app.api.routes or any other module) to /reports
+app.include_router(reports_router, prefix="/api", tags=["Reports"])
 
 @app.get("/health")
 def health_check():
-    """
-    A simple health check endpoint to verify that the service is running.
-    This endpoint does not require authentication.
-    """
     logger.info("Health check endpoint accessed")
     return {"status": "ok"}
 
-# ------------------------------------------------------------------------
+# ------------------------------------------------------------------
 # Exception Handlers
-# ------------------------------------------------------------------------
+# ------------------------------------------------------------------
 
 @app.exception_handler(FastAPIHTTPException)
 async def http_exception_handler(request: Request, exc: FastAPIHTTPException):
-    """
-    This handler processes known HTTP exceptions (e.g., 404, 400, etc.).
-    Logs at WARNING level for 404 and ERROR level otherwise (with traceback).
-    """
     if exc.status_code == 404:
-        logger.warning("HTTP 404 error for %s: %s", request.url, exc.detail)
+        logger.warning("HTTP 404 for %s: %s", request.url, exc.detail)
     else:
         logger.error("HTTPException for %s: %s", request.url, exc.detail, exc_info=True)
 
@@ -134,12 +114,7 @@ async def http_exception_handler(request: Request, exc: FastAPIHTTPException):
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
-    """
-    This handler processes unhandled exceptions (HTTP 500).
-    Logs at ERROR level with full stack trace, returning a sanitized response.
-    """
     logger.error("Unhandled exception for %s: %s", request.url, str(exc), exc_info=True)
-    # Cloud Error Reporting will automatically capture these error logs.
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal Server Error"}
