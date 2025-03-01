@@ -89,7 +89,7 @@ def get_db():
         db.close()
 
 # Attach your routes (from app.api.routes or any other module) to /reports
-app.include_router(reports_router, prefix="/api", tags=["Reports"])
+app.include_router(reports_router, tags=["Reports"])
 
 @app.get("/health")
 def health_check():

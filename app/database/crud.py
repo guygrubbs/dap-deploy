@@ -3,20 +3,23 @@ from datetime import datetime
 from app.database.models import Report, ReportSection
 
 
-def create_report_entry(db: Session, title: str) -> Report:
-    """
-    Create a new report entry in the database with status 'pending' 
-    and return the Report instance.
-    """
-    new_report = Report(title=title, status="pending")
+def create_report_entry(db: Session, title: str, user_id: str, startup_id: str, report_type: str, parameters: dict) -> Report:
+    new_report = Report(
+        title=title,
+        status="pending",
+        user_id=user_id,
+        startup_id=startup_id,
+        report_type=report_type
+        # store parameters if you want, or parse them as needed
+    )
     db.add(new_report)
     try:
         db.commit()
         db.refresh(new_report)
         return new_report
-    except Exception as e:
+    except:
         db.rollback()
-        raise e
+        raise
 
 
 def update_report_status(db: Session, report_id: int, new_status: str) -> Report:
