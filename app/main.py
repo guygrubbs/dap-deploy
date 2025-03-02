@@ -10,7 +10,7 @@ from fastapi.exceptions import HTTPException as FastAPIHTTPException
 from sqlalchemy.orm import Session
 
 # Import the session factory from your database module.
-from app.database.database import SessionLocal, init_db()
+from app.database.database import SessionLocal, init_db
 # Import your new router(s). For example:
 from app.api.routes import router as reports_router
 
