@@ -2,13 +2,13 @@
 FROM python:3.11-slim
 
 # Set environment variables
-# - PORT: The port that the application listens on within the container
-# - PYTHONUNBUFFERED: Ensures output is sent straight to terminal (no buffering)
+# - PORT: The port the application listens on within the container
+# - PYTHONUNBUFFERED: Ensures output is unbuffered (helpful for logging)
 ENV PORT=8080 \
     PYTHONUNBUFFERED=1
 
-# (Optional) Install system dependencies needed for building certain Python packages
-# e.g., gcc, libssl-dev, etc. Adjust as needed depending on your requirements.
+# Install any system dependencies needed for building certain Python packages
+# Adjust as required (e.g., if you need SSL libraries, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
@@ -19,30 +19,28 @@ RUN useradd --create-home --shell /bin/bash appuser
 # Set the working directory to /home/appuser/app
 WORKDIR /home/appuser/app
 
-# Copy requirements file and install Python dependencies
-# Update this path to match the location of requirements.txt in your repository
-COPY requirements.txt ./
+# Copy in the requirements.txt from the parent directory
+# (Assuming this Dockerfile is located in 'docker/' and requirements.txt is at the project root)
+COPY ../requirements.txt ./
+
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the application code into the container
-# Adjust the source path (project-root/app/) and destination as appropriate
-COPY ./app ./app
-# Example of copying entry point if needed
-COPY ./app/main.py ./main.py
+# Copy the 'app' directory from the parent folder into the container
+COPY ../app ./app
 
+# If your main.py is in app/main.py, no extra copy is needed. If you prefer an entry point outside:
+# COPY ../app/main.py ./main.py
+# (But typically you'll run uvicorn referencing app.main:app directly.)
 
-# Change ownership of the app directory to the non-root user
+# Change ownership of everything to the non-root user
 RUN chown -R appuser:appuser /home/appuser/app
 
 # Switch to the non-root user
 USER appuser
 
-# Expose the port (primarily for documentation; some hosting providers rely on it)
+# Expose the container's listening port (not strictly required by Cloud Run, but good documentation)
 EXPOSE $PORT
 
-# If additional flags (e.g., Cloud SQL connections) are needed, you can mention them at runtime:
-# docker run -p 8080:8080 -e DB_HOST="/cloudsql/YOUR_INSTANCE_CONNECTION_NAME" -v /cloudsql:/cloudsql --name yourcontainer yourimage
-# or in Google Cloud Run/Cloud Build, configure environment variables for DB_HOST, etc.
-
-# Start the FastAPI application using uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Run the FastAPI app with uvicorn
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]

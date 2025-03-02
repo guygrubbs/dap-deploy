@@ -1,6 +1,7 @@
 import logging
 import json
 import google.cloud.logging
+import os
 from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
@@ -127,3 +128,11 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Application shutdown complete.")
+
+@app.on_event("startup")
+async def check_env():
+    if not os.getenv("DATABASE_URL"):
+        raise RuntimeError("DATABASE_URL is missing. Make sure it's set in Cloud Run or .env.")
+    # If you want to do DB migrations or verify the engine is not None, do it here.
+    if not engine:
+        raise RuntimeError("SQLAlchemy engine not initialized. Check DATABASE_URL.")

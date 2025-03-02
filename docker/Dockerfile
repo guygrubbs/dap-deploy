@@ -45,4 +45,4 @@ EXPOSE $PORT
 # or in Google Cloud Run/Cloud Build, configure environment variables for DB_HOST, etc.
 
 # Start the FastAPI application using uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
