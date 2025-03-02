@@ -58,24 +58,42 @@ Using AI agents, the system dynamically generates content for each report sectio
 A simplified structure:
 
 ```
-app/
-  ├─ api/
-  │   └─ routes.py        # FastAPI endpoints for /reports, includes Tier‑2 structured responses
-  ├─ ai/
-  │   ├─ agents.py        # AI Agents with dynamic prompt templates
-  │   └─ orchestrator.py  # Orchestrator calls agents for each Tier‑2 section
-  ├─ database/
-  │   ├─ database.py      # SQLAlchemy engine + session setup
-  │   ├─ models.py        # SQLAlchemy models (Report, ReportSection)
-  │   └─ crud.py          # CRUD operations for creating/updating/fetching reports
-  ├─ notifications/
-  │   └─ supabase_notifier.py  # Sends async upserts to Supabase, includes final report JSON
-  ├─ storage/
-  │   └─ gcs.py           # Upload to GCS, generate signed URLs
-  └─ ...
-pdfgenerator.py           # Generates PDFs from Tier‑2 report data
-main.py                   # FastAPI entry point
-README.md                 # This document
+├───app
+│   │   main.py
+│   │
+│   ├───api
+│   │   │   routes.py
+│   │   │   schemas.py
+│   │   │
+│   │   └───ai
+│   │           agents.py
+│   │           orchestrator.py
+│   │
+│   ├───database
+│   │       crud.py
+│   │       database.py
+│   │       models.py
+│   │
+│   ├───notifications
+│   │       supabase_notifier.py
+│   │
+│   ├───storage
+│   │       gcs.py
+│   │       pdfgenerator.py
+│   │
+│   └───__pycache__
+│           main.cpython-312.pyc
+│
+├───deployments
+│       cloud_run_deploy.sh
+│       env.example
+│
+├───docker
+│       Dockerfile
+│
+└───docs
+        iam_configuration.md
+        security_configuration.md
 ```
 
 ---

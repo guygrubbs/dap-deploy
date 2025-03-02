@@ -1,6 +1,6 @@
 import logging
 import time
-from app.ai.agents import ExecutiveSummaryAgent, MarketAnalysisAgent, RecommendationsAgent
+from app.api.ai.agents import ExecutiveSummaryAgent, MarketAnalysisAgent, RecommendationsAgent
 
 logger = logging.getLogger(__name__)
 
