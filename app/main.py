@@ -123,16 +123,11 @@ async def generic_exception_handler(request: Request, exc: Exception):
 
 @app.on_event("startup")
 async def startup_event():
+    # Initialize the database: create missing tables such as 'reports'
+    init_db()
+    logger.info("Database initialized.")
     logger.info("Application startup complete.")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Application shutdown complete.")
-
-@app.on_event("startup")
-async def check_env():
-    if not os.getenv("DATABASE_URL"):
-        raise RuntimeError("DATABASE_URL is missing. Make sure it's set in Cloud Run or .env.")
-    # If you want to do DB migrations or verify the engine is not None, do it here.
-    if not engine:
-        raise RuntimeError("SQLAlchemy engine not initialized. Check DATABASE_URL.")

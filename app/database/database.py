@@ -18,3 +18,7 @@ engine = create_engine(
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine) if engine else None
 Base = declarative_base()
+
+def init_db():
+    """Creates all tables defined in the models if they do not exist."""
+    Base.metadata.create_all(bind=engine)
