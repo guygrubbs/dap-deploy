@@ -1,6 +1,8 @@
 from sqlalchemy.orm import Session
 from datetime import datetime
-import json  # for converting dict <-> str if using Text for parameters
+import json
+from typing import Dict
+
 from app.database.models import Report, ReportSection
 
 def create_report_entry(
@@ -11,8 +13,6 @@ def create_report_entry(
     report_type: str,
     parameters: dict
 ) -> Report:
-    # Convert parameters to JSON string if using Text
-    # If using JSONB, you can store it directly
     parameters_str = json.dumps(parameters) if parameters else None
 
     new_report = Report(
@@ -21,7 +21,7 @@ def create_report_entry(
         user_id=user_id,
         startup_id=startup_id,
         report_type=report_type,
-        parameters=parameters_str  # store the serialized dict
+        parameters=parameters_str
     )
     db.add(new_report)
     try:
@@ -85,8 +85,10 @@ def get_report_content(db: Session, report_id: int) -> dict:
         return {}
     return {section.section_name: section.content for section in sections}
 
-# (Optional) If you need to update pdf_url after report generation:
 def update_pdf_url(db: Session, report_id: int, pdf_url: str) -> Report:
+    """
+    If you need to update pdf_url after report generation, call this.
+    """
     report = db.query(Report).filter(Report.id == report_id).first()
     if not report:
         raise ValueError("Report not found")
@@ -96,6 +98,46 @@ def update_pdf_url(db: Session, report_id: int, pdf_url: str) -> Report:
         db.commit()
         db.refresh(report)
         return report
+    except Exception as e:
+        db.rollback()
+        raise e
+
+# -------------------------------
+# Missing function for storing multi-section results:
+# -------------------------------
+def update_report_sections(db: Session, report_id: int, sections_dict: Dict[str, str]):
+    """
+    Takes a dictionary like:
+      {
+        "executive_summary_investment_rationale": "...section text...",
+        "market_opportunity_competitive_landscape": "...section text...",
+        ...
+      }
+    and saves/updates each one into the 'report_sections' table 
+    for the given report_id.
+
+    Adjust logic if you want to only create new or always overwrite existing.
+    """
+    for section_key, content in sections_dict.items():
+        # Optional: check if we have an existing section row or not
+        existing_section = db.query(ReportSection).filter(
+            ReportSection.report_id == report_id,
+            ReportSection.section_name == section_key
+        ).first()
+
+        if existing_section:
+            # Overwrite content if you want to update in place
+            existing_section.content = content
+        else:
+            # Create a new row
+            new_section = ReportSection(
+                report_id=report_id,
+                section_name=section_key,
+                content=content
+            )
+            db.add(new_section)
+    try:
+        db.commit()
     except Exception as e:
         db.rollback()
         raise e
