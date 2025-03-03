@@ -1,9 +1,8 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 # For demonstration, import the new schemas from your 'schemas.py'.
-# Adjust the import path as needed (e.g., from app.api import schemas).
 from app.api.schemas import (
     CreateReportRequest,
     ReportResponse,
@@ -17,13 +16,13 @@ from app.database.crud import (
     create_report_entry,
     get_report_by_id,
     get_report_content,
-    update_report_sections,    # (New) you might need a function to update the DB sections
-    update_report_status       # (New) if needed for final 'completed' status
+    update_report_sections,    # Now used to store final Tier-2 sections in DB
+    update_report_status       # Now used to mark the report as completed
 )
 from app.database.database import SessionLocal
 from app.main import verify_token  # or wherever verify_token is defined
 
-# (New) Import orchestrator logic for generating the full report
+# Import orchestrator logic for generating the full report
 from app.api.ai.orchestrator import generate_report
 
 logger = logging.getLogger(__name__)
@@ -37,6 +36,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
 
 @router.post(
     "/reports",
@@ -71,7 +71,6 @@ def create_report(
         # Example progress; adjust to your actual logic
         progress = 0 if new_report.status.lower() != "completed" else 100
 
-        # Build the response matching ReportResponse
         return ReportResponse(
             id=new_report.id,
             title=new_report.title,
@@ -93,6 +92,7 @@ def create_report(
             status_code=500,
             detail="Failed to create report"
         )
+
 
 @router.post(
     "/reports/{report_id}/generate",
@@ -116,34 +116,27 @@ def generate_full_report(
 
     # 2) Prepare the request_params dict from the report data
     request_params = {
-        "report_query": "Full investment readiness for report_id={}".format(report_id),
-        "company": "{}",      # placeholders or actual data from DB
+        "report_query": f"Full investment readiness for report_id={report_id}",
+        "company": "{}",   # placeholders or actual data from DB
         "industry": "{}",
-        # ... or your actual fields from `report_model.parameters` if relevant ...
     }
-    # Possibly merge in some parameters from the DB
     if report_model.parameters:
-        # e.g. if parameters is JSON/dict, merge them
+        # if parameters is JSON/dict, merge them
         request_params.update(report_model.parameters)
 
-    # 3) Call the orchestrator to generate the sections
     logger.info("Generating full Tier-2 sections for report %s", report_id)
     full_result = generate_report(request_params)
 
-    # 4) Optionally store these sections in DB. The 'full_result' is a dict with each key being a section
-    # e.g. "executive_summary_investment_rationale": "some text..."
-    # You might have a function update_report_sections(...) that stores them in DB's 'report_sections'
-    # For example:
-    # update_report_sections(db, report_id, full_result)
+    # 3) Store these sections in DB using update_report_sections(...).
+    #    The 'full_result' is a dict where each key is a section name
+    #    and each value is the generated text.
+    update_report_sections(db, report_id, full_result)
 
-    # 5) Mark the report as completed if needed:
-    # update_report_status(db, report_id, "completed")
+    # 4) Mark the report as completed using update_report_status(...).
+    update_report_status(db, report_id, "completed")
 
-    # 6) Build final ReportResponse
-    # The lines below are an example. You could re-fetch the updated report from DB if you store them.
-    # We'll just embed the newly generated sections in the 'sections' field for demonstration.
-    # In reality, you can structure it however your schemas expect.
-
+    # 5) Build final ReportResponse
+    # We'll build a list of ReportSection for the response from full_result.
     sections_list = []
     section_id_map = {
         "executive_summary_investment_rationale": "Section 1: Executive Summary & Investment Rationale",
@@ -156,7 +149,6 @@ def generate_full_report(
     }
     i = 1
     for key, content in full_result.items():
-        # create a single ReportSection if you want
         sections_list.append(ReportSection(
             id=f"section_{i}",
             title=section_id_map.get(key, key),
@@ -165,24 +157,26 @@ def generate_full_report(
         ))
         i += 1
 
-    # Example progress logic: once generation is done, set to 100
+    # Re-fetch the updated status from DB if needed
+    updated_report = get_report_by_id(db, report_id)
+    # Example progress logic: now that we've updated the report to "completed"
     progress_value = 100
 
-    # Return final response
     return ReportResponse(
-        id=report_model.id,
-        title=report_model.title,
-        status="completed",   # or keep the actual status in DB if you updated it
-        created_at=str(report_model.created_at) if report_model.created_at else None,
-        updated_at=str(report_model.completed_at) if report_model.completed_at else None,
+        id=updated_report.id,
+        title=updated_report.title,
+        status=updated_report.status,
+        created_at=str(updated_report.created_at) if updated_report.created_at else None,
+        updated_at=str(updated_report.completed_at) if updated_report.completed_at else None,
         progress=progress_value,
-        startup_id=report_model.startup_id,
-        user_id=report_model.user_id,
-        report_type=report_model.report_type,
-        parameters=report_model.parameters,
+        startup_id=updated_report.startup_id,
+        user_id=updated_report.user_id,
+        report_type=updated_report.report_type,
+        parameters=updated_report.parameters,
         sections=sections_list,
         signed_pdf_download_url=None  # if you have final PDF generation, place link here
     )
+
 
 @router.get(
     "/reports/{report_id}",
@@ -209,7 +203,6 @@ def get_report(
     sections_list = []
     if report_model.sections:
         for i, sec in enumerate(report_model.sections, start=1):
-            # Adjust if your DB model uses different field names
             sections_list.append(ReportSection(
                 id=f"section_{i}",
                 title=sec.section_name or f"Section {i}",
@@ -236,6 +229,7 @@ def get_report(
         sections=sections_list,
         signed_pdf_download_url=signed_pdf_download_url
     )
+
 
 @router.get(
     "/reports/{report_id}/content",
@@ -272,6 +266,7 @@ def get_report_content_endpoint(
         status=report_model.status,
         sections=sections_list
     )
+
 
 @router.get(
     "/reports/{report_id}/status",
