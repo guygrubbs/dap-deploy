@@ -20,7 +20,7 @@ Environment Variables Needed:
 
 import argparse
 import os
-import pymupdf  # PyMuPDF
+import pymupdf
 import openai
 from google.cloud import aiplatform_v1
 
