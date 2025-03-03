@@ -1,26 +1,41 @@
+# schemas.py
 from pydantic import BaseModel, Field
-from typing import Optional, Dict
+from typing import Optional, Dict, Any, List
 
-class ReportCreateRequest(BaseModel):
-    user_id: int = Field(..., description="ID of the user requesting the report")
-    report_type: str = Field(..., description="Type of report to generate")
-    parameters: Optional[Dict[str, str]] = Field(
-        default=None, description="Additional parameters for report generation"
-    )
+class ReportSection(BaseModel):
+    id: str
+    title: str
+    content: Optional[str]
+    sub_sections: Optional[List[Dict[str, Any]]] = None
+
+class CreateReportRequest(BaseModel):
+    user_id: str = Field(..., description="ID of the user requesting the report")
+    startup_id: Optional[str] = None
+    report_type: Optional[str] = None
+    title: str = Field(..., description="Title of the report")
+    parameters: Dict[str, Any] = Field(..., description="Parameters for report generation")
 
 class ReportResponse(BaseModel):
-    report_id: int = Field(..., description="Unique identifier for the report")
-    status: str = Field(..., description="Current status of the report generation")
-    download_url: Optional[str] = Field(
-        default=None, description="Signed URL for downloading the report if available"
-    )
-    message: Optional[str] = Field(
-        default=None, description="Additional message or error details"
-    )
+    id: int
+    title: str
+    status: str
+    created_at: Optional[str]
+    updated_at: Optional[str]
+    progress: Optional[int]
+    startup_id: Optional[str]
+    user_id: Optional[str]
+    report_type: Optional[str]
+    parameters: Optional[Dict[str, Any]]
+    sections: Optional[List[ReportSection]] = None
+    signed_pdf_download_url: Optional[str]
 
 class ReportStatusResponse(BaseModel):
-    report_id: int = Field(..., description="Unique identifier for the report")
-    status: str = Field(..., description="Current status of the report generation")
-    progress: Optional[int] = Field(
-        default=None, description="Percentage completion of the report generation"
-    )
+    status: str
+    progress: Optional[int]
+    # optionally include `report_id` if you want to
+    report_id: Optional[int] = None
+
+class ReportContentResponse(BaseModel):
+    url: Optional[str]
+    status: Optional[str]
+    sections: Optional[List[ReportSection]]

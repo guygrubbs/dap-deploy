@@ -9,12 +9,13 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException as FastAPIHTTPException
 from sqlalchemy.orm import Session
 
-# Import the session factory from your database module.
+# Database imports
 from app.database.database import SessionLocal, init_db
-# Import your new router(s). For example:
+
+# Router import
 from app.api.routes import router as reports_router
 
-# Initialize the Google Cloud Logging client.
+# Initialize Google Cloud Logging client
 client = google.cloud.logging.Client()
 default_handler = client.get_default_handler()
 json_formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s %(message)s')
@@ -22,16 +23,20 @@ default_handler.setFormatter(json_formatter)
 logging.getLogger().addHandler(default_handler)
 client.setup_logging()
 
-# Configure basic logging for structured output.
+# Configure basic logging for structured output
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s %(message)s"
 )
 logger = logging.getLogger(__name__)
 
+# Read environment variables (if needed here)
+MAX_UPLOAD_SIZE_MB = os.getenv("MAX_UPLOAD_SIZE_MB", "25")
+REPORTS_BUCKET_NAME = os.getenv("REPORTS_BUCKET_NAME", "my-reports-bucket")
+
 app = FastAPI(title="GFV Investment Readiness Report API")
 
-# CORS: in production, restrict allowed_origins as needed.
+# CORS: in production, restrict allowed_origins as needed
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -89,8 +94,12 @@ def get_db():
     finally:
         db.close()
 
-# Attach your routes (from app.api.routes or any other module) to /reports
-app.include_router(reports_router, tags=["Reports"])
+# Include the reports router with '/api' prefix to match the README
+app.include_router(
+    reports_router,
+    prefix="/api",
+    tags=["Reports"]
+)
 
 @app.get("/health")
 def health_check():
@@ -107,7 +116,6 @@ async def http_exception_handler(request: Request, exc: FastAPIHTTPException):
         logger.warning("HTTP 404 for %s: %s", request.url, exc.detail)
     else:
         logger.error("HTTPException for %s: %s", request.url, exc.detail, exc_info=True)
-
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.detail}
@@ -126,6 +134,11 @@ async def startup_event():
     # Initialize the database: create missing tables such as 'reports'
     init_db()
     logger.info("Database initialized.")
+
+    # Log environment variables (optional for debugging)
+    logger.info(f"MAX_UPLOAD_SIZE_MB is set to {MAX_UPLOAD_SIZE_MB}")
+    logger.info(f"REPORTS_BUCKET_NAME is set to {REPORTS_BUCKET_NAME}")
+
     logger.info("Application startup complete.")
 
 @app.on_event("shutdown")

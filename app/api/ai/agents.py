@@ -4,7 +4,6 @@ from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
-
 class BaseAIAgent:
     """
     Base class for AI agents using the OpenAI GPT-4 API.
@@ -17,19 +16,10 @@ class BaseAIAgent:
     def generate_section(self, context: Dict[str, Any]) -> str:
         """
         Generates a report section using the provided context.
-        
+
         The method dynamically formats the prompt template with the given context,
-        ensuring that details like industry, company name, key metrics, etc., 
+        ensuring that details like industry, company name, key metrics, etc.,
         tailor the output. Then it calls the GPT-4 API to generate the section.
-        
-        Args:
-            context (Dict[str, Any]): A dictionary containing values for prompt placeholders.
-        
-        Returns:
-            str: The generated report section, as text.
-        
-        Raises:
-            Exception: Propagates any errors from the API call.
         """
         # Dynamically generate the prompt based on input context
         prompt = self.prompt_template.format(**context)
@@ -39,11 +29,11 @@ class BaseAIAgent:
                 model="gpt-4",
                 messages=[
                     {
-                        "role": "system", 
+                        "role": "system",
                         "content": "You are an expert report writer with deep industry knowledge."
                     },
                     {
-                        "role": "user", 
+                        "role": "user",
                         "content": prompt
                     }
                 ],
@@ -57,196 +47,245 @@ class BaseAIAgent:
             raise e
 
 
+# ---------------------------------------------------------------
+# 1) Executive Summary & Investment Rationale
+# ---------------------------------------------------------------
 class ExecutiveSummaryAgent(BaseAIAgent):
     """
-    AI Agent for generating the Executive Summary & Investment Rationale section.
-    Covers: Overview, Key Investment Considerations, Investment Readiness Overview,
-    Investment Risks & Considerations, plus short-, medium-, and long-term recommendations.
+    AI Agent for Section 1: Executive Summary & Investment Rationale
+    Subheadings:
+      - Overview
+      - Key Investment Considerations
+      - Investment Readiness Overview
+      - Investment Risks & Considerations
+      - Investment Recommendations & Next Steps
+        * Short-Term (1–3 Months)
+        * Medium-Term (3–6 Months)
+        * Long-Term (6–12 Months)
     """
     def __init__(self):
         prompt_template = (
-            "You are an expert at drafting an Executive Summary for a GFV Investment Readiness Report.\n\n"
+            "You are an expert at drafting Section 1: Executive Summary & Investment Rationale.\n"
             "Company: {company}\n"
             "Industry: {industry}\n"
             "\n"
-            "Please structure your response with these sub-sections:\n"
+            "Retrieved Context (Pitch Decks, Docs, etc.):\n"
+            "{retrieved_context}\n"
+            "\n"
+            "Please structure your response with the following subheadings:\n"
             "1) Overview\n"
             "2) Key Investment Considerations\n"
             "3) Investment Readiness Overview\n"
             "4) Investment Risks & Considerations\n"
-            "5) Investment Recommendations & Next Steps:\n"
+            "5) Investment Recommendations & Next Steps\n"
             "   - Short-Term (1–3 Months)\n"
             "   - Medium-Term (3–6 Months)\n"
             "   - Long-Term (6–12 Months)\n"
             "\n"
-            "Include relevant insights from the following context:\n"
-            "Key Findings: {key_findings}\n"
-            "Additional Notes: {notes}\n"
+            "Ensure each subheading is addressed. Where relevant, mention color-coded maturity model assessments "
+            "(🟢, 🟡, 🔴) and data gap identification."
         )
         super().__init__(prompt_template)
 
 
+# ---------------------------------------------------------------
+# 2) Market Opportunity & Competitive Landscape
+# ---------------------------------------------------------------
 class MarketAnalysisAgent(BaseAIAgent):
     """
-    AI Agent for generating the Market Opportunity & Competitive Landscape section.
-    Covers: Market Overview, Market Size & Growth Projections, Competitive Positioning,
-    Competitive Landscape, Key Market Takeaways, Challenges & Expansion Opportunities,
-    Market Fit Assessment.
+    AI Agent for Section 2: Market Opportunity & Competitive Landscape
+    Subheadings:
+      - Market Overview
+      - Market Size & Growth Projections
+      - Competitive Positioning
+      - Competitive Landscape
+      - Key Market Takeaways
+      - Challenges & Expansion Opportunities
+        * Challenges
+        * Opportunities for Market Expansion
+      - Market Fit Assessment
     """
     def __init__(self):
         prompt_template = (
-            "You are an expert in Market Analysis for a GFV Investment Readiness Report.\n\n"
+            "You are an expert at drafting Section 2: Market Opportunity & Competitive Landscape.\n"
             "Company: {company}\n"
             "Industry: {industry}\n"
+            "Retrieved Context:\n"
+            "{retrieved_context}\n"
             "\n"
-            "Please structure your response with these sub-sections:\n"
+            "Please use these subheadings:\n"
             "1) Market Overview\n"
             "2) Market Size & Growth Projections\n"
             "3) Competitive Positioning\n"
             "4) Competitive Landscape\n"
             "5) Key Market Takeaways\n"
             "6) Challenges & Expansion Opportunities\n"
+            "   - Challenges\n"
+            "   - Opportunities for Market Expansion\n"
             "7) Market Fit Assessment\n"
             "\n"
-            "Use the following context:\n"
-            "Market Trends: {market_trends}\n"
-            "Competitors: {competitors}\n"
-            "Any Other Relevant Info: {other_market_info}\n"
+            "Include color-coded maturity model references and highlight data gaps where applicable."
         )
         super().__init__(prompt_template)
 
 
-class FinancialsAgent(BaseAIAgent):
+# ---------------------------------------------------------------
+# 3) Financial Performance & Investment Readiness
+# ---------------------------------------------------------------
+class FinancialPerformanceAgent(BaseAIAgent):
     """
-    AI Agent for generating the Financial Performance & Investment Readiness section.
-    Covers: Revenue Growth & Profitability Overview, Investment Raised & Fund Utilization,
-    Revenue Streams & Financial Risk Analysis, Key Financial Risks & Considerations,
-    Financial Risk Assessment.
+    AI Agent for Section 3: Financial Performance & Investment Readiness
+    Subheadings:
+      - Revenue Growth & Profitability Overview
+      - Investment Raised & Fund Utilization
+      - Revenue Streams & Financial Risk Analysis
+      - Key Financial Risks & Considerations
+      - Financial Risk Assessment
     """
     def __init__(self):
         prompt_template = (
-            "You are an expert in Financial Performance & Investment Readiness analysis.\n\n"
+            "You are an expert at drafting Section 3: Financial Performance & Investment Readiness.\n"
             "Company: {company}\n"
             "Industry: {industry}\n"
+            "Retrieved Context:\n"
+            "{retrieved_context}\n"
             "\n"
-            "Please structure your response with these sub-sections:\n"
+            "Please structure your response with these subheadings:\n"
             "1) Revenue Growth & Profitability Overview\n"
             "2) Investment Raised & Fund Utilization\n"
             "3) Revenue Streams & Financial Risk Analysis\n"
             "4) Key Financial Risks & Considerations\n"
             "5) Financial Risk Assessment\n"
             "\n"
-            "Use the following context for data:\n"
-            "Revenue Growth Data: {revenue_growth}\n"
-            "Current Profitability: {profitability}\n"
-            "Investment Raised: {investment_raised}\n"
-            "Fund Utilization Plans: {fund_utilization}\n"
-            "Financial Risks: {financial_risks}\n"
-            "Additional Financial Context: {financial_context}\n"
+            "Use color-coded maturity model assessments (🟢, 🟡, 🔴) and highlight any missing data or gaps."
         )
         super().__init__(prompt_template)
 
 
-class GTMStrategyAgent(BaseAIAgent):
+# ---------------------------------------------------------------
+# 4) Go-To-Market (GTM) Strategy & Customer Traction
+# ---------------------------------------------------------------
+class GoToMarketAgent(BaseAIAgent):
     """
-    AI Agent for generating the Go-To-Market (GTM) Strategy & Customer Traction section.
-    Covers: Customer Acquisition Strategy, Customer Retention & LTV, Challenges & Market Expansion,
-    Market Expansion Strategy, GTM Performance Assessment.
+    AI Agent for Section 4: Go-To-Market (GTM) Strategy & Customer Traction
+    Subheadings:
+      - Customer Acquisition Strategy
+      - Customer Retention & Lifetime Value
+      - Challenges & Market Expansion Plan
+      - Market Expansion Strategy
+      - GTM Performance Assessment
     """
     def __init__(self):
         prompt_template = (
-            "You are an expert in Go-To-Market (GTM) strategy and customer traction analysis.\n\n"
+            "You are an expert in drafting Section 4: Go-To-Market (GTM) Strategy & Customer Traction.\n"
             "Company: {company}\n"
             "Industry: {industry}\n"
+            "Retrieved Context:\n"
+            "{retrieved_context}\n"
             "\n"
-            "Please structure your response with these sub-sections:\n"
+            "Use these subheadings:\n"
             "1) Customer Acquisition Strategy\n"
             "2) Customer Retention & Lifetime Value\n"
             "3) Challenges & Market Expansion Plan\n"
             "4) Market Expansion Strategy\n"
             "5) GTM Performance Assessment\n"
             "\n"
-            "Relevant Context:\n"
-            "Current Acquisition Tactics: {acquisition_strategies}\n"
-            "Customer Retention Data: {retention_data}\n"
-            "Growth Barriers or Challenges: {growth_challenges}\n"
-            "Market Expansion Opportunities: {expansion_opportunities}\n"
+            "Include color-coded maturity model references (🟢, 🟡, 🔴) and highlight data gaps or missing data."
         )
         super().__init__(prompt_template)
 
 
-class LeadershipAgent(BaseAIAgent):
+# ---------------------------------------------------------------
+# 5) Leadership & Team
+# ---------------------------------------------------------------
+class LeadershipTeamAgent(BaseAIAgent):
     """
-    AI Agent for generating the Leadership & Team section.
-    Covers: Leadership Expertise & Strategic Decision-Making, Organizational Structure & Growth Plan,
-    Strategic Hiring Roadmap, Leadership Stability & Investor Confidence,
-    Leadership & Organizational Stability Assessment.
+    AI Agent for Section 5: Leadership & Team
+    Subheadings:
+      - Leadership Expertise & Strategic Decision-Making
+      - Organizational Structure & Growth Plan
+      - Strategic Hiring Roadmap
+      - Leadership Stability & Investor Confidence
+      - Leadership & Organizational Stability Assessment
     """
     def __init__(self):
         prompt_template = (
-            "You are an expert in assessing Leadership & Team dynamics for a GFV Investment Readiness Report.\n\n"
+            "You are an expert at drafting Section 5: Leadership & Team.\n"
             "Company: {company}\n"
             "Industry: {industry}\n"
+            "Retrieved Context:\n"
+            "{retrieved_context}\n"
             "\n"
-            "Please structure your response with these sub-sections:\n"
+            "Subheadings:\n"
             "1) Leadership Expertise & Strategic Decision-Making\n"
             "2) Organizational Structure & Growth Plan\n"
             "3) Strategic Hiring Roadmap\n"
             "4) Leadership Stability & Investor Confidence\n"
             "5) Leadership & Organizational Stability Assessment\n"
             "\n"
-            "Additional Context:\n"
-            "Leadership Team Background: {leadership_background}\n"
-            "Org Structure Details: {organization_structure}\n"
-            "Key Hiring Needs: {hiring_needs}\n"
-            "Stability / Succession Plans: {leadership_stability}\n"
+            "Where relevant, include color-coded maturity model references (🟢, 🟡, 🔴) and highlight data gaps."
         )
         super().__init__(prompt_template)
 
 
+# ---------------------------------------------------------------
+# 6) Investor Fit, Exit Strategy & Funding Narrative
+# ---------------------------------------------------------------
 class InvestorFitAgent(BaseAIAgent):
     """
-    AI Agent for generating the Investor Fit, Exit Strategy & Funding Narrative section.
-    Covers: Investor Profile & Strategic Alignment, Exit Strategy Analysis,
-    Current Funding Narrative & Investor Messaging, Investor Messaging & Priorities,
-    Investor Fit Assessment.
+    AI Agent for Section 6: Investor Fit, Exit Strategy & Funding Narrative
+    Subheadings:
+      - Investor Profile & Strategic Alignment
+      - Exit Strategy Analysis
+      - Current Funding Narrative & Investor Messaging
+      - Investor Messaging & Priorities
+      - Investor Fit Assessment
     """
     def __init__(self):
         prompt_template = (
-            "You are an expert in evaluating Investor Fit, Exit Strategy & Funding Narratives.\n\n"
+            "You are an expert in drafting Section 6: Investor Fit, Exit Strategy & Funding Narrative.\n"
             "Company: {company}\n"
             "Industry: {industry}\n"
+            "Retrieved Context:\n"
+            "{retrieved_context}\n"
             "\n"
-            "Please structure your response with these sub-sections:\n"
+            "Subheadings:\n"
             "1) Investor Profile & Strategic Alignment\n"
             "2) Exit Strategy Analysis\n"
             "3) Current Funding Narrative & Investor Messaging\n"
             "4) Investor Messaging & Priorities\n"
             "5) Investor Fit Assessment\n"
             "\n"
-            "Relevant Context:\n"
-            "Funding History: {funding_history}\n"
-            "Target Investor Profile: {target_investors}\n"
-            "Proposed Exit Strategies: {exit_strategies}\n"
+            "Use color-coded maturity model references (🟢, 🟡, 🔴) and highlight data gaps where relevant."
         )
         super().__init__(prompt_template)
 
 
-class FinalRecommendationsAgent(BaseAIAgent):
+# ---------------------------------------------------------------
+# 7) Final Recommendations & Next Steps
+# ---------------------------------------------------------------
+class RecommendationsAgent(BaseAIAgent):
     """
-    AI Agent for generating the Final Recommendations & Next Steps section.
-    Covers: Key Strengths Supporting Investment, Key Investment Risks & Mitigation,
-    Prioritized Action Plan, Strategic Roadmap for Growth & Exit, 
-    Investment Readiness & Market Positioning, Final Recommendation, Next Steps, Conclusion.
+    AI Agent for Section 7: Final Recommendations & Next Steps
+    Subheadings:
+      - Key Strengths Supporting Investment Consideration
+      - Key Investment Risks & Mitigation Strategies
+      - Prioritized Action Plan for Investment Readiness
+      - Strategic Roadmap for Growth & Exit Planning
+      - Investment Readiness & Market Positioning
+      - Final Investment Recommendation
+      - Next Steps for Investment Consideration
+      - Final Conclusion
     """
     def __init__(self):
         prompt_template = (
-            "You are an expert in formulating final investment recommendations and next steps "
-            "for a GFV Investment Readiness Report.\n\n"
+            "You are an expert at drafting Section 7: Final Recommendations & Next Steps.\n"
             "Company: {company}\n"
             "Industry: {industry}\n"
+            "Retrieved Context:\n"
+            "{retrieved_context}\n"
             "\n"
-            "Please structure your response with these sub-sections:\n"
+            "Subheadings:\n"
             "1) Key Strengths Supporting Investment Consideration\n"
             "2) Key Investment Risks & Mitigation Strategies\n"
             "3) Prioritized Action Plan for Investment Readiness\n"
@@ -256,11 +295,6 @@ class FinalRecommendationsAgent(BaseAIAgent):
             "7) Next Steps for Investment Consideration\n"
             "8) Final Conclusion\n"
             "\n"
-            "Use the following context:\n"
-            "High-Level Strengths: {key_strengths}\n"
-            "Major Risks: {key_risks}\n"
-            "Action Plan Details: {action_plan}\n"
-            "Growth & Exit Strategies: {growth_and_exit}\n"
-            "Overall Positioning: {positioning}\n"
+            "Please provide maturity model references (🟢, 🟡, 🔴) and highlight any data gaps as needed."
         )
         super().__init__(prompt_template)
