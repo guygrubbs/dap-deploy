@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.database.database import SessionLocal, init_db
 
 # Router import
-from app.api.routes import router as reports_router
+from app.api.router import router as reports_router
 
 # Initialize Google Cloud Logging client
 client = google.cloud.logging.Client()
