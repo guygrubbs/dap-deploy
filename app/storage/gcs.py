@@ -44,7 +44,7 @@ def upload_pdf(report_id: int, pdf_data: bytes) -> str:
         raise
 
 
-def generate_signed_url(blob_name: str, expiration_seconds: int = 3600) -> str:
+def generate_signed_url(blob_name: str, expiration_seconds: int = 86400) -> str:
     """
     Generate a version 4 signed URL for a PDF in GCS, valid for `expiration_seconds` (default 1 hour).
     """

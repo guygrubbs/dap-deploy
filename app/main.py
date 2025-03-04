@@ -2,12 +2,10 @@ import logging
 import json
 import google.cloud.logging
 import os
-from fastapi import FastAPI, Request, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import HTTPException as FastAPIHTTPException
-from sqlalchemy.orm import Session
+from fastapi import (
+    FastAPI, Request, Depends, HTTPException, 
+    status, JSONResponse, CORSMiddleware, OAuth2PasswordBearer
+)
 
 # Database imports
 from app.database.database import SessionLocal, init_db
@@ -33,6 +31,7 @@ logger = logging.getLogger(__name__)
 # Read environment variables (if needed here)
 MAX_UPLOAD_SIZE_MB = os.getenv("MAX_UPLOAD_SIZE_MB", "25")
 REPORTS_BUCKET_NAME = os.getenv("REPORTS_BUCKET_NAME", "my-reports-bucket")
+STATIC_API_TOKEN = os.getenv("STATIC_API_TOKEN", "expected-static-token")
 
 app = FastAPI(title="GFV Investment Readiness Report API")
 
@@ -73,8 +72,7 @@ def verify_token(token: str = Depends(oauth2_scheme)):
     """
     Simple stub function to validate a token. Replace with real JWT or OAuth checks.
     """
-    expected_token = "expected_static_token"
-    if token != expected_token:
+    if token != STATIC_API_TOKEN:
         logger.warning("Unauthorized access attempt with token: %s", token)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -110,8 +108,8 @@ def health_check():
 # Exception Handlers
 # ------------------------------------------------------------------
 
-@app.exception_handler(FastAPIHTTPException)
-async def http_exception_handler(request: Request, exc: FastAPIHTTPException):
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == 404:
         logger.warning("HTTP 404 for %s: %s", request.url, exc.detail)
     else:

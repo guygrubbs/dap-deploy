@@ -3,20 +3,12 @@ uvicorn==0.34.0
 sqlalchemy==2.0.38
 psycopg2-binary==2.9.10
 openai==1.65.2
-crewai==0.102.0
 supabase==2.13.0
 google-cloud-logging==3.11.4
 google-cloud-storage==2.19.0
 fpdf==1.7.2
 python-dotenv==1.0.1
 requests==2.32.3
-google.cloud-aiplatform===1.82.0
+google-cloud-aiplatform===1.82.0
 pymupdf==1.25.3
-
-supabase pymupdf openai google-cloud-aiplatform
-
-import argparse
-import os
-import pymupdf  # PyMuPDF
-import openai
-from google.cloud import aiplatform_v1
+python-multipart==0.0.20

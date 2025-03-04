@@ -1,3 +1,5 @@
+# app/api/router.py
+
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -16,14 +18,18 @@ from app.database.crud import (
     create_report_entry,
     get_report_by_id,
     get_report_content,
-    update_report_sections,    # Now used to store final Tier-2 sections in DB
-    update_report_status       # Now used to mark the report as completed
+    update_report_sections,
+    update_report_status
 )
 from app.database.database import SessionLocal
 from app.main import verify_token  # or wherever verify_token is defined
 
 # Import orchestrator logic for generating the full report
 from app.api.ai.orchestrator import generate_report
+
+# Import your PDF and GCS utilities
+from app.storage.pdfgenerator import generate_pdf
+from app.storage.gcs import finalize_report_with_pdf
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +102,7 @@ def create_report(
 
 @router.post(
     "/reports/{report_id}/generate",
-    summary="Generate the full report (Tier-2 sections) via orchestrator",
+    summary="Generate the full report (Tier-2 sections), create PDF, and upload to GCS",
     response_model=ReportResponse
 )
 def generate_full_report(
@@ -106,7 +112,8 @@ def generate_full_report(
 ) -> ReportResponse:
     """
     Triggers the full orchestrator-based generation for the given report,
-    fills in the 7 sections, and updates the DB with final content.
+    fills in the 7 sections, updates the DB with final content,
+    then creates a PDF from those sections and uploads to GCS.
     """
     # 1) Retrieve existing report from DB
     report_model = get_report_by_id(db, report_id)
@@ -127,17 +134,15 @@ def generate_full_report(
     logger.info("Generating full Tier-2 sections for report %s", report_id)
     full_result = generate_report(request_params)
 
-    # 3) Store these sections in DB using update_report_sections(...).
-    #    The 'full_result' is a dict where each key is a section name
-    #    and each value is the generated text.
+    # 3) Store these sections in DB
+    # The 'full_result' is a dict where each key is a section name
+    # and each value is the generated text.
     update_report_sections(db, report_id, full_result)
 
-    # 4) Mark the report as completed using update_report_status(...).
+    # 4) Mark the report as completed
     update_report_status(db, report_id, "completed")
 
-    # 5) Build final ReportResponse
-    # We'll build a list of ReportSection for the response from full_result.
-    sections_list = []
+    # 5) Build a list of sections for PDF output
     section_id_map = {
         "executive_summary_investment_rationale": "Section 1: Executive Summary & Investment Rationale",
         "market_opportunity_competitive_landscape": "Section 2: Market Opportunity & Competitive Landscape",
@@ -147,20 +152,66 @@ def generate_full_report(
         "investor_fit_exit_strategy_funding": "Section 6: Investor Fit, Exit Strategy & Funding Narrative",
         "final_recommendations_next_steps": "Section 7: Final Recommendations & Next Steps"
     }
+
+    sections_list = []
     i = 1
     for key, content in full_result.items():
-        sections_list.append(ReportSection(
-            id=f"section_{i}",
-            title=section_id_map.get(key, key),
-            content=content,
-            sub_sections=[]
-        ))
+        sections_list.append({
+            "id": f"section_{i}",
+            "title": section_id_map.get(key, key),
+            "content": content
+        })
         i += 1
 
-    # Re-fetch the updated status from DB if needed
+    # 6) Generate the PDF in-memory
+    pdf_data = None
+    try:
+        logger.info("Generating PDF for report %s", report_id)
+        pdf_data = generate_pdf(
+            report_id=report_model.id,
+            report_title=report_model.title or "GFV Investment Report",
+            tier2_sections=sections_list,
+            output_path=None  # None -> returns PDF bytes in-memory
+        )
+        logger.info("PDF generated successfully for report %s", report_id)
+    except Exception as e:
+        logger.error("Error generating PDF for report %s: %s", report_id, str(e))
+
+    # 7) If PDF generated successfully, upload to GCS and notify Supabase
+    if pdf_data:
+        try:
+            from app.storage.gcs import finalize_report_with_pdf
+            logger.info("Uploading PDF and notifying Supabase for report %s", report_id)
+            # user_id can be included if your final logic needs it
+            # e.g. 'report_model.user_id' or a known user
+            finalize_report_with_pdf(
+                report_id=report_id,
+                user_id=report_model.user_id if report_model.user_id else 0,
+                final_report_sections=sections_list,
+                pdf_data=pdf_data,
+                expiration_seconds=3600  # or your chosen duration
+            )
+        except Exception as e:
+            logger.error("Error in finalize_report_with_pdf for report %s: %s", report_id, str(e))
+
+    # 8) Build final response
     updated_report = get_report_by_id(db, report_id)
-    # Example progress logic: now that we've updated the report to "completed"
-    progress_value = 100
+    progress_value = 100  # Example logic: we've completed generation
+
+    # Reconstruct the final sections in the response
+    # Now that we've stored them, fetch them from the DB to ensure consistency
+    final_sections_list = []
+    if updated_report.sections:
+        for i, sec in enumerate(updated_report.sections, start=1):
+            final_sections_list.append(ReportSection(
+                id=f"section_{i}",
+                title=sec.section_name or f"Section {i}",
+                content=sec.content or "",
+                sub_sections=[]
+            ))
+
+    # If we had a column for 'pdf_url' in the DB, we could fetch it here
+    signed_pdf_download_url = getattr(updated_report, "pdf_url", None)
 
     return ReportResponse(
         id=updated_report.id,
@@ -173,8 +224,8 @@ def generate_full_report(
         user_id=updated_report.user_id,
         report_type=updated_report.report_type,
         parameters=updated_report.parameters,
-        sections=sections_list,
-        signed_pdf_download_url=None  # if you have final PDF generation, place link here
+        sections=final_sections_list,
+        signed_pdf_download_url=signed_pdf_download_url
     )
 
 
