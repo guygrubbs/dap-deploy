@@ -36,13 +36,16 @@ def create_and_deploy_tree_ah_index(
 
     # Create (or retrieve) an index endpoint to deploy the index
     index_endpoint = aiplatform.MatchingEngineIndexEndpoint.create(
-        display_name=index_endpoint_name
+        display_name=index_endpoint_name,
+        public_endpoint_enabled=True
     )
     print(f"Created index endpoint resource name: {index_endpoint.resource_name}")
 
     # Deploy the index to the endpoint
     deployed_index_id = f"{display_name.lower().replace(' ','_')}_deployed"
-    index_endpoint.deploy_index(index=index, deployed_index_id=deployed_index_id)
+    index_endpoint.deploy_index(
+    index=index,
+    deployed_index_id=deployed_index_id)
 
     print("Index deployed successfully.")
     print("Deployed Index ID:", deployed_index_id)
@@ -51,7 +54,7 @@ def create_and_deploy_tree_ah_index(
 
 if __name__ == "__main__":
     # Example usage
-    PROJECT_ID = "your-gcp-project-id"
+    PROJECT_ID = "deal-adjudication-platform"
     LOCATION = "us-central1"
 
     # 1. Initialize Vertex AI
@@ -65,6 +68,6 @@ if __name__ == "__main__":
         approximate_neighbors_count=100,
         leaf_node_embedding_count=500,
         leaf_nodes_to_search_percent=10,
-        distance_measure_type="COSINE",
+        distance_measure_type="COSINE_DISTANCE",
         index_update_method="STREAM_UPDATE"  # enable real-time upserts
     )

@@ -26,7 +26,7 @@ class BaseAIAgent:
         logger.info("Generating section with prompt:\n%s", prompt)
         try:
             response = openai.ChatCompletion.create(
-                model="gpt-4",
+                model="gpt-4o",
                 messages=[
                     {
                         "role": "system",

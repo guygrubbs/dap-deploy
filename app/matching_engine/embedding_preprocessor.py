@@ -110,7 +110,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Make sure you have set openai.api_key = "..." or use OPENAI_API_KEY env variable
-    openai.api_key = os.getenv("OPENAI_API_KEY")
+    openai.api_key = os.getenv("OPENAI_API_KEY", "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")
     if not openai.api_key:
         raise ValueError("OPENAI_API_KEY not set. Please export or assign it before running.")
 
