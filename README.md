@@ -1,68 +1,59 @@
-# GFV Investment Readiness Report System
+Below is an **example `README.md`** that consolidates all the updates and best practices we’ve covered for your backend. It describes how to **deploy**, **test**, and **integrate** the system, referencing **GCP**, **Supabase**, **PDF generation**, **AI orchestration**, and more.
 
-This repository contains a **GFV Investment Readiness Report generation system**, leveraging **GPT‑4** AI agents, a **FastAPI** application for orchestration, a **PostgreSQL** database (or another SQL-compatible DB) for persistence, **Supabase** as an optional external notification layer, **Google Cloud Storage (GCS)** for final PDF file storage, and **Google Vertex AI Matching Engine** for vector-based retrieval. The system implements a **Tier‑2–based** template that generates comprehensive reports in 7 major sections:
-
-1. **Executive Summary & Investment Rationale**  
-2. **Market Opportunity & Competitive Landscape**  
-3. **Financial Performance & Investment Readiness**  
-4. **Go-To-Market (GTM) Strategy & Customer Traction**  
-5. **Leadership & Team**  
-6. **Investor Fit, Exit Strategy & Funding Narrative**  
-7. **Final Recommendations & Next Steps**
+Feel free to modify the sections and wording to match your organization’s naming conventions, secrets management, and actual deployment flow.
 
 ---
+
+# GFV Investment Readiness Report Backend
+
+A FastAPI-based backend for generating **GFV Tier-2 Investment Readiness** reports, integrating:
+
+- **OpenAI** for AI-generated report sections
+- **Supabase** for storing pitch decks, final JSON data, or user authentication
+- **Postgres** (SQLAlchemy) for local storage of “reports” and “sections”
+- **Google Cloud Storage (GCS)** for PDF uploads & signed URLs
+- **Vertex AI Matching Engine** (optional) for vector-based retrieval
 
 ## Table of Contents
 
-1. [Architecture Overview](#architecture-overview)  
-2. [Folder & File Structure](#folder--file-structure)  
-3. [Prerequisites](#prerequisites)  
-4. [Environment Variables](#environment-variables)  
+1. [Features & Architecture](#features--architecture)  
+2. [Folder Structure](#folder-structure)  
+3. [Environment Variables](#environment-variables)  
+4. [Setup & Installation](#setup--installation)  
 5. [Local Development](#local-development)  
-6. [Database Migrations (Optional)](#database-migrations-optional)  
-7. [Google Cloud Deployment](#google-cloud-deployment)  
-8. [Integration with Supabase & GCS](#integration-with-supabase--gcs)  
-9. [Vector-Based Document Retrieval (Vertex AI)](#vector-based-document-retrieval-vertex-ai)  
-10. [API Usage](#api-usage)  
-11. [Code Module References](#code-module-references)  
-12. [Troubleshooting & Logs](#troubleshooting--logs)  
-13. [License](#license)  
+6. [Deployment (GCP Example)](#deployment-gcp-example)  
+7. [API Endpoints](#api-endpoints)  
+8. [Supabase Integration](#supabase-integration)  
+9. [Pitch Deck Handling](#pitch-deck-handling)  
+10. [PDF Generation & Final Report Flow](#pdf-generation--final-report-flow)  
+11. [Testing & Verification](#testing--verification)  
+12. [Contributing](#contributing)
 
 ---
 
-## Architecture Overview
+## 1. Features & Architecture
 
-1. **FastAPI**:  
-   - Exposes endpoints (`/api/reports`, etc.) to create or retrieve GFV Investment Readiness Reports.  
-   - Includes an orchestrator route to generate all 7 Tier-2 sections with GPT-4.  
-
-2. **Database**:  
-   - Stores reports and sections in a relational schema.  
-   - Handles parameters, user references, status, timestamps, etc.
-
-3. **GPT-4 AI Agents**:  
-   - Dynamically generate each Tier-2 section.  
-   - Subheadings are spelled out in prompt templates.
-
-4. **Orchestrator**:  
-   - Coordinates retrieving relevant doc chunks from Vertex AI, calls each GPT-4 agent, assembles a final dictionary.  
-   - Called by a “generate” endpoint in `router.py`.
-
-5. **Supabase** (Optional):  
-   - If storing pitch decks or final statuses.  
-   - `supabase_notifier.py` can log final data asynchronously.
-
-6. **Google Cloud Storage (GCS)** (Optional):  
-   - `gcs.py` handles final PDF uploads, signed URLs.  
-   - Tied in if you want a PDF version of the final Tier-2 report.
-
-7. **Vertex AI Matching Engine** (Optional):  
-   - Stores pitch deck embeddings, maturity models, or market analysis.  
-   - `retrieval_utils.py` fetches relevant doc chunks, appended to GPT-4 prompts.
+- **FastAPI** provides a RESTful API for creating and generating reports.
+- **AI Orchestrator** calls multiple “AI Agent” classes (OpenAI’s ChatCompletion) to produce the 7 Tier‑2 sections:
+  1) Executive Summary & Investment Rationale  
+  2) Market Opportunity & Competitive Landscape  
+  3) Financial Performance & Investment Readiness  
+  4) Go-To-Market Strategy & Customer Traction  
+  5) Leadership & Team  
+  6) Investor Fit & Funding Narrative  
+  7) Final Recommendations & Next Steps
+- **Local Postgres**: The code uses SQLAlchemy to store and retrieve “reports” and “report_sections.”
+- **Supabase** is used for:
+  - Storing or retrieving pitch decks (PDFs).
+  - Optionally upserting final Tier‑2 data into a “reports” table for external dashboards or integration.
+- **GCS** is used to store the final PDF, with a signed URL for limited-time access.
+- **Vertex AI** (optional) to augment the AI generation with chunk retrieval from pitch decks or other documents.
 
 ---
 
-## Folder & File Structure
+## 2. Folder Structure
+
+A simplified structure (folders may vary):
 
 ```
 ├── app
@@ -99,192 +90,220 @@ This repository contains a **GFV Investment Readiness Report generation system**
 
 ---
 
-## Prerequisites
+## 3. Environment Variables
 
-- **Python 3.8+**  
-- **Poetry** or **pip** for dependency management  
-- **PostgreSQL** or another SQL-compatible DB  
-- **OpenAI** API key for GPT-4 usage  
-- **Google Cloud Project** with Vertex AI, Cloud Storage, and optionally Cloud Run  
-- **Supabase** project if you want doc storage or notifications  
-- PyMuPDF (`pymupdf`) or pdfminer for PDF extraction  
-- google-cloud-aiplatform for Vertex AI calls
+Configure these environment variables to suit your environment:
 
----
-
-## Environment Variables
-
-- `DATABASE_URL` e.g. `postgresql://user:pass@host:5432/dbname`  
-- `OPENAI_API_KEY` for GPT-4  
-- `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` (if using Supabase)  
-- `REPORTS_BUCKET_NAME` (if using GCS to store PDFs)  
-- `VERTEX_ENDPOINT_RESOURCE_NAME`, `VERTEX_DEPLOYED_INDEX_ID` (if using Vertex AI retrieval)  
-- etc.
+| Variable                          | Description                                                          | Default / Example                                                                    |
+|----------------------------------|----------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| `DATABASE_URL`                    | Postgres connection for local DB                                     | `postgresql://user:password@db.host:5432/dbname`                                    |
+| `SUPABASE_URL`                    | Supabase project URL                                                 | `https://xyzcompany.supabase.co`                                                     |
+| `SUPABASE_SERVICE_KEY`            | Supabase service role key                                            | `some-long-secret`                                                                   |
+| `OPENAI_API_KEY`                  | Your OpenAI API key for ChatCompletion                              | *Required* (no default)                                                              |
+| `REPORTS_BUCKET_NAME`             | GCS bucket name for PDFs                                            | `my-reports-bucket`                                                                  |
+| `STATIC_API_TOKEN`                | A static token for dev or PoC auth                                   | `expected-static-token`                                                              |
+| `VERTEX_ENDPOINT_RESOURCE_NAME`   | Vertex AI Matching Engine endpoint (optional)                       | `projects/PROJECT_ID/locations/us-central1/indexEndpoints/ENDPOINT_ID`               |
+| `VERTEX_DEPLOYED_INDEX_ID`        | The deployed index ID in Vertex AI                                  | `my_vector_index_deployed`                                                           |
+| `MAX_UPLOAD_SIZE_MB`              | (Optional) a max upload size used for your logic                    | `25`                                                                                 |
+| `GOOGLE_APPLICATION_CREDENTIALS`  | JSON service account file path (if not using default creds)         | `~/keys/my-gcp-creds.json`                                                           |
 
 ---
 
-## Local Development
+## 4. Setup & Installation
 
-1. **Clone & Install**  
+1. **Clone** this repo:
    ```bash
-   git clone https://github.com/your-org/gfv-investment-readiness.git
-   cd gfv-investment-readiness
+   git clone https://github.com/yourorg/gfv-investment-backend.git
+   cd gfv-investment-backend
+   ```
+2. **Create a virtual environment** (recommended):
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+3. **Install** dependencies:
+   ```bash
    pip install -r requirements.txt
    ```
-   or:
-   ```bash
-   poetry install
+4. **Set** environment variables. For local dev, place them in a `.env` file:
+   ```env
+   DATABASE_URL=postgresql://...
+   SUPABASE_URL=...
+   SUPABASE_SERVICE_KEY=...
+   OPENAI_API_KEY=...
+   REPORTS_BUCKET_NAME=my-reports-bucket
+   STATIC_API_TOKEN=expected-static-token
    ```
-2. **Set** environment variables (`DATABASE_URL`, `OPENAI_API_KEY`, etc.).  
-3. **Start** FastAPI:
+   Then run:
    ```bash
-   uvicorn main:app --host 0.0.0.0 --port 8080
+   export $(cat .env | xargs)
    ```
-   Then visit [http://localhost:8080](http://localhost:8080).
+
+5. **Initialize** the database (if you want auto table creation):
+   ```bash
+   uvicorn app.main:app --host 0.0.0.0 --port 8000
+   ```
+   The `@app.on_event("startup")` in `main.py` calls `init_db()`.
 
 ---
 
-## Database Migrations (Optional)
+## 5. Local Development
 
-If using Alembic or another migration tool:
+- **Run the server**:
+  ```bash
+  uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+  ```
+- Access the **interactive docs** at:  
+  [http://localhost:8000/docs](http://localhost:8000/docs)
 
-```bash
-alembic upgrade head
-```
-
-Or manually create tables from the SQLAlchemy models:
-
-```python
-from app.database.database import init_db
-init_db()  # calls Base.metadata.create_all(bind=engine)
-```
+- **Authentication**: By default, you must pass a Bearer token in requests:
+  ```http
+  Authorization: Bearer expected-static-token
+  ```
+  or the value of `STATIC_API_TOKEN` if changed.
 
 ---
 
-## Google Cloud Deployment
+## 6. Deployment (GCP Example)
 
-A typical approach is **Cloud Run**:
+1. **Dockerize** your app by creating a `Dockerfile`. For example:
 
-1. **Enable** Cloud Run & Vertex AI in your GCP project.  
-2. **Build & Push** Docker:
-   ```bash
-   docker build -t gcr.io/YOUR_PROJECT_ID/gfv-report-app:v1 .
-   docker push gcr.io/YOUR_PROJECT_ID/gfv-report-app:v1
+   ```dockerfile
+   FROM python:3.10-slim
+
+   WORKDIR /app
+   COPY requirements.txt .
+   RUN pip install --no-cache-dir -r requirements.txt
+
+   COPY . /app
+
+   EXPOSE 8080
+   CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
    ```
-3. **Deploy**:
+
+2. **Build** and push the Docker image to **Google Container Registry** or **Artifact Registry**:
    ```bash
-   gcloud run deploy gfv-report-service \
-     --image gcr.io/YOUR_PROJECT_ID/gfv-report-app:v1 \
+   docker build -t gcr.io/PROJECT_ID/gfv-backend:latest .
+   docker push gcr.io/PROJECT_ID/gfv-backend:latest
+   ```
+3. **Deploy** to **Cloud Run**:
+   ```bash
+   gcloud run deploy gfv-backend \
+     --image gcr.io/PROJECT_ID/gfv-backend:latest \
      --platform managed \
      --region us-central1 \
-     --allow-unauthenticated
+     --allow-unauthenticated \
+     --set-env-vars DATABASE_URL=...,REPORTS_BUCKET_NAME=...,OPENAI_API_KEY=...
    ```
-4. **Set** environment variables for DB, OpenAI, Vertex AI, etc.
+4. **Cloud Logging**: The code automatically sets up structured logging if you run on GCP.
 
 ---
 
-## Integration with Supabase & GCS
+## 7. API Endpoints
 
-- **Supabase**:  
-  - `supabase_pitchdeck_downloader.py` can show how to fetch a pitch deck from a Supabase bucket, embed it in Vertex AI.  
-  - `supabase_notifier.py` can post final report data or statuses back to Supabase.
+### `POST /api/reports`
+Create a new report record (status = “pending”).
 
-- **GCS**:  
-  - `gcs.py` has `upload_pdf(...)` and `generate_signed_url(...)` for storing final PDFs.  
-  - Example usage: `finalize_report_with_pdf(...)` shows how you might tie it all together.
+Body example:
+```json
+{
+  "user_id": "abc123",
+  "startup_id": "startup-xyz",
+  "report_type": "investment_readiness",
+  "title": "My GFV Report",
+  "parameters": {
+    "pitchdeck_link": "https://xyzcompany.supabase.co/storage/v1/object/public/pitchdecks/demo.pdf",
+    "industry": "FinTech"
+  }
+}
+```
 
----
+### `POST /api/reports/{report_id}/generate`
+Generates all 7 Tier‑2 sections using the AI agents, updates DB, optionally creates a PDF & uploads to GCS, then notifies Supabase.
 
-## Vector-Based Document Retrieval (Vertex AI)
+### `GET /api/reports/{report_id}`
+Retrieves metadata (title, status, creation times) and final sections if available.
 
-- **`matching_engine_setup.py`**: Creates a tree-AH index with streaming updates. Typically run once.  
-- **`embedding_preprocessor.py`**: Extract text from local PDF, embed with OpenAI, upsert vectors to Vertex AI.  
-- **`retrieval_utils.py`**:  
-  - `retrieve_relevant_chunks(...)` performs approximate nearest neighbor queries for relevant text.  
-  - `build_context_from_matches(...)` merges them into a chunk for GPT-4 prompts.
+### `GET /api/reports/{report_id}/content`
+Returns a simpler structure focusing on the text content of each section, plus a `signed_pdf_download_url` if it exists.
 
----
-
-## API Usage
-
-By default, the **router** is prefixed with `/api`, so:
-
-1. **`POST /api/reports`**: Create a new “report stub.”  
-2. **`POST /api/reports/{report_id}/generate`**: Runs the orchestrator-based GPT-4 generation for all 7 sections.  
-3. **`GET /api/reports/{report_id}`**: Retrieve the final metadata & stored sections.  
-4. **`GET /api/reports/{report_id}/content`**: Retrieve the Tier-2 content specifically.  
-5. **`GET /api/reports/{report_id}/status`**: Check generation status (pending, completed, etc.).
-
-**Health Check**: `GET /health` returns `{"status": "ok"}`.
+### `GET /api/reports/{report_id}/status`
+Quickly check the status & progress of a report generation.
 
 ---
 
-## Code Module References
+## 8. Supabase Integration
 
-Below is a quick map of **where** each main file fits and what it does:
+Two main ways the backend integrates with Supabase:
 
-1. **`app/main.py`**  
-   - FastAPI entrypoint.  
-   - Configures logging, middlewares, DB init.  
-   - Defines a `verify_token(...)` stub.  
-   - Includes `router.py` with prefix `/api`.
-
-2. **`app/api/router.py`**  
-   - Declares `POST /reports`, `POST /reports/{report_id}/generate`, etc.  
-   - Calls `crud.py` for DB ops, `orchestrator.py` for GPT-4 generation.  
-   - Returns typed models from `schemas.py`.
-
-3. **`app/api/schemas.py`**  
-   - Pydantic models for request (`CreateReportRequest`) and responses (`ReportResponse`, etc.).  
-   - Ensures consistent types (title, user_id, sections, etc.).
-
-4. **`app/api/ai/orchestrator.py`**  
-   - `generate_report(request_params)`: Orchestrates GPT-4 calls.  
-   - Optionally calls `retrieve_relevant_chunks(...)` from `retrieval_utils.py`.  
-   - Instantiates 7 agents from `agents.py`, assembles a final dict.
-
-5. **`app/api/ai/agents.py`**  
-   - GPT-4 classes (one per Tier-2 section).  
-   - Each has a `prompt_template` referencing subheadings.  
-   - `BaseAIAgent` calls `openai.ChatCompletion.create(model="gpt-4")`.
-
-6. **`app/database/crud.py`**  
-   - Create/fetch/update logic for `Report` and `ReportSection`.  
-   - `create_report_entry(...)`, `update_report_status(...)`, `update_report_sections(...)`, etc.
-
-7. **`app/database/database.py`**  
-   - Sets up `engine`, `SessionLocal`, `Base`.  
-   - `init_db()` to create tables.  
-
-8. **`app/database/models.py`**  
-   - Defines `Report` and `ReportSection` SQLAlchemy models.  
-   - Relationship for cascade deletion.
-
-9. **`app/matching_engine/*`**  
-   - `matching_engine_setup.py`: Creates & deploys the Vertex AI index.  
-   - `embedding_preprocessor.py`: Embeds a local PDF into that index.  
-   - `retrieval_utils.py`: Queries the index for relevant doc chunks.  
-   - `supabase_pitchdeck_downloader.py`: If you store pitch decks in Supabase, an example script to embed them.
-
-10. **`app/notifications/supabase_notifier.py`**  
-    - Example code to post final Tier-2 data or partial statuses to a `reports` table in Supabase.
-
-11. **`app/storage/gcs.py`**  
-    - Functions to `upload_pdf(...)` and `generate_signed_url(...)` in GCS.  
-    - Optionally used if final PDF outputs are needed.
+1. **Pitch Deck Storage**: You can store pitch decks in a “pitchdecks” bucket. The link is included in the `parameters` or a dedicated field, so the orchestrator can reference it.
+2. **Final Report Data**: The code (e.g., `supabase_notifier.py`) calls:
+   ```python
+   supabase.table("reports").upsert({...}).execute()
+   ```
+   once the final Tier‑2 sections or PDF link is ready. This means you can view or parse the final data in a “reports” table inside Supabase.
 
 ---
 
-## Troubleshooting & Logs
+## 9. Pitch Deck Handling
 
-1. **Cloud Logs**: If running on Cloud Run or GCP, logs are shipped to Cloud Logging (since `google.cloud.logging.Client().setup_logging()` is used).  
-2. **Supabase**: Check the `reports` table if you upsert final data.  
-3. **Vertex AI**: Confirm `VERTEX_ENDPOINT_RESOURCE_NAME` and `VERTEX_DEPLOYED_INDEX_ID` match your index.  
-4. **OpenAI**: Ensure `OPENAI_API_KEY` is valid.  
-5. **DB**: If local dev, confirm `DATABASE_URL`. For production, set it in your environment (Cloud Run env vars, etc.).
+1. **Upload** the PDF pitch deck to Supabase Storage:
+   - Typically `supabase.storage.from_("pitchdecks").upload("some-file.pdf", fileData)`.
+2. **Pass** the resulting URL to the backend in the `parameters` (or a `pitchdeck_link` field).
+3. If you want to **embed** that deck’s text in the final AI context, you can run code in the orchestrator to download & parse it. Or you can store it as part of “retrieved_context.”
 
 ---
 
-## License
+## 10. PDF Generation & Final Report Flow
 
-MIT
+- **`pdfgenerator.py`** uses `FPDF` to build a nicely formatted PDF from the 7 Tier‑2 sections.
+- **`gcs.py`** handles:
+  - `upload_pdf(report_id, pdf_data)` → Uploading the in-memory bytes to GCS.
+  - `generate_signed_url(blob_name, expiration=3600)` → Returning a temporary link.
+  - `finalize_report_with_pdf(...)` → Combines PDF upload, URL creation, and calls `notify_supabase_final_report(...).`
+
+**Flow**:
+1. `generate_full_report` endpoint triggers the AI orchestration.  
+2. The final text is stored in local DB.  
+3. A PDF is generated from those sections.  
+4. The PDF is uploaded to GCS.  
+5. A signed URL is created.  
+6. The code upserts final data (including the PDF link) to Supabase.
+
+---
+
+## 11. Testing & Verification
+
+1. **Unit Tests**:  
+   - You can write FastAPI tests using `pytest` and `TestClient`.  
+   - Test each endpoint (`POST /reports`, etc.) to ensure the DB updates.
+
+2. **Integration Tests**:  
+   - In a staging environment with real **Supabase** + **GCS** + **OpenAI** credentials.  
+   - Check a sample pitch deck is used to produce final sections. Confirm the PDF link is valid.
+
+3. **Monitoring**:  
+   - Inspect the logs in Cloud Logging if deployed on GCP.  
+   - Validate that PDF uploads appear in the specified GCS bucket and that `supabase_notifier.py` entries appear in your “reports” table in Supabase.
+
+---
+
+## 12. Contributing
+
+1. **Fork** or create a branch.  
+2. Submit pull requests with detailed commit messages.  
+3. Follow Pythonic style (PEP 8).  
+4. Use docstrings for new endpoints.  
+5. If adding new environment variables, update `.env.example` and the table in this README.
+
+---
+
+### Final Notes
+
+- **Security**: If you want production-level auth, replace the `STATIC_API_TOKEN` approach with real **JWT** or **Supabase Auth** checks in `verify_token()`.  
+- **Token Limits**: The OpenAI GPT-3.5 model has a ~4K token limit, GPT-4 might have 8K or 32K. If you pass large pitch decks or retrieval contexts, chunk or summarize them first.  
+- **Performance**: AI calls can be time-consuming. For heavy usage, you might add a task queue (Celery or RQ) to handle the generation in the background.
+
+---
+
+That’s it! By following this **README**, you should be able to **deploy**, **test**, and **integrate** the GFV Tier-2 backend with **Lovable (Supabase)**, GCS, and OpenAI. If you have any questions or further customizations, refer to the individual modules in `app/` or open an issue in your repository.
