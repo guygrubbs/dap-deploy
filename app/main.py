@@ -4,9 +4,11 @@ import google.cloud.logging
 import os
 from fastapi import (
     FastAPI, Request, Depends, HTTPException, 
-    status, CORSMiddleware, OAuth2PasswordBearer
+    status, CORSMiddleware
 )
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer
 
 # Database imports
 from app.database.database import SessionLocal, init_db
