@@ -13,7 +13,7 @@ def create_report_entry(
     report_type: str,
     parameters: dict
 ) -> Report:
-    parameters_str = json.dumps(parameters) if parameters else None
+    # parameters_str = json.dumps(parameters) if parameters else None
 
     new_report = Report(
         title=title,
@@ -21,7 +21,7 @@ def create_report_entry(
         user_id=user_id,
         startup_id=startup_id,
         report_type=report_type,
-        parameters=parameters_str
+        parameters=parameters
     )
     db.add(new_report)
     try:
