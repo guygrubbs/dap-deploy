@@ -26,7 +26,6 @@ from app.database.crud import (
     update_report_status
 )
 from app.database.database import SessionLocal
-from app.main import verify_token  # or wherever verify_token is defined
 
 # Import orchestrator logic for generating the full report
 from app.api.ai.orchestrator import generate_report
@@ -71,8 +70,7 @@ class UploadToOpenAIRequest(BaseModel):
 def upload_deck_to_openai(
     deck_file: str,
     request_body: UploadToOpenAIRequest = Body(...),
-    db: Session = Depends(get_db),
-    token: str = Depends(verify_token)
+    db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
     1) Downloads a PDF pitch deck from Supabase (using 'deck_file' as the filename).
@@ -140,8 +138,7 @@ def upload_deck_to_openai(
 )
 def create_report(
     request: CreateReportRequest,
-    db: Session = Depends(get_db),
-    token: str = Depends(verify_token)
+    db: Session = Depends(get_db)
 ) -> ReportResponse:
     """
     Creates a new report generation request using provided report parameters and user info.
@@ -195,8 +192,7 @@ def create_report(
 )
 def generate_full_report(
     report_id: int,
-    db: Session = Depends(get_db),
-    token: str = Depends(verify_token)
+    db: Session = Depends(get_db)
 ) -> ReportResponse:
     """
     Triggers the full orchestrator-based generation for the given report,
@@ -341,8 +337,7 @@ def generate_full_report(
 )
 def get_report(
     report_id: int,
-    db: Session = Depends(get_db),
-    token: str = Depends(verify_token)
+    db: Session = Depends(get_db)
 ) -> ReportResponse:
     """
     Retrieves report details by report ID, including:
@@ -391,8 +386,7 @@ def get_report(
 )
 def get_report_content_endpoint(
     report_id: int,
-    db: Session = Depends(get_db),
-    token: str = Depends(verify_token)
+    db: Session = Depends(get_db)
 ) -> ReportContentResponse:
     """
     Retrieves the content details for a completed report,
@@ -428,8 +422,7 @@ def get_report_content_endpoint(
 )
 def report_status(
     report_id: int,
-    db: Session = Depends(get_db),
-    token: str = Depends(verify_token)
+    db: Session = Depends(get_db)
 ) -> ReportStatusResponse:
     """
     Returns the current status and progress of a report generation.
