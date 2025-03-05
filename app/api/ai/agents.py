@@ -30,7 +30,7 @@ class BaseAIAgent:
         logger.info("Generating section with prompt:\n%s", prompt)
 
         # Retrieve model name from environment or default to "gpt-4"
-        model_name = os.getenv("OPENAI_MODEL", "gpt-4")
+        model_name = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
         try:
             response = openai.ChatCompletion.create(
