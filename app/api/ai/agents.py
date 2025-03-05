@@ -1,3 +1,4 @@
+import os
 import openai
 import logging
 from typing import Any, Dict
@@ -19,14 +20,21 @@ class BaseAIAgent:
 
         The method dynamically formats the prompt template with the given context,
         ensuring that details like industry, company name, key metrics, etc.,
-        tailor the output. Then it calls the GPT-4 API to generate the section.
+        tailor the output. Then it calls the GPT API (default "gpt-4") to generate the section.
+
+        If you want to reference a custom fine-tuned model (e.g. "ft:gpt-3.5-turbo-1234abc"),
+        just set the environment variable OPENAI_MODEL to that string.
         """
         # Dynamically generate the prompt based on input context
         prompt = self.prompt_template.format(**context)
         logger.info("Generating section with prompt:\n%s", prompt)
+
+        # Retrieve model name from environment or default to "gpt-4"
+        model_name = os.getenv("OPENAI_MODEL", "gpt-4")
+
         try:
             response = openai.ChatCompletion.create(
-                model="gpt-4o",
+                model=model_name,
                 messages=[
                     {
                         "role": "system",
@@ -40,7 +48,7 @@ class BaseAIAgent:
                 temperature=0.7,
             )
             content = response["choices"][0]["message"]["content"].strip()
-            logger.info("Section generated successfully.")
+            logger.info("Section generated successfully using model: %s", model_name)
             return content
         except Exception as e:
             logger.error("Error generating section: %s", str(e), exc_info=True)

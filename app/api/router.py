@@ -1,7 +1,11 @@
 # app/api/router.py
 
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
+import requests
+from fastapi import APIRouter, Depends, HTTPException, status, Body
+from pydantic import BaseModel
+from typing import Optional, Dict, Any
+
 from sqlalchemy.orm import Session
 
 # For demonstration, import the new schemas from your 'schemas.py'.
@@ -31,8 +35,16 @@ from app.api.ai.orchestrator import generate_report
 from app.storage.pdfgenerator import generate_pdf
 from app.storage.gcs import finalize_report_with_pdf
 
-logger = logging.getLogger(__name__)
+# Import the new code for PDF -> JSONL -> OpenAI
+# Adjust the import path if pdf_to_openai_jsonl.py lives elsewhere
+from app.matching_engine.pdf_to_openai_jsonl import (
+    download_pdf_from_supabase,
+    extract_text_with_ocr,
+    create_jsonl_file,
+    upload_jsonl_to_openai
+)
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 def get_db():
@@ -43,6 +55,82 @@ def get_db():
     finally:
         db.close()
 
+
+# -------------------------------------------------------------------------
+#  NEW POST ENDPOINT: /pitchdecks/{deck_file}/upload_to_openai
+# -------------------------------------------------------------------------
+class UploadToOpenAIRequest(BaseModel):
+    """Optional body model for additional params (bucket, out_jsonl, etc.)."""
+    bucket: Optional[str] = "pitchdecks"
+    output_filename: Optional[str] = "pitchdeck_data.jsonl"
+    upload_to_openai: Optional[bool] = True
+    # You can add more fields as needed.
+
+
+@router.post("/pitchdecks/{deck_file}/upload_to_openai", summary="Convert a pitch deck to .jsonl and upload it to OpenAI.")
+def upload_deck_to_openai(
+    deck_file: str,
+    request_body: UploadToOpenAIRequest = Body(...),
+    db: Session = Depends(get_db),
+    token: str = Depends(verify_token)
+) -> Dict[str, Any]:
+    """
+    1) Downloads a PDF pitch deck from Supabase (using 'deck_file' as the filename).
+    2) Extracts text (fallback to OCR if needed).
+    3) Creates a .jsonl file in memory or on disk.
+    4) Optionally uploads that file to OpenAI with `purpose="fine-tune"`.
+    5) Returns the OpenAI file ID if upload is successful, or an error if any step fails.
+
+    Path Params:
+      - deck_file: The PDF filename stored in Supabase, e.g. "deck1.pdf".
+
+    JSON Body (UploadToOpenAIRequest):
+      - bucket: Name of the Supabase bucket containing the PDF (default "pitchdecks").
+      - output_filename: The local .jsonl filename to create (default "pitchdeck_data.jsonl").
+      - upload_to_openai: Whether to upload the .jsonl file to OpenAI (default True).
+
+    Returns:
+      A JSON dict with either:
+        {"file_id": <OpenAI file ID>} on success, or
+        {"error": <message>} on failure.
+    """
+    try:
+        # 1) Download the PDF as bytes from Supabase
+        bucket = request_body.bucket or "pitchdecks"
+        pdf_bytes = download_pdf_from_supabase(deck_file, bucket=bucket)
+        logger.info(f"Downloaded PDF '{deck_file}' from Supabase bucket '{bucket}'")
+
+        # 2) Extract text with OCR fallback
+        extracted_text = extract_text_with_ocr(pdf_bytes)
+        if not extracted_text.strip():
+            logger.warning("No text extracted from the PDF; possibly empty or scanned images only.")
+
+        # 3) Create a local JSONL file
+        out_jsonl_path = request_body.output_filename
+        create_jsonl_file(extracted_text, out_jsonl_path)
+        logger.info(f"Created JSONL file at: {out_jsonl_path}")
+
+        # 4) Optionally upload to OpenAI
+        openai_file_id = None
+        if request_body.upload_to_openai:
+            openai_file_id = upload_jsonl_to_openai(out_jsonl_path, purpose="fine-tune")
+            logger.info(f"Uploaded JSONL to OpenAI; file_id={openai_file_id}")
+
+        # 5) Return success
+        return {
+            "deck_file": deck_file,
+            "bucket": bucket,
+            "jsonl_path": out_jsonl_path,
+            "openai_file_id": openai_file_id
+        }
+    except Exception as e:
+        logger.error("Error in /pitchdecks/{deck_file}/upload_to_openai endpoint: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to upload pitch deck to OpenAI: {e}")
+
+
+# -------------------------------------------------------------------------
+#  Existing /reports endpoints below
+# -------------------------------------------------------------------------
 
 @router.post(
     "/reports",
@@ -122,27 +210,51 @@ def generate_full_report(
         raise HTTPException(status_code=404, detail="Report not found")
 
     # 2) Prepare the request_params dict from the report data
+    #    We assume your DB or request 'parameters' might store the pitch-deck URL.
+    #    For example, "pitch_deck_url": "https://<supabasePublicURL>?token=..."
     request_params = {
         "report_query": f"Full investment readiness for report_id={report_id}",
-        "company": "{}",   # placeholders or actual data from DB
+        "company": "{}",   # placeholders
         "industry": "{}",
     }
     if report_model.parameters:
-        # if parameters is JSON/dict, merge them
         request_params.update(report_model.parameters)
 
+    # 3) If the DB or parameters has a "pitch_deck_url", fetch that PDF
+    pitch_deck_url = request_params.get("pitch_deck_url")
+    if pitch_deck_url:
+        logger.info("Attempting to download PDF from Supabase public URL: %s", pitch_deck_url)
+        try:
+            # a) Download PDF via HTTP GET
+            response = requests.get(pitch_deck_url, timeout=30)
+            response.raise_for_status()
+            pdf_bytes = response.content
+
+            # b) Extract text from PDF
+            #    Here, you can reuse your OCR-based text extraction logic or a snippet:
+            from app.matching_engine.pdf_to_openai_jsonl import extract_text_with_ocr
+            pitch_deck_text = extract_text_with_ocr(pdf_bytes)
+            logger.info("Pitch deck text extracted, length=%s chars", len(pitch_deck_text))
+
+            # c) Store ephemeral text in request_params
+            request_params["pitch_deck_text"] = pitch_deck_text
+
+        except Exception as e:
+            logger.error("Error downloading or extracting pitch deck: %s", str(e), exc_info=True)
+            # Optionally, you can raise HTTP 400 or continue with no deck text
+            raise HTTPException(status_code=400, detail=f"Failed to fetch pitch deck PDF: {str(e)}")
+
     logger.info("Generating full Tier-2 sections for report %s", report_id)
+    # 4) Call generate_report with ephemeral pitch deck text
     full_result = generate_report(request_params)
 
-    # 3) Store these sections in DB
-    # The 'full_result' is a dict where each key is a section name
-    # and each value is the generated text.
+    # 5) Store these sections in DB
     update_report_sections(db, report_id, full_result)
 
-    # 4) Mark the report as completed
+    # 6) Mark the report as completed
     update_report_status(db, report_id, "completed")
 
-    # 5) Build a list of sections for PDF output
+    # 7) Build a list of sections for PDF output
     section_id_map = {
         "executive_summary_investment_rationale": "Section 1: Executive Summary & Investment Rationale",
         "market_opportunity_competitive_landscape": "Section 2: Market Opportunity & Competitive Landscape",
@@ -163,7 +275,7 @@ def generate_full_report(
         })
         i += 1
 
-    # 6) Generate the PDF in-memory
+    # 8) Generate PDF in-memory
     pdf_data = None
     try:
         logger.info("Generating PDF for report %s", report_id)
@@ -171,35 +283,29 @@ def generate_full_report(
             report_id=report_model.id,
             report_title=report_model.title or "GFV Investment Report",
             tier2_sections=sections_list,
-            output_path=None  # None -> returns PDF bytes in-memory
+            output_path=None
         )
         logger.info("PDF generated successfully for report %s", report_id)
     except Exception as e:
         logger.error("Error generating PDF for report %s: %s", report_id, str(e))
 
-    # 7) If PDF generated successfully, upload to GCS and notify Supabase
+    # 9) If PDF generated successfully, upload to GCS and notify Supabase
     if pdf_data:
         try:
-            from app.storage.gcs import finalize_report_with_pdf
-            logger.info("Uploading PDF and notifying Supabase for report %s", report_id)
-            # user_id can be included if your final logic needs it
-            # e.g. 'report_model.user_id' or a known user
             finalize_report_with_pdf(
                 report_id=report_id,
                 user_id=report_model.user_id if report_model.user_id else 0,
                 final_report_sections=sections_list,
                 pdf_data=pdf_data,
-                expiration_seconds=3600  # or your chosen duration
+                expiration_seconds=3600
             )
         except Exception as e:
             logger.error("Error in finalize_report_with_pdf for report %s: %s", report_id, str(e))
 
-    # 8) Build final response
+    # 10) Build final response
     updated_report = get_report_by_id(db, report_id)
-    progress_value = 100  # Example logic: we've completed generation
+    progress_value = 100
 
-    # Reconstruct the final sections in the response
-    # Now that we've stored them, fetch them from the DB to ensure consistency
     final_sections_list = []
     if updated_report.sections:
         for i, sec in enumerate(updated_report.sections, start=1):
@@ -210,7 +316,6 @@ def generate_full_report(
                 sub_sections=[]
             ))
 
-    # If we had a column for 'pdf_url' in the DB, we could fetch it here
     signed_pdf_download_url = getattr(updated_report, "pdf_url", None)
 
     return ReportResponse(
@@ -221,7 +326,7 @@ def generate_full_report(
         updated_at=str(updated_report.completed_at) if updated_report.completed_at else None,
         progress=progress_value,
         startup_id=updated_report.startup_id,
-        user_id=updated_report.user_id,
+        user_id=report_model.user_id,
         report_type=updated_report.report_type,
         parameters=updated_report.parameters,
         sections=final_sections_list,
@@ -250,7 +355,6 @@ def get_report(
         logger.warning("Report with id %s not found", report_id)
         raise HTTPException(status_code=404, detail="Report not found")
 
-    # Convert sections (stored in DB) to a list of ReportSection if applicable
     sections_list = []
     if report_model.sections:
         for i, sec in enumerate(report_model.sections, start=1):
@@ -262,8 +366,6 @@ def get_report(
             ))
 
     signed_pdf_download_url = getattr(report_model, "pdf_url", None)
-
-    # Example progress logic
     progress = 100 if report_model.status.lower() == "completed" else 50
 
     return ReportResponse(
@@ -338,7 +440,6 @@ def report_status(
         logger.warning("Report with id %s not found", report_id)
         raise HTTPException(status_code=404, detail="Report not found")
 
-    # Example progress logic
     progress_value = 100 if report_model.status.lower() == "completed" else 50
 
     return ReportStatusResponse(

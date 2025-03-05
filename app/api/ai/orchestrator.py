@@ -60,15 +60,13 @@ def generate_report(request_params: dict) -> dict:
     Returns:
         dict: The final report content with all seven sections.
     """
-
-    # 1) Log context (excluding sensitive fields)
     safe_context = {k: request_params.get(k) for k in request_params if k != "sensitive"}
     logger.info("Starting report generation with context: %s", safe_context)
 
-    # (Optional) Vector retrieval for context, if Vertex AI Matching Engine is configured
     user_query = request_params.get("report_query", "Investment readiness analysis")
     endpoint_resource_name = os.getenv("VERTEX_ENDPOINT_RESOURCE_NAME", "")
-    deployed_index_id = os.getenv("VERTEX_DEPLOYED_INDEX_ID", "")  # e.g. 'my_vector_index_deployed'
+    deployed_index_id = os.getenv("VERTEX_DEPLOYED_INDEX_ID", "")
+
     if endpoint_resource_name and deployed_index_id:
         top_matches = retrieve_relevant_chunks(
             query_text=user_query,
@@ -81,22 +79,31 @@ def generate_report(request_params: dict) -> dict:
         logger.warning("VERTEX_ENDPOINT_RESOURCE_NAME or VERTEX_DEPLOYED_INDEX_ID is not set. Skipping retrieval.")
         context_snippets = ""
 
-    # 2) Initialize AI agents for each Tier-2 section
-    executive_summary_agent = ExecutiveSummaryAgent()      # Section 1
-    market_opportunity_agent = MarketAnalysisAgent()       # Section 2
-    financial_performance_agent = FinancialPerformanceAgent()  # Section 3
-    gtm_strategy_agent = GoToMarketAgent()                 # Section 4
-    leadership_team_agent = LeadershipTeamAgent()          # Section 5
-    investor_fit_agent = InvestorFitAgent()                # Section 6
-    recommendations_agent = RecommendationsAgent()         # Section 7
+    # Grab ephemeral pitch-deck text if present
+    pitch_deck_text = request_params.get("pitch_deck_text", "")
 
-    # 3) Copy request_params to a working context
+    # Combine them
+    ephemeral_context = ""
+    if pitch_deck_text.strip():
+        ephemeral_context += f"Pitch Deck Text:\n{pitch_deck_text}\n\n"
+    if context_snippets.strip():
+        ephemeral_context += f"{context_snippets}\n"
+
+    # Initialize AI agents
+    executive_summary_agent = ExecutiveSummaryAgent()
+    market_opportunity_agent = MarketAnalysisAgent()
+    financial_performance_agent = FinancialPerformanceAgent()
+    gtm_strategy_agent = GoToMarketAgent()
+    leadership_team_agent = LeadershipTeamAgent()
+    investor_fit_agent = InvestorFitAgent()
+    recommendations_agent = RecommendationsAgent()
+
+    # Make a copy of request_params to hold the final context
     context = request_params.copy()
-    # Insert the retrieved context into the `context` dictionary
-    context["retrieved_context"] = context_snippets
+    # Insert ephemeral context
+    context["retrieved_context"] = ephemeral_context
 
-    # 4) Generate each section with retry logic
-    # 1) Executive Summary & Investment Rationale
+    # Generate each section with retry logic
     executive_summary_investment_rationale = generate_with_retry(
         executive_summary_agent,
         context,
@@ -104,7 +111,6 @@ def generate_report(request_params: dict) -> dict:
     )
     context["executive_summary_investment_rationale"] = executive_summary_investment_rationale
 
-    # 2) Market Opportunity & Competitive Landscape
     market_opportunity_competitive_landscape = generate_with_retry(
         market_opportunity_agent,
         context,
@@ -112,7 +118,6 @@ def generate_report(request_params: dict) -> dict:
     )
     context["market_opportunity_competitive_landscape"] = market_opportunity_competitive_landscape
 
-    # 3) Financial Performance & Investment Readiness
     financial_performance_investment_readiness = generate_with_retry(
         financial_performance_agent,
         context,
@@ -120,7 +125,6 @@ def generate_report(request_params: dict) -> dict:
     )
     context["financial_performance_investment_readiness"] = financial_performance_investment_readiness
 
-    # 4) Go-To-Market (GTM) Strategy & Customer Traction
     go_to_market_strategy_customer_traction = generate_with_retry(
         gtm_strategy_agent,
         context,
@@ -128,7 +132,6 @@ def generate_report(request_params: dict) -> dict:
     )
     context["go_to_market_strategy_customer_traction"] = go_to_market_strategy_customer_traction
 
-    # 5) Leadership & Team
     leadership_team = generate_with_retry(
         leadership_team_agent,
         context,
@@ -136,7 +139,6 @@ def generate_report(request_params: dict) -> dict:
     )
     context["leadership_team"] = leadership_team
 
-    # 6) Investor Fit, Exit Strategy & Funding Narrative
     investor_fit_exit_strategy_funding = generate_with_retry(
         investor_fit_agent,
         context,
@@ -144,7 +146,6 @@ def generate_report(request_params: dict) -> dict:
     )
     context["investor_fit_exit_strategy_funding"] = investor_fit_exit_strategy_funding
 
-    # 7) Final Recommendations & Next Steps
     final_recommendations_next_steps = generate_with_retry(
         recommendations_agent,
         context,
@@ -152,7 +153,6 @@ def generate_report(request_params: dict) -> dict:
     )
     context["final_recommendations_next_steps"] = final_recommendations_next_steps
 
-    # 5) Construct the final report dict
     full_report = {
         "executive_summary_investment_rationale": executive_summary_investment_rationale,
         "market_opportunity_competitive_landscape": market_opportunity_competitive_landscape,
@@ -163,7 +163,7 @@ def generate_report(request_params: dict) -> dict:
         "final_recommendations_next_steps": final_recommendations_next_steps,
     }
 
-    # 6) Log status of each section (simple pass/fail check)
+    # Simple status logging
     status_summary = {}
     for section_name, content in full_report.items():
         if "Error generating" in content:
@@ -172,5 +172,4 @@ def generate_report(request_params: dict) -> dict:
             status_summary[section_name] = "generated"
 
     logger.info("Report generation completed. Section statuses: %s", status_summary)
-
     return full_report
