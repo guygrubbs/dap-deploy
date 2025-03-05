@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, func
 from sqlalchemy.orm import relationship
 from app.database.database import Base
+from sqlalchemy.dialects.postgresql import JSONB
 
 # (Optional) If you'd like to store JSON data in PostgreSQL, import:
 # from sqlalchemy.dialects.postgresql import JSONB
@@ -23,7 +24,7 @@ class Report(Base):
     # (New) Store parameters; can be JSON or Text
     # If you prefer JSONB in PostgreSQL:
     # parameters = Column(JSONB, nullable=True)
-    parameters = Column(Text, nullable=True)
+    parameters = Column(JSONB, nullable=True)
 
     # Relationship to report sections
     sections = relationship("ReportSection", back_populates="report", cascade="all, delete-orphan")
