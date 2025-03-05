@@ -5,6 +5,7 @@ import requests
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
+import json
 
 from sqlalchemy.orm import Session
 
@@ -213,6 +214,12 @@ def generate_full_report(
         "company": "{}",   # placeholders
         "industry": "{}",
     }
+    # decode parameters from JSON string to dict if needed
+    if report_model.parameters and isinstance(report_model.parameters, str):
+        try:
+            report_model.parameters = json.loads(report_model.parameters)
+        except json.JSONDecodeError:
+            report_model.parameters = None
     if report_model.parameters:
         request_params.update(report_model.parameters)
 
