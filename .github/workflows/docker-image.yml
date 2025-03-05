@@ -8,26 +8,20 @@ jobs:
   build-docker:
     runs-on: ubuntu-latest
     steps:
-      # 1) Check out code
       - name: Check out repository
         uses: actions/checkout@v3
 
-      # 2) Log in to Docker (optional; needed if pushing to a registry)
-      # For now, skipping if we only want to build and store artifact.
-
-      # 3) Build the Docker image
       - name: Build Docker image
         run: |
           docker build -t myapp:${{ github.sha }} .
 
-      # 4) Save the Docker image as a tar file for artifact
       - name: Save Docker image to file
         run: |
           docker save myapp:${{ github.sha }} -o myapp-${{ github.sha }}.tar
 
-      # 5) Upload the tar file as a build artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: myapp-image-${{ github.sha }}
           path: myapp-${{ github.sha }}.tar
+
