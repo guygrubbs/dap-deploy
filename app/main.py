@@ -13,6 +13,9 @@ from fastapi.security import OAuth2PasswordBearer
 # Database imports
 from app.database.database import SessionLocal, init_db
 
+# Router import
+from app.api.router import router as reports_router
+
 # Initialize Google Cloud Logging client
 client = google.cloud.logging.Client()
 default_handler = client.get_default_handler()
