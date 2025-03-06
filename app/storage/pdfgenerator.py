@@ -84,7 +84,7 @@ def generate_pdf(
         return output_path
     else:
         pdf_buffer = BytesIO()
-        pdf.output(pdf_buffer)
+        pdf.output(name=pdf_buffer, dest="F")
         pdf_bytes = pdf_buffer.getvalue()
         pdf_buffer.close()
         return pdf_bytes
