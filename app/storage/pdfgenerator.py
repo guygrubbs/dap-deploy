@@ -3,6 +3,15 @@ from fpdf import FPDF
 from io import BytesIO
 from typing import Union, Dict, Any, List
 
+def _sanitize_em_dashes(text: str) -> str:
+    """
+    Replaces all em-dash characters (\u2014) with a compliant alternative,
+    such as a single ASCII dash for fonts that lack full Unicode coverage.
+    """
+    # Replace each em-dash (—) with a single ASCII dash (-).
+    # Adjust the replacement character if you prefer a different style.
+    return text.replace("\u2014", "-")
+
 
 class PDFGenerator(FPDF):
     """
@@ -59,14 +68,21 @@ def generate_pdf(
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
 
+    # Sanitize em-dashes in the main title as well
+    safe_title = _sanitize_em_dashes(report_title)
+
     # Main Title
-    pdf.cell(0, 10, f"Report #{report_id}: {report_title}", ln=1, align="C")
+    pdf.cell(0, 10, f"Report #{report_id}: {safe_title}", ln=1, align="C")
     pdf.ln(10)
 
     # Now iterate over Tier‑2 sections
     for section in tier2_sections:
-        section_title = section.get("title", "Untitled Section")
-        section_content = section.get("content", "No content available.")
+        section_title = section.get("title", "Untitled Section") or ""
+        section_content = section.get("content", "No content available.") or ""
+
+        # Sanitize em-dashes in both the title and content
+        section_title = _sanitize_em_dashes(section_title)
+        section_content = _sanitize_em_dashes(section_content)
 
         # Section header
         pdf.set_font("Arial", "B", 14)
