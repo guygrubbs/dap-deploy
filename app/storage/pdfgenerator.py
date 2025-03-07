@@ -3,15 +3,28 @@ from fpdf import FPDF
 from io import BytesIO
 from typing import Union, Dict, Any, List
 
-def _sanitize_em_dashes(text: str) -> str:
+def _sanitize_text(text: str) -> str:
     """
-    Replaces all em-dash characters (\u2014) with a compliant alternative,
-    such as a single ASCII dash for fonts that lack full Unicode coverage.
+    Replaces characters that are not supported by the default FPDF fonts
+    (Latin-1 encoding). Converts “fancy quotes”, ellipses, and em dashes
+    to simple ASCII alternatives. Expand/modify as needed.
     """
-    # Replace each em-dash (—) with a single ASCII dash (-).
-    # Adjust the replacement character if you prefer a different style.
-    return text.replace("\u2014", "-")
+    # Mapping of problematic Unicode chars to ASCII replacements
+    replacements = {
+        "\u2014": "-",    # em dash
+        "\u2013": "-",    # en dash
+        "\u2018": "'",    # left single quote
+        "\u2019": "'",    # right single quote / apostrophe
+        "\u201C": '"',    # left double quote
+        "\u201D": '"',    # right double quote
+        "\u2026": "...",  # ellipsis
+    }
 
+    # Apply each replacement in turn
+    for orig, repl in replacements.items():
+        text = text.replace(orig, repl)
+
+    return text
 
 class PDFGenerator(FPDF):
     """
@@ -23,6 +36,7 @@ class PDFGenerator(FPDF):
         Defines the header that appears at the top of each page.
         You can customize fonts, colors, or add logos as needed.
         """
+        # Remember to sanitize any text you place here, if needed.
         self.set_font("Arial", "B", 12)
         self.cell(0, 10, "GFV Investment Readiness Report", border=False, ln=1, align="C")
         self.ln(5)
@@ -33,7 +47,9 @@ class PDFGenerator(FPDF):
         """
         self.set_y(-15)
         self.set_font("Arial", "I", 8)
-        self.cell(0, 10, f"Page {self.page_no()}", 0, 0, "C")
+        page_text = f"Page {self.page_no()}"
+        page_text = _sanitize_text(page_text)  # Just in case of unexpected chars
+        self.cell(0, 10, page_text, 0, 0, "C")
 
 
 def generate_pdf(
@@ -60,16 +76,16 @@ def generate_pdf(
 
     Returns:
         bytes or str:
-            - If output_path is None, a bytes object of the generated PDF is returned.
-            - If output_path is provided, the file path is returned.
+            - If output_path is None, returns a bytes object of the generated PDF.
+            - If output_path is provided, returns that file path as a string.
     """
     pdf = PDFGenerator(orientation="P", unit="mm", format="A4")
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
 
-    # Sanitize em-dashes in the main title as well
-    safe_title = _sanitize_em_dashes(report_title)
+    # Sanitize the main title
+    safe_title = _sanitize_text(report_title)
 
     # Main Title
     pdf.cell(0, 10, f"Report #{report_id}: {safe_title}", ln=1, align="C")
@@ -77,12 +93,13 @@ def generate_pdf(
 
     # Now iterate over Tier‑2 sections
     for section in tier2_sections:
-        section_title = section.get("title", "Untitled Section") or ""
-        section_content = section.get("content", "No content available.") or ""
+        # Safely retrieve text fields
+        raw_title = section.get("title", "Untitled Section")
+        raw_content = section.get("content", "No content available.")
 
-        # Sanitize em-dashes in both the title and content
-        section_title = _sanitize_em_dashes(section_title)
-        section_content = _sanitize_em_dashes(section_content)
+        # Sanitize them
+        section_title = _sanitize_text(raw_title)
+        section_content = _sanitize_text(raw_content)
 
         # Section header
         pdf.set_font("Arial", "B", 14)
@@ -99,5 +116,6 @@ def generate_pdf(
         pdf.output(output_path)
         return output_path
     else:
+        # Use "S" to output as a bytes string
         pdf_bytes = pdf.output(dest="S")
         return pdf_bytes
