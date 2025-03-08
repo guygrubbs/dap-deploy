@@ -1,4 +1,5 @@
 import os
+import io
 import logging
 from datetime import datetime, timedelta
 from google.cloud import storage
@@ -29,9 +30,11 @@ def upload_pdf(report_id: int, pdf_data: bytes) -> str:
 
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         blob_name = f"reports/report_{report_id}_{timestamp}.pdf"
-
         blob = bucket.blob(blob_name)
-        blob.upload_from_string(pdf_data, content_type="application/pdf")
+
+        # Use an in-memory file, pass that to upload_from_file
+        with io.BytesIO(pdf_data) as f:
+            blob.upload_from_file(f, content_type="application/pdf")
 
         logger.info("Successfully uploaded PDF to GCS with blob name: %s", blob_name)
         return blob_name

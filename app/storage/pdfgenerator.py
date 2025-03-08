@@ -1,7 +1,6 @@
 import os
 import re
 from fpdf import FPDF, HTMLMixin
-from io import BytesIO
 from typing import Union, Dict, Any, List
 
 # -----------------------------------------------------------------------------
@@ -188,4 +187,4 @@ def generate_pdf(
         pdf.output(output_path)
         return output_path
     else:
-        return pdf.output(dest="S")  # returns a bytes object
+        return pdf.output(dest="B")  # returns a bytes object

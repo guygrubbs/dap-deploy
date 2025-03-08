@@ -300,7 +300,7 @@ def generate_full_report(
                 user_id=report_model.user_id if report_model.user_id else 0,
                 final_report_sections=sections_list,
                 pdf_data=pdf_data,
-                expiration_seconds=3600
+                expiration_seconds=86400
             )
         except Exception as e:
             logger.error("Error in finalize_report_with_pdf for report %s: %s", report_id, str(e))
