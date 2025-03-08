@@ -1,5 +1,5 @@
 # app/storage/supabase_uploader.py
-
+import io
 import os
 import logging
 from supabase import create_client, Client
@@ -38,11 +38,12 @@ def upload_pdf_to_supabase(
     storage_path = f"{user_id}/{report_id}.pdf"
     try:
         # Upload PDF to the 'report_pdfs' bucket
-        result = supabase.storage.from_("report_pdfs").upload(
-            path=storage_path,
-            file=pdf_data,  # bytes content
-            file_options={"content-type": "application/pdf"}
-        )
+        with io.BytesIO(pdf_data) as file_obj:
+            result = supabase.storage.from_("report_pdfs").upload(
+                path=storage_path,
+                file=file_obj,  # pass the file-like object
+                file_options={"content-type": "application/pdf"}
+            )
         if result.get("error"):
             err_msg = result["error"].get("message", "Unknown error")
             raise ValueError(f"Error uploading PDF to Supabase: {err_msg}")

@@ -1,5 +1,6 @@
 import os
 import re
+import markdown
 from fpdf import FPDF, HTMLMixin
 from typing import Union, Dict, Any, List
 
@@ -163,24 +164,30 @@ def generate_pdf(
     # Now iterate over Tier-2 sections
     for section in tier2_sections:
         raw_title = section.get("title", "Untitled Section")
-        raw_content = section.get("content", "No content available.")
+        raw_content_md = section.get("content", "No content available.")
 
-        # 1) Sanitize text punctuation
-        section_title = _sanitize_text(raw_title)
-        section_content = _sanitize_text(raw_content)
+        # (1) Sanitize punctuation
+        safe_title_txt = _sanitize_text(raw_title)
+        safe_content_md = _sanitize_text(raw_content_md)
 
-        # 2) Replace color emojis with colored text spans
-        section_title_html = _replace_color_emojis_with_html(section_title)
-        section_content_html = _replace_color_emojis_with_html(section_content)
+        # (2) Replace color emojis
+        safe_title_txt  = _replace_color_emojis_with_html(safe_title_txt)
+        safe_content_md = _replace_color_emojis_with_html(safe_content_md)
 
-        # Section header (bold, slightly larger)
+        # (3) Convert Markdown to HTML
+        # For the title, let's wrap it in <h2> or let the user do it. We'll do <h2>:
+        title_html = f"<h2>{safe_title_txt}</h2>"
+        content_html = markdown.markdown(safe_content_md)
+
+        # (4) Insert into PDF
+        # Section Title
         pdf.set_font("NotoSans", "B", 14)
-        pdf.write_html(f"<b>{section_title_html}</b><br>")
+        pdf.write_html(title_html)
         pdf.ln(2)
 
-        # Section body
+        # Section Body
         pdf.set_font("NotoSans", "", 12)
-        pdf.write_html(section_content_html + "<br><br>")
+        pdf.write_html(content_html + "<br>")
 
     # Output the PDF
     if output_path:
