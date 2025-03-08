@@ -13,7 +13,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t myapp:${{ github.sha }} .
+          docker build -t myapp:${{ github.sha }} -f docker/Dockerfile .
 
       - name: Save Docker image to file
         run: |
