@@ -7,7 +7,9 @@ from typing import Union, Dict, Any, List
 # -----------------------------------------------------------------------------
 # 1. Font paths — adjust as needed
 # -----------------------------------------------------------------------------
-FONTS_DIR = "fonts"
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+FONTS_DIR = os.path.join(_THIS_DIR, "fonts")
+
 NOTO_SANS_REGULAR = os.path.join(FONTS_DIR, "NotoSans-Regular.ttf")
 NOTO_SANS_BOLD    = os.path.join(FONTS_DIR, "NotoSans-Bold.ttf")
 # Optional color-emoji font (won't actually display *in color* for most PDF readers):
