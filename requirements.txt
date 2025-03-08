@@ -13,3 +13,4 @@ google-cloud-aiplatform===1.82.0
 pymupdf==1.25.3
 python-multipart==0.0.20
 pytesseract==0.3.13
+markdown==3.7.0
