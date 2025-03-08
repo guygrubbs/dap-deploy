@@ -10,7 +10,7 @@ ENV PORT=8080 \
 # (Optional) Install system dependencies needed for building certain Python packages
 # e.g., gcc, libssl-dev, etc. Adjust as needed depending on your requirements.
 RUN apt-get update && apt-get install -y tesseract-ocr libpoppler-cpp-dev \
-    build-essential \
+    libxml2-dev libxslt-dev build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user named 'appuser' with a home directory
