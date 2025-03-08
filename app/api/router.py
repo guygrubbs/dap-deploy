@@ -300,7 +300,8 @@ def generate_full_report(
                 user_id=report_model.user_id if report_model.user_id else 0,
                 final_report_sections=sections_list,
                 pdf_data=pdf_data,
-                expiration_seconds=86400
+                expiration_seconds=86400,
+                upload_to_supabase=True
             )
         except Exception as e:
             logger.error("Error in finalize_report_with_pdf for report %s: %s", report_id, str(e))

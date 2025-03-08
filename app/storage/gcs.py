@@ -8,6 +8,9 @@ from google.cloud.exceptions import NotFound, Forbidden, GoogleCloudError
 # Example import from your supabase notifier module:
 from app.notifications.supabase_notifier import notify_supabase_final_report
 
+# Upload to Supabase utility:
+from app.storage.supabase_uploader import upload_pdf_to_supabase
+
 logger = logging.getLogger(__name__)
 
 
@@ -92,11 +95,13 @@ def finalize_report_with_pdf(
     user_id: int,
     final_report_sections: list,
     pdf_data: bytes,
-    expiration_seconds: int = 3600
+    expiration_seconds: int = 3600,
+    upload_to_supabase: bool = True,
+    create_signed_url: bool = False
 ) -> None:
     """
     Example utility function that:
-      1) Uploads a PDF to GCS.
+      1) Uploads a PDF to Supabase or GCS.
       2) Generates a signed URL.
       3) Builds the final Tier 2 report object (with sections & signed PDF).
       4) Asynchronously notifies Supabase via notify_supabase_final_report.
@@ -113,7 +118,8 @@ def finalize_report_with_pdf(
         blob_name = upload_pdf(report_id, pdf_data)
 
         # 2) Generate the signed URL
-        signed_url = generate_signed_url(blob_name, expiration_seconds=expiration_seconds)
+        if create_signed_url:
+            signed_url = generate_signed_url(blob_name, expiration_seconds=expiration_seconds)
 
         # 3) Build the final Tier 2 object
         final_report_data = {
@@ -123,11 +129,30 @@ def finalize_report_with_pdf(
             "sections": final_report_sections
         }
 
+        supabase_info = {}
+        if upload_to_supabase:
+            logger.info("Uploading PDF to Supabase for user_id=%s report_id=%s", user_id, report_id)
+            supabase_info = upload_pdf_to_supabase(
+                user_id=user_id,
+                report_id=report_id,
+                pdf_data=pdf_data,
+                table_name="report_requests"
+            )
+            # supabase_info will contain { "storage_path": ..., "public_url": ... }
+
+            # You could also store these in final_report_data if you want
+            final_report_data["supabase_storage_path"] = supabase_info.get("storage_path")
+            final_report_data["supabase_public_url"] = supabase_info.get("public_url")
+
         # 4) Asynchronously update Supabase with the final object
         notify_supabase_final_report(report_id, final_report_data, user_id)
 
         logger.info("PDF upload complete and Supabase final report notification triggered for report %s", report_id)
 
     except Exception as e:
-        logger.error("Failed to finalize report %s with PDF: %s", report_id, str(e), exc_info=True)
-        # Depending on your workflow, you might raise or handle errors differently.
+        logger.error(
+            "Failed to finalize report %s with PDF for user_id %s: %s",
+            report_id, user_id, str(e),
+            exc_info=True
+        )
+        raise
