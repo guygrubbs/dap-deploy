@@ -120,6 +120,8 @@ def finalize_report_with_pdf(
         # 2) Generate the signed URL
         if create_signed_url:
             signed_url = generate_signed_url(blob_name, expiration_seconds=expiration_seconds)
+        else:
+            signed_url = "N/A"
 
         # 3) Build the final Tier 2 object
         final_report_data = {
