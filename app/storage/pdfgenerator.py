@@ -10,8 +10,10 @@ from typing import Union, Dict, Any, List
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 FONTS_DIR = os.path.join(_THIS_DIR, "fonts")
 
-NOTO_SANS_REGULAR = os.path.join(FONTS_DIR, "NotoSans-Regular.ttf")
-NOTO_SANS_BOLD    = os.path.join(FONTS_DIR, "NotoSans-Bold.ttf")
+NOTO_SANS_REGULAR       = os.path.join(FONTS_DIR, "NotoSans-Regular.ttf")
+NOTO_SANS_BOLD          = os.path.join(FONTS_DIR, "NotoSans-Bold.ttf")
+NOTO_SANS_ITALIC        = os.path.join(FONTS_DIR, "NotoSans-Italic.ttf")
+NOTO_SANS_BOLD_ITALIC   = os.path.join(FONTS_DIR, "NotoSans-BoldItalic.ttf")
 # Optional color-emoji font (won't actually display *in color* for most PDF readers):
 NOTO_COLOR_EMOJI  = os.path.join(FONTS_DIR, "NotoColorEmoji-Regular.ttf")
 
@@ -82,9 +84,17 @@ class PDFGenerator(FPDF, HTMLMixin):
     def __init__(self, orientation="P", unit="mm", format="A4"):
         super().__init__(orientation=orientation, unit=unit, format=format)
 
-        # Register Noto Sans
+        # Register normal weight
         self.add_font("NotoSans", "", NOTO_SANS_REGULAR, uni=True)
-        self.add_font("NotoSans", "B", NOTO_SANS_BOLD,    uni=True)
+
+        # Register bold
+        self.add_font("NotoSans", "B", NOTO_SANS_BOLD, uni=True)
+
+        # Register italic (add this if you need italic!)
+        self.add_font("NotoSans", "I", NOTO_SANS_ITALIC, uni=True)
+
+        # Register bold-italic (add this if you need bold+italic!)
+        self.add_font("NotoSans", "BI", NOTO_SANS_BOLD_ITALIC, uni=True)
 
         # Register Noto Color Emoji (though actual color rendering in PDFs is limited)
         if os.path.exists(NOTO_COLOR_EMOJI):
