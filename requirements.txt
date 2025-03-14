@@ -6,7 +6,6 @@ openai==0.28.0
 supabase==2.13.0
 google-cloud-logging==3.11.4
 google-cloud-storage==2.19.0
-fpdf2==2.8.2
 python-dotenv==1.0.1
 requests==2.32.3
 google-cloud-aiplatform===1.82.0
@@ -15,3 +14,4 @@ python-multipart==0.0.20
 pytesseract==0.3.13
 markdown==3.7.0
 lxml==5.3.0
+weasyprint==63.0

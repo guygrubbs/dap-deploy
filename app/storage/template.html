@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Investment Readiness Report</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- Cover Page -->
+<div class="cover-page">
+    <div class="cover-header">
+        <p class="company-name">GetFresh Ventures Growth Advisory Inc.</p>
+        <h1 class="report-title">Investment Readiness Report for Founders</h1>
+    </div>
+    <div class="cover-details">
+        <p><strong>Prepared for:</strong> {founder_name}, {company_name}</p>
+        <p><strong>Prepared by:</strong> {prepared_by}</p>
+        <p><strong>Date:</strong> {date}</p>
+    </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- Running header for subsequent pages -->
+<div class="header-left" style="position: running(header-left);">
+    <img src="assets/logo.png" alt="Company Logo" class="logo">
+</div>
+<div class="header-right" style="position: running(header-right);">
+    {founder_name} - {company_name}
+</div>
+
+<!-- Table of Contents -->
+<div class="toc">
+    <h2>Table of Contents</h2>
+    <ul class="toc-list">
+        <li><a href="#section-1">Section 1: Executive Summary & Investment Rationale</a></li>
+        <li><a href="#section-2">Section 2: Market Opportunity & Competitive Landscape</a></li>
+        <li><a href="#section-3">Section 3: Financial Performance & Investment Readiness</a></li>
+        <li><a href="#section-4">Section 4: Go-To-Market (GTM) Strategy & Customer Traction</a></li>
+        <li><a href="#section-5">Section 5: Leadership & Team</a></li>
+        <li><a href="#section-6">Section 6: Investor Fit, Exit Strategy & Funding Narrative</a></li>
+        <li><a href="#section-7">Section 7: Final Recommendations & Next Steps</a></li>
+    </ul>
+</div>
+
+<div class="page-break"></div>
+
+<!-- Main Report Content (populated dynamically from Markdown) -->
+<main class="content">
+    {content}
+</main>
+
+</body>
+</html>

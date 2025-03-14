@@ -1,207 +1,60 @@
+# pdfgenerator.py
 import os
-import re
+from datetime import datetime
+from weasyprint import HTML, CSS
 import markdown
-from fpdf import FPDF, HTMLMixin
-from typing import Union, Dict, Any, List
+from supabase import create_client
 
-# -----------------------------------------------------------------------------
-# 1. Font paths — adjust as needed
-# -----------------------------------------------------------------------------
-_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-FONTS_DIR = os.path.join(_THIS_DIR, "fonts")
+# Input markdown content (this could be passed in or read from a file)
+# For demonstration, we assume markdown_text is provided or loaded prior.
+markdown_text = """# Executive Summary & Investment Rationale
+...
+"""
+# Note: In practice, you'd populate markdown_text with the actual content of the report.
 
-NOTO_SANS_REGULAR       = os.path.join(FONTS_DIR, "NotoSans-Regular.ttf")
-NOTO_SANS_BOLD          = os.path.join(FONTS_DIR, "NotoSans-Bold.ttf")
-NOTO_SANS_ITALIC        = os.path.join(FONTS_DIR, "NotoSans-Italic.ttf")
-NOTO_SANS_BOLD_ITALIC   = os.path.join(FONTS_DIR, "NotoSans-BoldItalic.ttf")
-# Optional color-emoji font (won't actually display *in color* for most PDF readers):
-NOTO_COLOR_EMOJI  = os.path.join(FONTS_DIR, "NotoColorEmoji-Regular.ttf")
+# Convert Markdown to HTML (using tables extension for Markdown tables)
+content_html = markdown.markdown(markdown_text, extensions=['tables'])
 
-# -----------------------------------------------------------------------------
-# 2. Sanitization function
-# -----------------------------------------------------------------------------
-def _sanitize_text(text: str) -> str:
-    """
-    Replaces known problematic punctuation (e.g., curly quotes, em dashes)
-    with ASCII equivalents. Leaves other Unicode symbols (including color emojis)
-    intact so that we can handle them separately.
-    """
-    replacements = {
-        "\u2014": "-",    # em dash
-        "\u2013": "-",    # en dash
-        "\u2018": "'",    # left single quote
-        "\u2019": "'",    # right single quote / apostrophe
-        "\u201C": '"',    # left double quote
-        "\u201D": '"',    # right double quote
-        "\u2026": "...",  # ellipsis
-    }
-    for orig, repl in replacements.items():
-        text = text.replace(orig, repl)
-    return text
+# Prepare dynamic data for template
+founder_name = "Founder Name"
+company_name = "Founder Company"
+prepared_by = "Brendan Smith, GetFresh Ventures"
+date_str = datetime.now().strftime("%b %d, %Y")
 
-# -----------------------------------------------------------------------------
-# 3. Replace color emojis with colored text via HTML
-# -----------------------------------------------------------------------------
-def _replace_color_emojis_with_html(text: str) -> str:
-    """
-    Detects common colored circle emojis and replaces them
-    with a <span style="color: rgb(...);">COLOR</span> snippet.
-    Example: "🟢" -> <span style="color: rgb(0,255,0);">Green</span>
-    """
-    color_emoji_map = {
-        "🟢": ("Green",  "0,255,0"),
-        "🔴": ("Red",    "255,0,0"),
-        "🟡": ("Yellow", "255,255,0"),
-        "🔵": ("Blue",   "0,0,255"),
-        "🟠": ("Orange", "255,165,0"),
-        "🟣": ("Purple", "128,0,128"),
-        "⚫":  ("Black",  "0,0,0"),
-        "⚪":  ("White",  "255,255,255"),
-        "🟤": ("Brown",  "139,69,19"),
-        # Add more if needed
-    }
+# Load HTML template
+with open("template.html", "r", encoding="utf-8") as f:
+    template_html = f.read()
 
-    pattern = "|".join(re.escape(k) for k in color_emoji_map.keys())
-    regex = re.compile(pattern)
+# Insert dynamic content into the template
+filled_html = template_html.format(
+    founder_name=founder_name,
+    company_name=company_name,
+    prepared_by=prepared_by,
+    date=date_str,
+    content=content_html
+)
 
-    def replacer(match):
-        emoji = match.group(0)
-        color_name, rgb_vals = color_emoji_map[emoji]
-        # Return an HTML span that sets font color
-        return f'<span style="color: rgb({rgb_vals});">{color_name}</span>'
+# Generate PDF using WeasyPrint
+# Set base_url to current directory so that relative paths (CSS, images) are resolved
+HTML(string=filled_html, base_url=os.getcwd()).write_pdf("report.pdf", stylesheets=[CSS("styles.css")])
+print("PDF generated successfully as report.pdf")
 
-    return regex.sub(replacer, text)
-
-# -----------------------------------------------------------------------------
-# 4. Custom PDF class with HTML support
-# -----------------------------------------------------------------------------
-class PDFGenerator(FPDF, HTMLMixin):
-    """
-    Custom PDF class using FPDF + HTMLMixin to allow partial color changes
-    via <span style="color:..."></span> for replaced emojis.
-    """
-
-    def __init__(self, orientation="P", unit="mm", format="A4"):
-        super().__init__(orientation=orientation, unit=unit, format=format)
-
-        # Register normal weight
-        self.add_font("NotoSans", "", NOTO_SANS_REGULAR, uni=True)
-
-        # Register bold
-        self.add_font("NotoSans", "B", NOTO_SANS_BOLD, uni=True)
-
-        # Register italic (add this if you need italic!)
-        self.add_font("NotoSans", "I", NOTO_SANS_ITALIC, uni=True)
-
-        # Register bold-italic (add this if you need bold+italic!)
-        self.add_font("NotoSans", "BI", NOTO_SANS_BOLD_ITALIC, uni=True)
-
-        # Register Noto Color Emoji (though actual color rendering in PDFs is limited)
-        if os.path.exists(NOTO_COLOR_EMOJI):
-            self.add_font("NotoEmoji", "", NOTO_COLOR_EMOJI, uni=True)
-
-        # Set our default font (NotoSans regular, size 12)
-        self.set_font("NotoSans", "", 12)
-
-        # Enable auto page break
-        self.set_auto_page_break(auto=True, margin=15)
-
-    def header(self):
-        """
-        Defines the header that appears at the top of each page.
-        """
-        self.set_font("NotoSans", "B", 12)
-        self.cell(0, 10, "GFV Investment Readiness Report", border=False, ln=1, align="C")
-        self.ln(5)
-        self.set_font("NotoSans", "", 12)
-
-    def footer(self):
-        """
-        Adds a footer with page numbering at the bottom of each page.
-        """
-        self.set_y(-15)
-        self.set_font("NotoSans", "", 8)
-        page_text = f"Page {self.page_no()}"
-        page_text = _sanitize_text(page_text)  # just in case
-        self.cell(0, 10, page_text, 0, 0, "C")
-
-# -----------------------------------------------------------------------------
-# 5. Generate PDF function
-# -----------------------------------------------------------------------------
-def generate_pdf(
-    report_id: int,
-    report_title: str,
-    tier2_sections: List[Dict[str, Any]],
-    output_path: str = None
-) -> Union[bytes, str]:
-    """
-    Generates a PDF from a structured Tier-2 report using FPDF2 + HTMLMixin.
-
-    Steps:
-      1. Sanitize punctuation (fancy quotes, etc.).
-      2. Replace color circle emojis with <span> HTML for partial color text.
-      3. Insert into PDF using write_html() for each section.
-
-    Args:
-        report_id (int): The report's ID.
-        report_title (str): The title or main heading for the report.
-        tier2_sections (List[Dict[str, Any]]): A list of sections, e.g.:
-            [
-              {"id": "section_1",
-               "title": "Executive Summary",
-               "content": "We are at a 🟢 stage..."}
-            ]
-        output_path (str, optional): If provided, saves PDF to disk at this path
-            and returns the path; otherwise returns PDF bytes.
-
-    Returns:
-        Union[bytes, str]:
-            - If output_path is None, returns a bytes object of the generated PDF.
-            - If output_path is provided, returns that file path as a string.
-    """
-    pdf = PDFGenerator(orientation="P", unit="mm", format="A4")
-    pdf.add_page()
-
-    # Sanitize the main title, then handle color emojis (if any)
-    safe_title = _sanitize_text(report_title)
-    safe_title = _replace_color_emojis_with_html(safe_title)
-
-    # Use a bolder/larger font for the main title
-    pdf.set_font("NotoSans", "B", 16)
-    pdf.write_html(f"<center><b>Report #{report_id}: {safe_title}</b></center><br><br>")
-    pdf.set_font("NotoSans", "", 12)
-
-    # Now iterate over Tier-2 sections
-    for section in tier2_sections:
-        raw_title = section.get("title", "Untitled Section")
-        raw_content_md = section.get("content", "No content available.")
-
-        # (1) Sanitize punctuation
-        safe_title_txt = _sanitize_text(raw_title)
-        safe_content_md = _sanitize_text(raw_content_md)
-
-        # (2) Replace color emojis
-        safe_title_txt  = _replace_color_emojis_with_html(safe_title_txt)
-        safe_content_md = _replace_color_emojis_with_html(safe_content_md)
-
-        # (3) Convert Markdown to HTML
-        # For the title, let's wrap it in <h2> or let the user do it. We'll do <h2>:
-        title_html = f"<h2>{safe_title_txt}</h2>"
-        content_html = markdown.markdown(safe_content_md)
-
-        # (4) Insert into PDF
-        # Section Title
-        pdf.set_font("NotoSans", "B", 14)
-        pdf.write_html(title_html)
-        pdf.ln(2)
-
-        # Section Body
-        pdf.set_font("NotoSans", "", 12)
-        pdf.write_html(content_html + "<br>")
-
-    # Output the PDF
-    if output_path:
-        pdf.output(output_path)
-        return output_path
+# Upload PDF to Supabase Storage (optional, if SUPABASE_URL/KEY are provided)
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+if SUPABASE_URL and SUPABASE_KEY:
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    bucket_name = "reports"  # replace with your Supabase Storage bucket name
+    # Define storage file path (e.g., in a "reports" folder with a unique name)
+    storage_file_path = f"reports/{company_name}_Investment_Readiness_Report.pdf"
+    # Upload the PDF file
+    with open("report.pdf", "rb") as pdf_file:
+        res = supabase.storage.from_(bucket_name).upload(
+            path=storage_file_path,
+            file=pdf_file,
+            file_options={"contentType": "application/pdf", "upsert": True}
+        )
+    if res.get("error"):
+        print(f"Error uploading to Supabase: {res['error']}")
     else:
-        return pdf.output(dest="B")  # returns a bytes object
+        print(f"PDF uploaded to Supabase Storage at path: {storage_file_path}")

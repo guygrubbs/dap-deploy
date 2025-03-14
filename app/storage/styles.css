@@ -1,0 +1,230 @@
+/* Import Noto Sans and Noto Emoji fonts */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&display=swap');
+
+/* Base styles for the entire document */
+body {
+  font-family: 'Noto Sans', 'Noto Emoji', sans-serif;
+  font-size: 11pt;
+  line-height: 1.5;
+  color: #000;
+  margin: 0;
+  padding: 0;
+}
+
+/* Page breaks */
+.page-break {
+  page-break-after: always;
+}
+
+/* -------------------------- */
+/* Title / Cover Page Styling */
+/* -------------------------- */
+.cover-page {
+  text-align: center;
+  padding: 120px 50px;
+}
+
+.cover-header .company-name {
+  font-size: 14pt;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.cover-header .report-title {
+  font-size: 20pt;
+  font-weight: bold;
+  margin-bottom: 40px;
+}
+
+.cover-details p {
+  font-size: 12pt;
+  margin: 5px 0;
+}
+
+/* ---------------------- */
+/* Headers and Footers */
+/* ---------------------- */
+@page {
+  size: A4;
+  margin: 25mm 20mm 20mm 20mm;
+
+  @top-left {
+    content: element(header-left);
+    vertical-align: middle;
+  }
+
+  @top-right {
+    content: element(header-right);
+    vertical-align: middle;
+  }
+
+  @bottom-left {
+    content: "GetFresh Ventures Confidential";
+    font-size: 8pt;
+    color: #555;
+  }
+
+  @bottom-right {
+    content: "Page " counter(page);
+    font-size: 8pt;
+    color: #555;
+  }
+}
+
+/* Exclude headers and footers on the cover page */
+@page:first {
+  margin-top: 50mm;
+  margin-bottom: 50mm;
+  
+  @top-left {
+    content: normal;
+  }
+
+  @top-right {
+    content: normal;
+  }
+
+  @bottom-left {
+    content: normal;
+  }
+
+  @bottom-right {
+    content: normal;
+  }
+}
+
+/* Header logo and text */
+.header-left {
+  position: running(header-left);
+}
+
+.header-right {
+  position: running(header-right);
+  font-size: 10pt;
+  font-weight: bold;
+}
+
+/* ---------------------- */
+/* Table of Contents */
+/* ---------------------- */
+.toc {
+  margin: 20px 0;
+}
+
+.toc h2 {
+  font-size: 14pt;
+  margin-bottom: 10px;
+}
+
+.toc ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.toc ul ul {
+  padding-left: 20px;
+}
+
+.toc li {
+  margin: 4px 0;
+}
+
+.toc a {
+  text-decoration: none;
+  color: #000;
+  display: inline-block;
+  width: 100%;
+}
+
+.toc a::after {
+  /* Dot leader and page number for TOC entries */
+  content: leader('.') target-counter(attr(href), page);
+}
+
+/* ---------------------- */
+/* Content Formatting */
+/* ---------------------- */
+.content h1 {
+  font-size: 18pt;
+  font-weight: bold;
+  margin: 20px 0 10px;
+}
+
+.content h2 {
+  font-size: 16pt;
+  font-weight: bold;
+  margin: 18px 0 8px;
+}
+
+.content h3 {
+  font-size: 14pt;
+  font-weight: bold;
+  margin: 15px 0 5px;
+}
+
+.content p {
+  margin: 5px 0 10px;
+}
+
+.content ul,
+.content ol {
+  margin: 5px 0 10px 20px;
+}
+
+.content li {
+  margin: 3px 0;
+}
+
+/* ---------------------- */
+/* Table Formatting */
+/* ---------------------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 15px 0;
+}
+
+th,
+td {
+  border: 1px solid #ccc;
+  padding: 6px 8px;
+}
+
+th {
+  background: #f0f0f0;
+  font-weight: bold;
+  text-align: left;
+}
+
+tbody tr:nth-child(even) {
+  background: #fafafa;
+}
+
+/* Ensure table headers repeat on each page */
+thead {
+  display: table-header-group;
+}
+
+tfoot {
+  display: table-footer-group;
+}
+
+/* ---------------------- */
+/* Background Image for Content Pages */
+/* ---------------------- */
+@page {
+  background: url('assets/background.png') no-repeat center center;
+  background-size: cover;
+}
+
+/* Remove background for first page */
+@page:first {
+  background: none;
+}
+
+/* ---------------------- */
+/* Logo Adjustments */
+/* ---------------------- */
+.logo {
+  max-height: 40px;
+}
