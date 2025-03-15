@@ -1,260 +1,305 @@
-/* ------------------------------------------------------------------
-   1) Local Font Face Declarations
-   ------------------------------------------------------------------ */
-   @font-face {
-    font-family: 'Noto Sans';
-    src: url("fonts/NotoSans-Regular.ttf") format("truetype");
-    font-weight: 400;
-    font-style: normal;
-  }
-  
-  @font-face {
-    font-family: 'Noto Sans';
-    src: url("fonts/NotoSans-Bold.ttf") format("truetype");
-    font-weight: 700;
-    font-style: normal;
-  }
-  
-  @font-face {
-    font-family: 'Noto Sans';
-    src: url("fonts/NotoSans-Italic.ttf") format("truetype");
-    font-weight: 400;
-    font-style: italic;
-  }
-  
-  /* For color emoji support, name it distinctly (matches your file name). */
-  @font-face {
-    font-family: 'Noto Color Emoji';
-    src: url("fonts/NotoColorEmoji-Regular.ttf") format("truetype");
-    font-weight: 400;
-    font-style: normal;
-  }
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Arial:wght@400;700&display=swap');
 
+/* CSS Reset and Page Setup */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
-/* Base styles for the entire document */
+:root {
+    /* Color variables */
+    --primary-blue: #073763;
+    --text-dark: #000000;
+    --text-gray: #666666;
+    --text-light: #434343;
+    --table-header-blue: #a2c4c9;
+    --table-header-green: #d9ead3;
+    --table-header-pink: #ead1dc;
+    --table-header-orange: #f9cb9c;
+    --border-color: #000000;
+    --divider-color: #ccc;
+
+    /* Spacing variables */
+    --page-margin: 54pt;
+    --section-spacing: 15pt;
+    --paragraph-spacing: 8pt;
+}
+
 body {
-  font-family: 'Noto Sans', 'Noto Emoji', sans-serif;
-  font-size: 11pt;
-  line-height: 1.5;
-  color: #000;
-  margin: 0;
-  padding: 0;
+    font-family: 'Arial', sans-serif;
+    font-size: 11pt;
+    line-height: 1.5;
+    color: var(--text-gray);
+    background-color: #ffffff;
 }
 
-/* Page breaks */
-.page-break {
-  page-break-after: always;
+.page-container {
+    max-width: 8.5in;
+    margin: 0 auto;
+    padding: var(--page-margin);
 }
 
-/* -------------------------- */
-/* Title / Cover Page Styling */
-/* -------------------------- */
-.cover-page {
-  text-align: center;
-  padding: 120px 50px;
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Arial', sans-serif;
+    font-weight: 700;
+    margin-bottom: var(--paragraph-spacing);
+    color: var(--text-dark);
 }
 
-.cover-header .company-name {
-  font-size: 14pt;
-  font-weight: bold;
-  margin-bottom: 10px;
+h1 {
+    font-size: 16pt;
+    color: var(--primary-blue);
+    margin-bottom: 15pt;
 }
 
-.cover-header .report-title {
-  font-size: 20pt;
-  font-weight: bold;
-  margin-bottom: 40px;
+h2 {
+    font-size: 14pt;
+    color: var(--text-light);
+    margin-top: 20pt;
 }
 
-.cover-details p {
-  font-size: 12pt;
-  margin: 5px 0;
+h3 {
+    font-size: 13pt;
+    margin-top: 14pt;
+    margin-bottom: 6pt;
 }
 
-/* ---------------------- */
-/* Headers and Footers */
-/* ---------------------- */
-@page {
-  size: A4;
-  margin: 25mm 20mm 20mm 20mm;
-
-  @top-left-corner {
-    content: element(header-left);
-    vertical-align: middle;
-  }
-
-  @top-right-corner {
-    content: element(header-right);
-    vertical-align: middle;
-  }
-
-  @bottom-left {
-    content: "GetFresh Ventures Confidential";
-    font-size: 8pt;
-    color: #555;
-  }
-
-  @bottom-right {
-    content: "Page " counter(page);
-    font-size: 8pt;
-    color: #555;
-  }
+h4 {
+    font-size: 12pt;
+    margin-top: 12pt;
+    margin-bottom: 4pt;
+    color: var(--text-gray);
 }
 
-/* Exclude headers and footers on the cover page */
-@page:first {
-  margin-top: 50mm;
-  margin-bottom: 50mm;
-  
-  @top-left {
-    content: normal;
-  }
-
-  @top-right {
-    content: normal;
-  }
-
-  @bottom-left {
-    content: normal;
-  }
-
-  @bottom-right {
-    content: normal;
-  }
+h5 {
+    font-size: 11pt;
+    margin-top: 8pt;
+    font-style: normal;
 }
 
-/* Header logo and text */
-.header-left {
-  position: running(header-left);
+p {
+    margin-bottom: var(--paragraph-spacing);
+    font-size: 11pt;
+    orphans: 2;
+    widows: 2;
 }
 
-.header-right {
-  position: running(header-right);
-  font-size: 10pt;
-  font-weight: bold;
+strong, b {
+    font-weight: 700;
 }
 
-/* ---------------------- */
+/* Header Styling */
+.report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20pt;
+}
+
+.logo-image {
+    max-height: 50pt;
+}
+
+/* Title Section */
+.report-title {
+    text-align: left;
+    margin-bottom: 30pt;
+}
+
+.company-logo {
+    text-align: center;
+    margin: 20pt 0;
+}
+
+.company-logo-image {
+    max-width: 140pt;
+    max-height: 140pt;
+}
+
+.report-metadata {
+    margin-top: 20pt;
+}
+
+/* Dividers */
+.divider {
+    border: none;
+    border-top: 1px solid var(--divider-color);
+    margin: 15pt 0;
+}
+
 /* Table of Contents */
-/* ---------------------- */
-.toc {
-  margin: 20px 0;
+.table-of-contents {
+    margin: 20pt 0;
 }
 
-.toc h2 {
-  font-size: 14pt;
-  margin-bottom: 10px;
+.table-of-contents a {
+    color: var(--text-dark);
+    text-decoration: none;
 }
 
-.toc ul {
-  list-style: none;
-  padding-left: 0;
+.table-of-contents a:hover {
+    text-decoration: underline;
 }
 
-.toc ul ul {
-  padding-left: 20px;
+.toc-item {
+    margin-bottom: 6pt;
 }
 
-.toc li {
-  margin: 4px 0;
+.toc-level-1 {
+    margin-left: 0;
 }
 
-.toc a {
-  text-decoration: none;
-  color: #000;
-  display: inline-block;
-  width: 100%;
+.toc-level-2 {
+    margin-left: 18pt;
 }
 
-.toc a::after {
-  /* Dot leader and page number for TOC entries */
-  /* content: leader('.') target-counter(attr(href), page); */
+.toc-level-3 {
+    margin-left: 36pt;
 }
 
-/* ---------------------- */
-/* Content Formatting */
-/* ---------------------- */
-.content h1 {
-  font-size: 18pt;
-  font-weight: bold;
-  margin: 20px 0 10px;
+/* Main Content */
+#report-content {
+    margin-top: 40pt;
 }
 
-.content h2 {
-  font-size: 16pt;
-  font-weight: bold;
-  margin: 18px 0 8px;
+/* Lists */
+ul, ol {
+    margin-left: 18pt;
+    margin-bottom: var(--paragraph-spacing);
 }
 
-.content h3 {
-  font-size: 14pt;
-  font-weight: bold;
-  margin: 15px 0 5px;
+ul li, ol li {
+    margin-bottom: 4pt;
+    line-height: 1.2;
 }
 
-.content p {
-  margin: 5px 0 10px;
+/* Nested lists */
+ul ul, ol ol, ul ol, ol ul {
+    margin-top: 4pt;
+    margin-bottom: 0;
 }
 
-.content ul,
-.content ol {
-  margin: 5px 0 10px 20px;
-}
-
-.content li {
-  margin: 3px 0;
-}
-
-/* ---------------------- */
-/* Table Formatting */
-/* ---------------------- */
+/* Tables */
 table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 15px 0;
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15pt 0;
 }
 
-th,
-td {
-  border: 1px solid #ccc;
-  padding: 6px 8px;
+th, td {
+    border: 1pt solid var(--border-color);
+    padding: 5pt;
+    vertical-align: top;
 }
 
 th {
-  background: #f0f0f0;
-  font-weight: bold;
-  text-align: left;
+    font-weight: bold;
 }
 
-tbody tr:nth-child(even) {
-  background: #fafafa;
+/* Table header background colors */
+.table-blue th, .table-header-blue {
+    background-color: var(--table-header-blue);
 }
 
-/* Ensure table headers repeat on each page */
-thead {
-  display: table-header-group;
+.table-green th, .table-header-green {
+    background-color: var(--table-header-green);
 }
 
-tfoot {
-  display: table-footer-group;
+.table-pink th, .table-header-pink {
+    background-color: var(--table-header-pink);
 }
 
-/* ---------------------- */
-/* Background Image for Content Pages */
-/* ---------------------- */
-/* @page {
-  background: url('assets/background.png') no-repeat right bottom;
-  background-size: cover;
-}*/
+.table-orange th, .table-header-orange {
+    background-color: var(--table-header-orange);
+}
 
-/* Remove background for first page */
-/*@page:first {
-  background: none;
-}*/
+/* Status indicators */
+.status-green::before {
+    content: "🟢 ";
+}
 
-/* ---------------------- */
-/* Logo Adjustments */
-/* ---------------------- */
-.logo {
-  max-height: 40px;
+.status-yellow::before {
+    content: "🟡 ";
+}
+
+.status-red::before {
+    content: "🔴 ";
+}
+
+/* Footer */
+.report-footer {
+    margin-top: 40pt;
+    text-align: center;
+}
+
+.footer-image {
+    max-width: 100%;
+}
+
+/* Special content blocks */
+.highlight-box {
+    background-color: var(--table-header-green);
+    padding: 10pt;
+    border: 1pt solid var(--border-color);
+    margin: 10pt 0;
+}
+
+/* Page breaks for printing */
+.page-break-before {
+    page-break-before: always;
+}
+
+.page-break-after {
+    page-break-after: always;
+}
+
+/* Avoid page breaks inside */
+.no-break {
+    page-break-inside: avoid;
+}
+
+/* Print-specific styles */
+@media print {
+    body {
+        font-size: 10pt;
+    }
+
+    .page-container {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    h1 {
+        font-size: 14pt;
+    }
+
+    h2 {
+        font-size: 12pt;
+    }
+
+    h3 {
+        font-size: 11pt;
+    }
+
+    h4, h5, h6 {
+        font-size: 10pt;
+    }
+
+    /* Ensure page breaks happen at appropriate sections */
+    h2 {
+        page-break-before: always;
+    }
+
+    h1, h2, h3, h4, h5, h6, table {
+        page-break-after: avoid;
+    }
+
+    /* Ensure table rows don't break across pages */
+    tr {
+        page-break-inside: avoid;
+    }
 }
