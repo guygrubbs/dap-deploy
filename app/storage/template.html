@@ -2,153 +2,54 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Investment Readiness Report</title>
-    <link rel="stylesheet" href="./css/styles.css">
-    <script>
-        // Initialize report with metadata
-        document.addEventListener('DOMContentLoaded', function() {
-            try {
-                const metadata = JSON.parse('{{ metadata|safe }}');
-
-                // Set up company name and other metadata
-                if (metadata.companyName) {
-                    document.getElementById('company-name').textContent = metadata.companyName;
-                    document.title = `Investment Readiness Report - ${metadata.companyName}`;
-                }
-
-                if (metadata.preparedFor) {
-                    document.getElementById('prepared-for').textContent = metadata.preparedFor;
-                }
-
-                if (metadata.preparedBy) {
-                    document.getElementById('prepared-by').textContent = metadata.preparedBy;
-                }
-
-                if (metadata.reportDate) {
-                    document.getElementById('report-date').textContent = metadata.reportDate;
-                }
-
-                // The markdown content is injected directly into the document by the template
-            } catch (e) {
-                console.error('Failed to parse metadata:', e);
-            }
-        });
-    </script>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="page-container">
-        <!-- Header Section -->
-        <header class="report-header">
-            <div class="header-logo-left">
-                <!-- Left logo placeholder -->
-                <img src="./images/logo-left.png" alt="Left Logo" class="logo-image">
-            </div>
-            <div class="header-logo-right">
-                <!-- Right logo placeholder -->
-                <img src="./images/logo-right.png" alt="Right Logo" class="logo-image">
-            </div>
-        </header>
 
-        <!-- Title Section -->
-        <section class="report-title">
-            <h1 id="report-main-title">Investment Readiness Report - <span id="company-name">Company Name</span></h1>
-            <div class="company-logo">
-                <img src="./images/company-logo.png" alt="Company Logo" class="company-logo-image">
-            </div>
-
-            <div class="report-metadata">
-                <p><strong>Prepared for:</strong> <span id="prepared-for">Client Name</span></p>
-                <p><strong>Prepared by:</strong> <span id="prepared-by">Consultant Name</span></p>
-                <p><strong>Date:</strong> <span id="report-date">Report Date</span></p>
-            </div>
-        </section>
-
-        <hr class="divider">
-
-        <!-- Table of Contents -->
-        <section class="table-of-contents">
-            <h2>Table of Contents:</h2>
-            <div id="toc-content">
-                <!-- This will be generated dynamically -->
-            </div>
-        </section>
-
-        <hr class="divider">
-
-        <!-- Main Content Area -->
-        <main id="report-content">
-            {{ markdown_content|safe }}
-        </main>
-
-        <!-- Footer -->
-        <footer class="report-footer">
-            <img src="./images/footer-graphic.png" alt="Footer graphic" class="footer-image">
-        </footer>
+<!-- Cover Page -->
+<div class="cover-page">
+    <div class="cover-header">
+        <p class="company-name">GetFresh Ventures Growth Advisory Inc.</p>
+        <h1 class="report-title">Investment Readiness Report for Founders</h1>
     </div>
+    <div class="cover-details">
+        <p><strong>Prepared for:</strong> {founder_name}, {company_name}</p>
+        <p><strong>Prepared by:</strong> {prepared_by}</p>
+        <p><strong>Date:</strong> {date}</p>
+    </div>
+</div>
 
-    <script>
-        // Process Markdown content
-        document.addEventListener('DOMContentLoaded', function() {
-            // Process headings to add IDs for TOC
-            const headings = [];
-            const contentHeadings = document.querySelectorAll('#report-content h1, #report-content h2, #report-content h3');
+<div class="page-break"></div>
 
-            contentHeadings.forEach(function(heading, index) {
-                const text = heading.textContent;
-                const level = parseInt(heading.tagName.substring(1));
+<!-- Running header for subsequent pages -->
+<div class="header-left" style="position: running(header-left);">
+    <img src="assets/logo.png" alt="Company Logo" class="logo">
+</div>
+<div class="header-right" style="position: running(header-right);">
+    {founder_name} - {company_name}
+</div>
 
-                // Generate an ID if not already present
-                if (!heading.id) {
-                    const slug = text.toLowerCase()
-                        .replace(/[^\w]+/g, '-')
-                        .replace(/-+/g, '-')
-                        .replace(/^-|-$/g, '');
+<!-- Table of Contents -->
+<div class="toc">
+    <h2>Table of Contents</h2>
+    <ul class="toc-list">
+        <li><a href="#section-1">Section 1: Executive Summary & Investment Rationale</a></li>
+        <li><a href="#section-2">Section 2: Market Opportunity & Competitive Landscape</a></li>
+        <li><a href="#section-3">Section 3: Financial Performance & Investment Readiness</a></li>
+        <li><a href="#section-4">Section 4: Go-To-Market (GTM) Strategy & Customer Traction</a></li>
+        <li><a href="#section-5">Section 5: Leadership & Team</a></li>
+        <li><a href="#section-6">Section 6: Investor Fit, Exit Strategy & Funding Narrative</a></li>
+        <li><a href="#section-7">Section 7: Final Recommendations & Next Steps</a></li>
+    </ul>
+</div>
 
-                    heading.id = `h-${slug}`;
-                }
+<div class="page-break"></div>
 
-                // Store for TOC
-                headings.push({
-                    id: heading.id,
-                    text: text,
-                    level: level
-                });
-            });
+<!-- Main Report Content (populated dynamically from Markdown) -->
+<main class="content">
+    {content}
+</main>
 
-            // Generate TOC
-            const tocContent = document.getElementById('toc-content');
-            let tocHtml = '';
-
-            headings.forEach(heading => {
-                if (heading.level <= 3) { // Only include h1, h2, h3 in TOC
-                    tocHtml += `
-                        <div class="toc-item toc-level-${heading.level}">
-                            <a href="#${heading.id}">${heading.text}</a>
-                        </div>
-                    `;
-                }
-            });
-
-            tocContent.innerHTML = tocHtml;
-
-            // Process tables to add styling classes
-            const tables = document.querySelectorAll('table');
-
-            tables.forEach((table, index) => {
-                // Add a default class for all tables
-                table.classList.add('report-table');
-
-                // Add different header colors based on the table index
-                const tableClasses = ['table-blue', 'table-green', 'table-pink', 'table-orange'];
-                const classIndex = index % tableClasses.length;
-                table.classList.add(tableClasses[classIndex]);
-
-                // Add no-break class to prevent page breaks within tables
-                table.classList.add('no-break');
-            });
-        });
-    </script>
 </body>
 </html>
-
