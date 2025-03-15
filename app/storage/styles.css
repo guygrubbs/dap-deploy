@@ -212,15 +212,15 @@ tfoot {
 /* ---------------------- */
 /* Background Image for Content Pages */
 /* ---------------------- */
-@page {
+/* @page {
   background: url('assets/background.png') no-repeat right bottom;
   background-size: cover;
-}
+}*/
 
 /* Remove background for first page */
-@page:first {
+/*@page:first {
   background: none;
-}
+}*/
 
 /* ---------------------- */
 /* Logo Adjustments */
