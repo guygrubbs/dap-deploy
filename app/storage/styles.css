@@ -48,12 +48,12 @@ body {
   size: A4;
   margin: 25mm 20mm 20mm 20mm;
 
-  @top-left {
+  @top-left-corner {
     content: element(header-left);
     vertical-align: middle;
   }
 
-  @top-right {
+  @top-right-corner {
     content: element(header-right);
     vertical-align: middle;
   }
@@ -138,7 +138,7 @@ body {
 
 .toc a::after {
   /* Dot leader and page number for TOC entries */
-  content: leader('.') target-counter(attr(href), page);
+  /* content: leader('.') target-counter(attr(href), page); */
 }
 
 /* ---------------------- */
