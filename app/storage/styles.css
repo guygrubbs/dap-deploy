@@ -213,7 +213,7 @@ tfoot {
 /* Background Image for Content Pages */
 /* ---------------------- */
 @page {
-  background: url('assets/background.png') no-repeat center center;
+  background: url('assets/background.png') no-repeat right bottom;
   background-size: cover;
 }
 

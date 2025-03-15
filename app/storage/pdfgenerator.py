@@ -29,7 +29,7 @@ def convert_markdown_to_html(markdown_text):
     """Converts Markdown text to HTML while preserving tables and formatting."""
     return markdown.markdown(markdown_text, extensions=["tables", "fenced_code"])
 
-def generate_pdf(report_id: int, report_title: str, tier2_sections: list, founder_name: str = "Founder Name", company_name: str = "Founder Company", output_path: str = None) -> Union[bytes, str]:
+def generate_pdf(report_id: int, report_title: str, tier2_sections: list, founder_name: str = "Founder Name", company_name: str = "Founder Company", prepared_by: str = "Brendan Smith, GetFresh Ventures", output_path: str = None) -> Union[bytes, str]:
     """
     Generates a PDF from structured Markdown content while matching FPDF output.
 
@@ -61,6 +61,9 @@ def generate_pdf(report_id: int, report_title: str, tier2_sections: list, founde
     filled_html = template_html.format(
         report_id=report_id,
         report_title=report_title,
+        founder_name=founder_name,
+        company_name=company_name,
+        prepared_by=prepared_by,
         date=date_str,
         content=sections_html
     )
