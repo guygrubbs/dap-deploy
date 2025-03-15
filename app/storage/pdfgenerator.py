@@ -29,7 +29,7 @@ def convert_markdown_to_html(markdown_text):
     """Converts Markdown text to HTML while preserving tables and formatting."""
     return markdown.markdown(markdown_text, extensions=["tables", "fenced_code"])
 
-def generate_pdf(report_id: int, report_title: str, tier2_sections: list, output_path: str = None) -> Union[bytes, str]:
+def generate_pdf(report_id: int, report_title: str, tier2_sections: list, founder_name: str = "Founder Name", company_name: str = "Founder Company", output_path: str = None) -> Union[bytes, str]:
     """
     Generates a PDF from structured Markdown content while matching FPDF output.
 
