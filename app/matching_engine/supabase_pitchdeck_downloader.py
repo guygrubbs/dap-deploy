@@ -1,5 +1,5 @@
 import os
-import pymupdf  # PyMuPDF for PDF text extraction
+import pymupdf
 import openai
 from supabase import create_client, Client
 from google.cloud import aiplatform_v1

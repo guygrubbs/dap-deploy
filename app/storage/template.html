@@ -1,55 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Investment Readiness Report</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{report_title}</title>
 </head>
 <body>
-
-<!-- Cover Page -->
-<div class="cover-page">
-    <div class="cover-header">
-        <p class="company-name">GetFresh Ventures Growth Advisory Inc.</p>
-        <h1 class="report-title">Investment Readiness Report for Founders</h1>
+  <!-- Page 1: Table of Contents Only -->
+  <div class="page">
+    <div class="page-background"></div>
+    <div class="page-content">
+      <div class="toc">
+        <h2>Table of Contents:</h2>
+        
+        <!-- Example: Link to dynamic sections with known IDs (section-1, section-2, etc.) -->
+        <div class="toc-item">
+          <a href="#section-1">Section 1: Executive Summary &amp; Investment Rationale</a>
+          <span class="toc-leader"></span>
+          <span>2</span>
+        </div>
+        <div class="toc-item" style="padding-left: 20px;">
+          <a href="#section-1">Key Investment Considerations</a>
+          <span class="toc-leader"></span>
+          <span>2</span>
+        </div>
+        
+        <div class="toc-item">
+          <a href="#section-2">Section 2: Market Opportunity &amp; Competitive Landscape</a>
+          <span class="toc-leader"></span>
+          <span>3</span>
+        </div>
+        <div class="toc-item" style="padding-left: 20px;">
+          <a href="#section-2">Market Overview</a>
+          <span class="toc-leader"></span>
+          <span>3</span>
+        </div>
+        
+        <div class="toc-item">
+          <a href="#section-3">Section 3: Financial Performance &amp; Investment Readiness</a>
+          <span class="toc-leader"></span>
+          <span>4</span>
+        </div>
+        
+        <div class="toc-item">
+          <a href="#section-4">Section 4: Go-To-Market (GTM) Strategy &amp; Customer Traction</a>
+          <span class="toc-leader"></span>
+          <span>5</span>
+        </div>
+        
+        <div class="toc-item">
+          <a href="#section-5">Section 5: Leadership &amp; Team</a>
+          <span class="toc-leader"></span>
+          <span>6</span>
+        </div>
+        
+        <div class="toc-item">
+          <a href="#section-6">Section 6: Investor Fit, Exit Strategy &amp; Funding Narrative</a>
+          <span class="toc-leader"></span>
+          <span>7</span>
+        </div>
+        
+        <div class="toc-item">
+          <a href="#section-7">Section 7: Final Recommendations &amp; Next Steps</a>
+          <span class="toc-leader"></span>
+          <span>8</span>
+        </div>
+        
+        <!-- Adjust or add TOC items as needed; the page numbers are static placeholders. -->
+      </div>
     </div>
-    <div class="cover-details">
-        <p><strong>Prepared for:</strong> {founder_name}, {company_name}</p>
-        <p><strong>Prepared by:</strong> {prepared_by}</p>
-        <p><strong>Date:</strong> {date}</p>
+    <div class="page-number">1</div>
+  </div>
+
+  <!-- Page 2 (and onward): Injected dynamic sections -->
+  <div class="page">
+    <div class="page-background"></div>
+    <div class="page-content">
+      {content}
     </div>
-</div>
-
-<div class="page-break"></div>
-
-<!-- Running header for subsequent pages -->
-<div class="header-left" style="position: running(header-left);">
-    <img src="assets/logo.png" alt="Company Logo" class="logo">
-</div>
-<div class="header-right" style="position: running(header-right);">
-    {founder_name} - {company_name}
-</div>
-
-<!-- Table of Contents -->
-<div class="toc">
-    <h2>Table of Contents</h2>
-    <ul class="toc-list">
-        <li><a href="#section-1">Section 1: Executive Summary & Investment Rationale</a></li>
-        <li><a href="#section-2">Section 2: Market Opportunity & Competitive Landscape</a></li>
-        <li><a href="#section-3">Section 3: Financial Performance & Investment Readiness</a></li>
-        <li><a href="#section-4">Section 4: Go-To-Market (GTM) Strategy & Customer Traction</a></li>
-        <li><a href="#section-5">Section 5: Leadership & Team</a></li>
-        <li><a href="#section-6">Section 6: Investor Fit, Exit Strategy & Funding Narrative</a></li>
-        <li><a href="#section-7">Section 7: Final Recommendations & Next Steps</a></li>
-    </ul>
-</div>
-
-<div class="page-break"></div>
-
-<!-- Main Report Content (populated dynamically from Markdown) -->
-<main class="content">
-    {content}
-</main>
-
+    <div class="page-number">2</div>
+  </div>
 </body>
 </html>

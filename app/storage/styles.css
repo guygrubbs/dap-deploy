@@ -1,144 +1,110 @@
-/* ------------------------------------------------------------------
-   1) Local Font Face Declarations
-   ------------------------------------------------------------------ */
-   @font-face {
-    font-family: 'Noto Sans';
-    src: url("fonts/NotoSans-Regular.ttf") format("truetype");
-    font-weight: 400;
-    font-style: normal;
+@page {
+  size: letter;
+  margin: 2.5cm 2cm;
+  @bottom-right {
+      content: counter(page);
+      font-family: 'Arial', sans-serif;
+      font-size: 10pt;
   }
-  
-  @font-face {
-    font-family: 'Noto Sans';
-    src: url("fonts/NotoSans-Bold.ttf") format("truetype");
-    font-weight: 700;
-    font-style: normal;
-  }
-  
-  @font-face {
-    font-family: 'Noto Sans';
-    src: url("fonts/NotoSans-Italic.ttf") format("truetype");
-    font-weight: 400;
-    font-style: italic;
-  }
-  
-  /* For color emoji support, name it distinctly (matches your file name). */
-  @font-face {
-    font-family: 'Noto Color Emoji';
-    src: url("fonts/NotoColorEmoji-Regular.ttf") format("truetype");
-    font-weight: 400;
-    font-style: normal;
-  }
-
-
-/* Base styles for the entire document */
-body {
-  font-family: 'Noto Sans', 'Noto Emoji', sans-serif;
-  font-size: 11pt;
-  line-height: 1.5;
-  color: #000;
-  margin: 0;
-  padding: 0;
 }
 
-/* Page breaks */
-.page-break {
+body {
+  font-family: 'Arial', sans-serif;
+  font-size: 11pt;
+  line-height: 1.4;
+  color: #333;
+  margin: 0;
+  padding: 0;
+  counter-reset: page;
+}
+
+.page {
+  position: relative;
   page-break-after: always;
 }
 
-/* -------------------------- */
-/* Title / Cover Page Styling */
-/* -------------------------- */
-.cover-page {
+.page-content {
+  position: relative;
+  z-index: 1;
+}
+
+.page-background {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 30%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(230,230,230,0.4) 0%, rgba(200,200,200,0.1) 100%);
+  z-index: 0;
+}
+
+.page-number {
+  position: absolute;
+  bottom: -2cm;
+  width: 100%;
   text-align: center;
-  padding: 120px 50px;
+  font-size: 10pt;
 }
 
-.cover-header .company-name {
-  font-size: 14pt;
+.page-number::before {
+  content: "-";
+}
+
+.page-number::after {
+  content: "-";
+}
+
+/* Header */
+.header {
+  margin-bottom: 2cm;
+}
+
+.logo-container {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.logo {
+  width: 70px;
+  height: auto;
+}
+
+.company-name {
+  font-size: 24pt;
   font-weight: bold;
-  margin-bottom: 10px;
+  margin-top: 10px;
+  margin-bottom: 5px;
+  text-align: center;
 }
 
-.cover-header .report-title {
-  font-size: 20pt;
-  font-weight: bold;
-  margin-bottom: 40px;
-}
-
-.cover-details p {
+.tagline {
   font-size: 12pt;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #555;
+  margin-bottom: 1.5cm;
+  text-align: center;
+}
+
+h1 {
+  font-size: 18pt;
+  font-weight: bold;
+  color: #1a365d;
+  margin-bottom: 1cm;
+  text-align: center;
+}
+
+.meta-info {
+  margin-bottom: 1cm;
+}
+
+.meta-info p {
   margin: 5px 0;
 }
 
-/* ---------------------- */
-/* Headers and Footers */
-/* ---------------------- */
-@page {
-  size: A4;
-  margin: 25mm 20mm 20mm 20mm;
-
-  @top-left-corner {
-    content: element(header-left);
-    vertical-align: middle;
-  }
-
-  @top-right-corner {
-    content: element(header-right);
-    vertical-align: middle;
-  }
-
-  @bottom-left {
-    content: "GetFresh Ventures Confidential";
-    font-size: 8pt;
-    color: #555;
-  }
-
-  @bottom-right {
-    content: "Page " counter(page);
-    font-size: 8pt;
-    color: #555;
-  }
-}
-
-/* Exclude headers and footers on the cover page */
-@page:first {
-  margin-top: 50mm;
-  margin-bottom: 50mm;
-  
-  @top-left {
-    content: normal;
-  }
-
-  @top-right {
-    content: normal;
-  }
-
-  @bottom-left {
-    content: normal;
-  }
-
-  @bottom-right {
-    content: normal;
-  }
-}
-
-/* Header logo and text */
-.header-left {
-  position: running(header-left);
-}
-
-.header-right {
-  position: running(header-right);
-  font-size: 10pt;
-  font-weight: bold;
-}
-
-/* ---------------------- */
 /* Table of Contents */
-/* ---------------------- */
 .toc {
-  margin: 20px 0;
+  margin-top: 1cm;
 }
 
 .toc h2 {
@@ -146,115 +112,126 @@ body {
   margin-bottom: 10px;
 }
 
-.toc ul {
-  list-style: none;
-  padding-left: 0;
+.toc-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
 }
 
-.toc ul ul {
-  padding-left: 20px;
+.toc-leader {
+  flex-grow: 1;
+  border-bottom: 1px dotted #999;
+  margin: 0 5px;
+  position: relative;
+  bottom: 4px;
 }
 
-.toc li {
-  margin: 4px 0;
-}
-
-.toc a {
-  text-decoration: none;
-  color: #000;
-  display: inline-block;
-  width: 100%;
-}
-
-.toc a::after {
-  /* Dot leader and page number for TOC entries */
-  /* content: leader('.') target-counter(attr(href), page); */
-}
-
-/* ---------------------- */
-/* Content Formatting */
-/* ---------------------- */
-.content h1 {
-  font-size: 18pt;
-  font-weight: bold;
-  margin: 20px 0 10px;
-}
-
-.content h2 {
+/* Section Styles */
+h2 {
   font-size: 16pt;
-  font-weight: bold;
-  margin: 18px 0 8px;
+  color: #1a365d;
+  margin-top: 1cm;
+  margin-bottom: 0.5cm;
 }
 
-.content h3 {
-  font-size: 14pt;
-  font-weight: bold;
-  margin: 15px 0 5px;
+h3 {
+  font-size: 13pt;
+  color: #2c5282;
+  margin-top: 0.8cm;
+  margin-bottom: 0.3cm;
 }
 
-.content p {
-  margin: 5px 0 10px;
-}
-
-.content ul,
-.content ol {
-  margin: 5px 0 10px 20px;
-}
-
-.content li {
-  margin: 3px 0;
-}
-
-/* ---------------------- */
-/* Table Formatting */
-/* ---------------------- */
+/* Tables */
 table {
   width: 100%;
   border-collapse: collapse;
-  margin: 15px 0;
+  margin: 0.5cm 0;
 }
 
 th,
 td {
-  border: 1px solid #ccc;
-  padding: 6px 8px;
-}
-
-th {
-  background: #f0f0f0;
-  font-weight: bold;
+  border: 1px solid #cbd5e0;
+  padding: 8px 12px;
   text-align: left;
 }
 
-tbody tr:nth-child(even) {
-  background: #fafafa;
+th {
+  background-color: #c6e6c6;  /* Light green header */
+  color: #333;
+  font-weight: bold;
 }
 
-/* Ensure table headers repeat on each page */
-thead {
-  display: table-header-group;
+tr:nth-child(even) {
+  background-color: #f8f9fa;
 }
 
-tfoot {
-  display: table-footer-group;
+/* Assessment Indicators */
+.indicator {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 5px;
 }
 
-/* ---------------------- */
-/* Background Image for Content Pages */
-/* ---------------------- */
-/* @page {
-  background: url('assets/background.png') no-repeat right bottom;
-  background-size: cover;
-}*/
+.green {
+  background-color: #4caf50;
+}
 
-/* Remove background for first page */
-/*@page:first {
-  background: none;
-}*/
+.yellow {
+  background-color: #ffc107;
+}
 
-/* ---------------------- */
-/* Logo Adjustments */
-/* ---------------------- */
-.logo {
-  max-height: 40px;
+.red {
+  background-color: #f44336;
+}
+
+/* Lists */
+ul,
+ol {
+  margin: 0.3cm 0;
+  padding-left: 1cm;
+}
+
+.check-list {
+  list-style-type: none;
+  padding-left: 0.5cm;
+}
+
+.check-list li::before {
+  content: "✓";
+  color: #4caf50;
+  font-weight: bold;
+  display: inline-block;
+  width: 1em;
+  margin-left: -1em;
+}
+
+.warning-list {
+  list-style-type: none;
+  padding-left: 0.5cm;
+}
+
+.warning-list li::before {
+  content: "⚠";
+  color: #ffc107;
+  font-weight: bold;
+  display: inline-block;
+  width: 1em;
+  margin-left: -1em;
+}
+
+/* Separator line */
+hr {
+  border: none;
+  border-top: 1px solid #cbd5e0;
+  margin: 1cm 0;
+}
+
+/* Text highlight boxes */
+.highlight-box {
+  border: 1px solid #4299e1;
+  padding: 0 5px;
+  display: inline-block;
+  margin: 0 2px;
 }

@@ -50,10 +50,9 @@ def generate_pdf(report_id: int, report_title: str, tier2_sections: list, founde
     sections_html = ""
     for i, section in enumerate(tier2_sections, start=1):
         section_id = f"section-{i}"
-        section_title = section.get("title", "Untitled Section")
         section_content_md = section.get("content", "No content available.")
         section_content_html = convert_markdown_to_html(section_content_md)
-        sections_html += f'<h2 id="{section_id}">{section_title}</h2>\n{section_content_html}\n'
+        sections_html += f'<span id="{section_id}">\n{section_content_html}\n</span>'
 
     # Prepare dynamic content replacements
     date_str = datetime.now().strftime("%b %d, %Y")
