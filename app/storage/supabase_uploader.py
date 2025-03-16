@@ -15,7 +15,6 @@ supabase: Client = None
 if SUPABASE_URL and SUPABASE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-
 def upload_pdf_to_supabase(
     user_id: int,
     report_id: int,
@@ -25,7 +24,7 @@ def upload_pdf_to_supabase(
     """
     Uploads a local PDF file to the 'report_pdfs' bucket in Supabase Storage
     under '{user_id}/{report_id}.pdf'.
-    
+
     Then updates the 'report_requests' table with 'storage_path' and
     a public URL. Returns a dict with:
       {
@@ -38,33 +37,40 @@ def upload_pdf_to_supabase(
 
     storage_path = f"{user_id}/{report_id}.pdf"
     try:
-        # Upload using the file path (storage3 will open it in "rb" mode internally)
-        result = supabase.storage.from_("report_pdfs").upload(
+        # 1. Upload the file to Supabase Storage
+        upload_resp = supabase.storage.from_("report_pdfs").upload(
             path=storage_path,
-            file=pdf_file_path,  # pass the path (str, Path)
+            file=pdf_file_path,
             file_options={"content-type": "application/pdf"}
         )
 
-        # Check for upload errors
-        if result.get("error"):
-            err_msg = result["error"].get("message", "Unknown error")
+        # 2. Check for upload errors using attributes, not dict keys
+        if upload_resp.error:
+            # upload_resp.error might be a dict or a string, depending on the version
+            err_msg = upload_resp.error.get("message") if isinstance(upload_resp.error, dict) else upload_resp.error
             raise ValueError(f"Error uploading PDF to Supabase: {err_msg}")
 
-        # Get public URL
+        # 3. Get the public URL
         public_url_data = supabase.storage.from_("report_pdfs").get_public_url(storage_path)
-        public_url = public_url_data.get("publicURL") or ""
+        # In newer versions, this might be public_url_data.public_url or public_url_data.publicURL,
+        # depending on how the library structures it. Adjust accordingly.
+        public_url = public_url_data.get("publicURL", "")  # or public_url_data.public_url
 
-        # Update the record in the specified Supabase table
+        # 4. Update the record in the specified Supabase table
         update_resp = supabase.table(table_name).update({
             "storage_path": storage_path,
             "report_url": public_url,
-            "status": "ready_for_review"  # or "approved", "completed", etc. as needed
+            "status": "ready_for_review"
         }).eq("id", report_id).execute()
 
-        if update_resp.get("status_code") not in [200, 204]:
-            logger.warning("Supabase table update may have failed: %s", update_resp)
+        # 5. Check update response attributes, not dict keys
+        if update_resp.status_code not in [200, 204]:
+            logger.warning(
+                "Supabase table update may have failed. Status code: %s; Error: %s",
+                update_resp.status_code, update_resp.error
+            )
 
-        logger.info("Successfully uploaded PDF to Supabase bucket 'report_pdfs' at %s", storage_path)
+        logger.info("Successfully uploaded PDF to Supabase at %s", storage_path)
         return {
             "storage_path": storage_path,
             "public_url": public_url
