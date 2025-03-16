@@ -37,20 +37,26 @@ def convert_markdown_to_html(markdown_text, section_number=1, section_title=None
         section_number (int): The section number for table styling
         section_title (str, optional): The section title to check for and remove if duplicated
     """
-    # Remove section title if it appears at the beginning of the content
+
+    # First, strip markdown code block delimiters if present
+    if markdown_text.strip().startswith("```markdown"):
+        # Extract content between markdown code blocks
+        pattern = r"```markdown\n(.*?)```"
+        match = re.search(pattern, markdown_text, re.DOTALL)
+        if match:
+            markdown_text = match.group(1)
+    
+    # Then improve title detection patterns to include various markdown styles
     if section_title:
-        # Check for various formats of section title at the beginning
         patterns = [
-            f"# Section {section_number}: {section_title}",
-            f"## Section {section_number}: {section_title}",
-            f"# {section_title}",
-            f"## {section_title}"
+            f"### \\*\\*Section {section_number}: {section_title}\\*\\*",  # ### **Section 1: Title**
+            f"### **Section {section_number}: {section_title}**",          # Without escaping
+            f"#### {section_title}",                                       # #### Title
+            # Add more patterns as needed
         ]
         
         for pattern in patterns:
-            if markdown_text.strip().startswith(pattern):
-                markdown_text = markdown_text.replace(pattern, "", 1).strip()
-                break
+            markdown_text = re.sub(pattern, "", markdown_text, flags=re.MULTILINE)
     
     # Replace emoji indicators to HTML spans for consistent rendering
     markdown_text = markdown_text.replace("🟢", '<span class="indicator green"></span>')

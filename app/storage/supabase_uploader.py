@@ -1,4 +1,5 @@
 # app/storage/supabase_uploader.py
+
 import os
 import logging
 from supabase import create_client, Client
@@ -14,6 +15,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase: Client = None
 if SUPABASE_URL and SUPABASE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 
 def upload_pdf_to_supabase(
     user_id: int,
@@ -44,17 +46,38 @@ def upload_pdf_to_supabase(
             file_options={"content-type": "application/pdf"}
         )
 
-        # 2. Check for upload errors using attributes, not dict keys
-        if upload_resp.error:
-            # upload_resp.error might be a dict or a string, depending on the version
-            err_msg = upload_resp.error.get("message") if isinstance(upload_resp.error, dict) else upload_resp.error
-            raise ValueError(f"Error uploading PDF to Supabase: {err_msg}")
+        """
+        Typically upload_resp looks like:
+        {
+          "data": { ...some metadata... } or None,
+          "error": { "message": "...some error..." } or None
+        }
+        """
+
+        # 2. Check for upload errors
+        if isinstance(upload_resp, dict):
+            error = upload_resp.get("error")
+            if error:
+                # error might itself be a dict with a "message" key
+                err_msg = error.get("message") if isinstance(error, dict) else str(error)
+                raise ValueError(f"Error uploading PDF to Supabase: {err_msg}")
+        else:
+            # If for some reason upload_resp isn't a dict, just log it
+            logger.warning(f"Unexpected upload_resp type: {type(upload_resp)} => {upload_resp}")
 
         # 3. Get the public URL
         public_url_data = supabase.storage.from_("report_pdfs").get_public_url(storage_path)
-        # In newer versions, this might be public_url_data.public_url or public_url_data.publicURL,
-        # depending on how the library structures it. Adjust accordingly.
-        public_url = public_url_data.get("publicURL", "")  # or public_url_data.public_url
+        # Typically returns {"data": {"publicUrl": "..."}, "error": None} in new versions
+        # or { "publicURL": "..." } in older versions.
+        # Adjust logic to ensure we retrieve the URL correctly:
+        if isinstance(public_url_data, dict):
+            public_url = (
+                public_url_data.get("publicURL")
+                or (public_url_data.get("data") or {}).get("publicUrl")
+                or ""
+            )
+        else:
+            public_url = ""
 
         # 4. Update the record in the specified Supabase table
         update_resp = supabase.table(table_name).update({
@@ -63,11 +86,15 @@ def upload_pdf_to_supabase(
             "status": "ready_for_review"
         }).eq("id", report_id).execute()
 
-        # 5. Check update response attributes, not dict keys
-        if update_resp.status_code not in [200, 204]:
+        # 5. Check update response
+        # In supabase-py 2.x, update_resp might be a `PostgrestResponse`,
+        # which has properties like .status_code, .data, .error
+        if hasattr(update_resp, "status_code") and update_resp.status_code not in [200, 204]:
             logger.warning(
-                "Supabase table update may have failed. Status code: %s; Error: %s",
-                update_resp.status_code, update_resp.error
+                "Supabase table update may have failed. Status code: %s; Data: %s; Error: %s",
+                update_resp.status_code,
+                getattr(update_resp, "data", None),
+                getattr(update_resp, "error", None)
             )
 
         logger.info("Successfully uploaded PDF to Supabase at %s", storage_path)
