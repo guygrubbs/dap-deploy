@@ -96,6 +96,36 @@ def upload_pdf_to_supabase(
                 getattr(update_resp, "error", None)
             )
 
+        # 6. Also update the reports table with PDF URL
+        # For completeness, also update the reports table if it exists
+        try:
+            # First get the report title from report_requests to use in reports table
+            report_data_resp = supabase.table(table_name).select("title").eq("external_id", str(report_id)).execute()
+            
+            title = "Generated Report"
+            if hasattr(report_data_resp, "data") and report_data_resp.data:
+                if isinstance(report_data_resp.data, list) and len(report_data_resp.data) > 0:
+                    title = report_data_resp.data[0].get("title", title)
+            
+            # Update reports table with PDF URL and title
+            reports_resp = supabase.table("reports").upsert({
+                "report_id": str(report_id),
+                "title": title,
+                "pdf_url": public_url,
+                "status": "completed"
+            }).execute()
+            
+            if hasattr(reports_resp, "status_code") and reports_resp.status_code not in [200, 204]:
+                logger.warning(
+                    "Supabase reports table update may have failed. Status code: %s; Data: %s; Error: %s",
+                    reports_resp.status_code,
+                    getattr(reports_resp, "data", None),
+                    getattr(reports_resp, "error", None)
+                )
+        except Exception as reports_err:
+            # Log but don't fail the whole operation if reports table update fails
+            logger.warning(f"Error updating reports table: {str(reports_err)}")
+
         logger.info("Successfully uploaded PDF to Supabase at %s", storage_path)
         return {
             "storage_path": storage_path,
@@ -105,3 +135,72 @@ def upload_pdf_to_supabase(
     except Exception as e:
         logger.error("Failed to upload/update Supabase for report_id=%s: %s", report_id, str(e), exc_info=True)
         raise
+
+
+def sync_report_to_supabase(
+    report_id: int,
+    report_data: dict,
+    user_id: str = None,
+    startup_id: str = None
+) -> bool:
+    """
+    Sync report data to the Supabase reports table.
+    Used by the notification system to keep Supabase in sync with report status.
+    
+    Args:
+        report_id: The external ID of the report
+        report_data: The complete report data including sections, status, etc.
+        user_id: Optional user ID
+        startup_id: Optional startup ID
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    if not supabase:
+        logger.warning("Supabase client not initialized. Cannot sync report data.")
+        return False
+        
+    try:
+        # Get the title from report_requests if available
+        title = "Generated Report"
+        try:
+            report_req_resp = supabase.table("report_requests").select("title").eq("external_id", str(report_id)).execute()
+            if hasattr(report_req_resp, "data") and report_req_resp.data:
+                if isinstance(report_req_resp.data, list) and len(report_req_resp.data) > 0:
+                    title = report_req_resp.data[0].get("title", title)
+        except Exception as title_err:
+            logger.warning(f"Could not get report title: {str(title_err)}")
+            
+        # Prepare the data to upsert
+        data = {
+            "report_id": str(report_id),
+            "report_data": report_data,
+            "status": report_data.get("status", "pending"),
+            "title": title  # Use the title we retrieved or the default
+        }
+        
+        # Add optional fields if provided
+        if user_id:
+            data["user_id"] = user_id
+        if startup_id:
+            data["startup_id"] = startup_id
+            
+        # Upsert to reports table
+        response = supabase.table("reports").upsert(data).execute()
+        
+        # Check response
+        if hasattr(response, "status_code") and response.status_code not in [200, 204]:
+            logger.warning(
+                "Supabase reports sync failed. Status code: %s; Data: %s; Error: %s",
+                response.status_code,
+                getattr(response, "data", None),
+                getattr(response, "error", None)
+            )
+            return False
+            
+        logger.info(f"Successfully synced report {report_id} to Supabase")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to sync report {report_id} to Supabase: {str(e)}", exc_info=True)
+        return False
