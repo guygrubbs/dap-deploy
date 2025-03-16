@@ -28,14 +28,30 @@ def read_file(file_path):
     with open(file_path, "r", encoding="utf-8") as file:
         return file.read()
 
-def convert_markdown_to_html(markdown_text, section_number=1):
+def convert_markdown_to_html(markdown_text, section_number=1, section_title=None):
     """
     Converts Markdown text to HTML while preserving tables and formatting.
     
     Args:
         markdown_text (str): The markdown text to convert
         section_number (int): The section number for table styling
+        section_title (str, optional): The section title to check for and remove if duplicated
     """
+    # Remove section title if it appears at the beginning of the content
+    if section_title:
+        # Check for various formats of section title at the beginning
+        patterns = [
+            f"# Section {section_number}: {section_title}",
+            f"## Section {section_number}: {section_title}",
+            f"# {section_title}",
+            f"## {section_title}"
+        ]
+        
+        for pattern in patterns:
+            if markdown_text.strip().startswith(pattern):
+                markdown_text = markdown_text.replace(pattern, "", 1).strip()
+                break
+    
     # Replace emoji indicators to HTML spans for consistent rendering
     markdown_text = markdown_text.replace("🟢", '<span class="indicator green"></span>')
     markdown_text = markdown_text.replace("🟡", '<span class="indicator yellow"></span>')
@@ -102,6 +118,38 @@ def clean_title(title):
     
     return title
 
+def estimate_content_height(content, subsections_count):
+    """
+    Estimate the height a section will take when rendered.
+    This is a simplified approximation based on content length and complexity.
+    
+    Args:
+        content (str): The markdown content
+        subsections_count (int): Number of subsections which indicates complexity
+    
+    Returns:
+        float: Estimated height in arbitrary units (used for pagination calculation)
+    """
+    # Base height estimate on content length
+    base_height = len(content) * 0.05
+    
+    # Add height for tables
+    table_count = content.count('|---')
+    table_height = table_count * 50
+    
+    # Add height for subsections
+    subsection_height = subsections_count * 80
+    
+    # Count images, charts, or other complex elements
+    complex_elements = 0
+    complex_elements += content.count('```')  # Code blocks
+    complex_elements += content.count('<!-- warning-list -->')
+    complex_elements += content.count('<!-- check-list -->')
+    
+    complex_element_height = complex_elements * 60
+    
+    return base_height + table_height + subsection_height + complex_element_height
+
 def generate_pdf(
     report_id: int, 
     report_title: str, 
@@ -134,15 +182,18 @@ def generate_pdf(
     template_html = read_file(TEMPLATE_HTML_PATH)
     css_content = read_file(STYLESHEET_PATH)
 
-    # Preprocess sections to extract subsections if not provided
+    # Define content height limits and initialize page tracking
+    max_content_height_per_page = 1000  # Arbitrary units for page content capacity
     section_start_page = 3  # First content starts at page 3
+    current_page = section_start_page
+    current_page_content_height = 0
+
+    # Preprocess sections to extract subsections if not provided
     for i, section in enumerate(tier2_sections):
-        # Calculate the actual page number for this section
-        if i > 0:
-            section_start_page += 1  # Each section starts on a new page
+        # Extract clean section title
+        section["clean_title"] = clean_title(section["title"])
         
-        section["page_number"] = section_start_page
-        
+        # Extract subsections if not provided
         if "subsections" not in section or not section["subsections"]:
             section["subsections"] = extract_subsections(section["content"])
         
@@ -151,8 +202,25 @@ def generate_pdf(
             if "id" not in subsection:
                 subsection["id"] = f"section-{i+1}-subsection-{j+1}"
         
-        # Clean the section title
-        section["clean_title"] = clean_title(section["title"])
+        # Estimate content height for pagination
+        content_height = estimate_content_height(section["content"], len(section["subsections"]))
+        
+        # Force new page for each section and update page tracking
+        if i > 0:  # First section starts on page 3
+            current_page += 1
+            current_page_content_height = 0
+        
+        # Set the page number for this section
+        section["page_number"] = current_page
+        
+        # Update current page content height
+        current_page_content_height += content_height
+        
+        # Check if we need another page break within this section (for very long sections)
+        if current_page_content_height > max_content_height_per_page:
+            additional_pages = int(current_page_content_height / max_content_height_per_page)
+            current_page += additional_pages
+            current_page_content_height = current_page_content_height % max_content_height_per_page
 
     # Generate table of contents
     toc_html = '<div class="toc">\n<h2>Table of Contents:</h2>\n'
@@ -190,11 +258,13 @@ def generate_pdf(
         section_html += f'<div class="page-content">\n'
         section_html += f'<h2 id="{section_id}">Section {i}: {section["clean_title"]}</h2>\n'
         
-        # Remove the first heading if it duplicates the section title
-        section_content = section["content"]
-        
         # Convert markdown content to HTML with section number for table styling
-        content_html = convert_markdown_to_html(section_content, i)
+        # Pass the section title to prevent duplication in the content
+        content_html = convert_markdown_to_html(
+            section["content"], 
+            i, 
+            section["clean_title"]
+        )
         
         # Add ID attributes to subsection headings
         for j, subsection in enumerate(section["subsections"]):

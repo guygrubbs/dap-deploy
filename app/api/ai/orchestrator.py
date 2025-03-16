@@ -179,6 +179,10 @@ def generate_report(request_params: dict) -> dict:
         f"SECTION 7: Final Recommendations\n{final_recommendations_next_steps}\n"
     )
 
+    summary_context["founder_name"] = request_params.get("founder_name", "Unknown Founder")
+    summary_context["company_type"] = request_params.get("company_type", "Unknown Type")
+    summary_context["company_description"] = request_params.get("company_description", "Unknown Offering")
+
     executive_summary_agent = ExecutiveSummaryAgent()
     executive_summary_investment_rationale = generate_with_retry(
         executive_summary_agent,
