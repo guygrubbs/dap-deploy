@@ -46,17 +46,31 @@ def convert_markdown_to_html(markdown_text, section_number=1, section_title=None
         if match:
             markdown_text = match.group(1)
     
-    # Then improve title detection patterns to include various markdown styles
+    # Remove section title if it appears at the beginning of the content
     if section_title:
+        # Safely escape the section title for regex
+        escaped_title = re.escape(section_title)
+        escaped_section_number = re.escape(str(section_number))
+        
+        # Create patterns with escaped values to match various heading formats
         patterns = [
-            f"### \\*\\*Section {section_number}: {section_title}\\*\\*",  # ### **Section 1: Title**
-            f"### **Section {section_number}: {section_title}**",          # Without escaping
-            f"#### {section_title}",                                       # #### Title
-            # Add more patterns as needed
+            rf"^### \*\*Section {escaped_section_number}: {escaped_title}\*\*.*$",
+            rf"^### Section {escaped_section_number}: {escaped_title}.*$",
+            rf"^## Section {escaped_section_number}: {escaped_title}.*$",
+            rf"^# Section {escaped_section_number}: {escaped_title}.*$",
+            rf"^#### {escaped_title}.*$",
+            rf"^### {escaped_title}.*$",
+            rf"^## {escaped_title}.*$",
+            rf"^# {escaped_title}.*$"
         ]
         
+        # Try to remove each pattern from the content
         for pattern in patterns:
             markdown_text = re.sub(pattern, "", markdown_text, flags=re.MULTILINE)
+        
+        # Also look for markdown heading IDs/anchors to remove
+        anchor_pattern = rf" \{{#.*?\}}"
+        markdown_text = re.sub(anchor_pattern, "", markdown_text, flags=re.MULTILINE)
     
     # Replace emoji indicators to HTML spans for consistent rendering
     markdown_text = markdown_text.replace("🟢", '<span class="indicator green"></span>')
