@@ -4,6 +4,7 @@ from weasyprint import HTML, CSS
 from datetime import datetime
 from typing import Union
 import base64
+import re
 
 # -----------------------------------------------------------------------------
 # Directory Configuration (Adjust Paths Relative to `app/storage/`)
@@ -17,6 +18,7 @@ OUTPUT_PDF_PATH = os.path.join(OUTPUT_DIR, "Investment_Readiness_Report.pdf")
 # Font and Asset Paths
 FONTS_DIR = os.path.join(BASE_DIR, "fonts")  # Fonts directory
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")  # Assets directory
+LOGO_PATH = os.path.join(ASSETS_DIR, "logo.png")  # Logo path
 
 # -----------------------------------------------------------------------------
 # Helper Functions
@@ -26,11 +28,18 @@ def read_file(file_path):
     with open(file_path, "r", encoding="utf-8") as file:
         return file.read()
 
-def convert_markdown_to_html(markdown_text):
-    """Converts Markdown text to HTML while preserving tables and formatting."""
+def convert_markdown_to_html(markdown_text, section_number=1):
+    """
+    Converts Markdown text to HTML while preserving tables and formatting.
+    
+    Args:
+        markdown_text (str): The markdown text to convert
+        section_number (int): The section number for table styling
+    """
     # Replace emoji indicators to HTML spans for consistent rendering
     markdown_text = markdown_text.replace("🟢", '<span class="indicator green"></span>')
     markdown_text = markdown_text.replace("🟡", '<span class="indicator yellow"></span>')
+    markdown_text = markdown_text.replace("🔴", '<span class="indicator red"></span>')
     markdown_text = markdown_text.replace("⚠️", '<span class="warning-symbol"></span>')
     markdown_text = markdown_text.replace("✅", '<span class="check-symbol"></span>')
     
@@ -45,6 +54,9 @@ def convert_markdown_to_html(markdown_text):
         ]
     )
     
+    # Add section-specific class to tables for styling
+    html = html.replace("<table>", f'<table class="section-{section_number}">')
+    
     # Convert standard lists to special lists when needed
     if "<!-- warning-list -->" in html:
         html = html.replace("<ul><!-- warning-list -->", '<ul class="warning-list">')
@@ -56,6 +68,19 @@ def convert_markdown_to_html(markdown_text):
     html = html.replace("[/highlight]", '</span>')
     
     return html
+
+def extract_subsections(content):
+    """Extract subsections from the markdown content based on ## headings."""
+    subsections = []
+    pattern = r'^## (\d+\)\s*)?(.+)$'
+    matches = re.finditer(pattern, content, re.MULTILINE)
+    
+    for match in matches:
+        subsections.append({
+            "title": match.group(2).strip()
+        })
+    
+    return subsections
 
 def generate_pdf(
     report_id: int, 
@@ -89,23 +114,33 @@ def generate_pdf(
     template_html = read_file(TEMPLATE_HTML_PATH)
     css_content = read_file(STYLESHEET_PATH)
 
+    # Preprocess sections to extract subsections if not provided
+    for section in tier2_sections:
+        if "subsections" not in section or not section["subsections"]:
+            section["subsections"] = extract_subsections(section["content"])
+
     # Generate table of contents
     toc_html = '<div class="toc">\n<h2>Table of Contents:</h2>\n'
     
     # Main section entries
     for i, section in enumerate(tier2_sections, start=1):
         page_num = i + 2  # +2 because first content page starts at page 3
+        
+        # Clean title for display (remove any numbered prefixes like "1) ")
+        clean_title = re.sub(r'^\d+\)\s*', '', section["title"])
+        
         toc_html += f'<div class="toc-item">\n'
-        toc_html += f'<span>Section {i}: {section["title"]}</span>\n'
+        toc_html += f'<span>Section {i}: {clean_title}</span>\n'
         toc_html += f'<span class="toc-leader"></span>\n'
         toc_html += f'<span>{page_num}</span>\n'
         toc_html += f'</div>\n'
         
-        # Add subsections if available (from H2 in markdown)
+        # Add subsections if available
         if "subsections" in section and section["subsections"]:
             for subsection in section["subsections"]:
+                sub_title = re.sub(r'^\d+\)\s*', '', subsection["title"])
                 toc_html += f'<div class="toc-item" style="padding-left: 20px;">\n'
-                toc_html += f'<span>{subsection["title"]}</span>\n'
+                toc_html += f'<span>{sub_title}</span>\n'
                 toc_html += f'<span class="toc-leader"></span>\n'
                 toc_html += f'<span>{page_num}</span>\n'
                 toc_html += f'</div>\n'
@@ -117,14 +152,21 @@ def generate_pdf(
     for i, section in enumerate(tier2_sections, start=1):
         page_num = i + 2  # +2 because first content page starts at page 3
         
+        # Clean title for display (remove any numbered prefixes)
+        clean_title = re.sub(r'^\d+\)\s*', '', section["title"])
+        
         section_html = f'<div class="page">\n'
         section_html += f'<div class="page-background"></div>\n'
         section_html += f'<div class="page-content">\n'
-        section_html += f'<h2>Section {i}: {section["title"]}</h2>\n'
+        section_html += f'<h2>Section {i}: {clean_title}</h2>\n'
         
-        # Convert markdown content to HTML
+        # Remove the first heading if it duplicates the section title
         section_content = section["content"]
-        content_html = convert_markdown_to_html(section_content)
+        # Remove any first level heading that matches the section title
+        section_content = re.sub(r'^# .*' + re.escape(clean_title) + r'.*\n', '', section_content)
+        
+        # Convert markdown content to HTML with section number for table styling
+        content_html = convert_markdown_to_html(section_content, i)
         
         # Replace placeholders in the content
         content_html = content_html.replace("{company_name}", company_name)
@@ -152,7 +194,8 @@ def generate_pdf(
         prepared_by=prepared_by,
         date=date_str,
         toc=toc_html,
-        content=sections_html
+        content=sections_html,
+        assets_dir=ASSETS_DIR
     )
 
     # Ensure the reports directory exists
@@ -185,8 +228,8 @@ if __name__ == "__main__":
     company_type = "SaaS Platform"
     company_description = "AI-powered customer service automation tools"
     prepared_by = "Brendan Smith, GetFresh Ventures"
-
-    # Define sections (Example - these would be dynamically generated from content)
+    
+    # Define sections from external module
     from sample_sections import investment_report_sections
     
     # Generate PDF (Returns file path)

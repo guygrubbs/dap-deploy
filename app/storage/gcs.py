@@ -9,6 +9,8 @@ from google.cloud.exceptions import NotFound, Forbidden, GoogleCloudError
 from app.notifications.supabase_notifier import notify_supabase_final_report
 
 # Upload to Supabase utility:
+# IMPORTANT: Make sure your 'upload_pdf_to_supabase' function accepts a file path now.
+# E.g., upload_pdf_to_supabase(user_id, report_id, pdf_file_path, table_name="report_requests")
 from app.storage.supabase_uploader import upload_pdf_to_supabase
 
 logger = logging.getLogger(__name__)
@@ -16,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 def upload_pdf(report_id: int, pdf_data: bytes) -> str:
     """
-    Upload the generated PDF to Google Cloud Storage and return the blob name.
+    Upload the generated PDF to Google Cloud Storage (GCS) in-memory
+    (no temp file) and return the blob name.
     """
     bucket_name = os.getenv("REPORTS_BUCKET_NAME")
     if not bucket_name:
@@ -35,7 +38,7 @@ def upload_pdf(report_id: int, pdf_data: bytes) -> str:
         blob_name = f"reports/report_{report_id}_{timestamp}.pdf"
         blob = bucket.blob(blob_name)
 
-        # Use an in-memory file, pass that to upload_from_file
+        # Upload from an in-memory BytesIO buffer
         with io.BytesIO(pdf_data) as f:
             blob.upload_from_file(f, content_type="application/pdf")
 
@@ -52,7 +55,8 @@ def upload_pdf(report_id: int, pdf_data: bytes) -> str:
 
 def generate_signed_url(blob_name: str, expiration_seconds: int = 86400) -> str:
     """
-    Generate a version 4 signed URL for a PDF in GCS, valid for `expiration_seconds` (default 1 hour).
+    Generate a version 4 signed URL for a PDF in GCS,
+    valid for `expiration_seconds` (default 1 day).
     """
     bucket_name = os.getenv("REPORTS_BUCKET_NAME")
     if not bucket_name:
@@ -68,7 +72,6 @@ def generate_signed_url(blob_name: str, expiration_seconds: int = 86400) -> str:
 
         blob = bucket.blob(blob_name)
 
-        # Build the signed URL
         signed_url = blob.generate_signed_url(
             expiration=timedelta(seconds=expiration_seconds),
             version="v4",
@@ -100,24 +103,16 @@ def finalize_report_with_pdf(
     create_signed_url: bool = False
 ) -> None:
     """
-    Example utility function that:
-      1) Uploads a PDF to Supabase or GCS.
-      2) Generates a signed URL.
-      3) Builds the final Tier 2 report object (with sections & signed PDF).
-      4) Asynchronously notifies Supabase via notify_supabase_final_report.
-
-    final_report_sections is an array of sections, e.g.:
-    [
-      {"id": "section_1", "title": "Executive Summary", "content": "..."},
-      {"id": "section_2", "title": "Market Analysis", "content": "..."},
-      ...
-    ]
+    1) Uploads a PDF to GCS (in-memory),
+    2) Optionally generates a signed URL from GCS,
+    3) Uploads the same PDF to Supabase (using a local temp file),
+    4) Notifies Supabase that the final report is ready.
     """
     try:
         # 1) Upload PDF to GCS
         blob_name = upload_pdf(report_id, pdf_data)
 
-        # 2) Generate the signed URL
+        # 2) Generate the signed URL (optional)
         if create_signed_url:
             signed_url = generate_signed_url(blob_name, expiration_seconds=expiration_seconds)
         else:
@@ -131,25 +126,46 @@ def finalize_report_with_pdf(
             "sections": final_report_sections
         }
 
+        # 4) If desired, also upload to Supabase
         supabase_info = {}
         if upload_to_supabase:
             logger.info("Uploading PDF to Supabase for user_id=%s report_id=%s", user_id, report_id)
-            supabase_info = upload_pdf_to_supabase(
-                user_id=user_id,
-                report_id=report_id,
-                pdf_data=pdf_data,
-                table_name="report_requests"
-            )
-            # supabase_info will contain { "storage_path": ..., "public_url": ... }
 
-            # You could also store these in final_report_data if you want
+            # Use a fixed temporary file name in the same folder as gcs.py
+            # so that each new upload overwrites the old file.
+            temp_pdf_path = os.path.join(os.path.dirname(__file__), "temp_supabase_report.pdf")
+
+            # Remove old temp file if present
+            if os.path.exists(temp_pdf_path):
+                os.remove(temp_pdf_path)
+
+            # Write new PDF to the temp file
+            with open(temp_pdf_path, "wb") as tmp_file:
+                tmp_file.write(pdf_data)
+
+            try:
+                # Now upload to Supabase using the temp file path
+                supabase_info = upload_pdf_to_supabase(
+                    user_id=user_id,
+                    report_id=report_id,
+                    pdf_file_path=temp_pdf_path,  # adjust if your function param differs
+                    table_name="report_requests"
+                )
+            finally:
+                # Clean up the temp file
+                if os.path.exists(temp_pdf_path):
+                    os.remove(temp_pdf_path)
+
+            # Include Supabase info in the final data if needed
             final_report_data["supabase_storage_path"] = supabase_info.get("storage_path")
             final_report_data["supabase_public_url"] = supabase_info.get("public_url")
 
-        # 4) Asynchronously update Supabase with the final object
+        # 5) Notify Supabase that the final report is ready
         notify_supabase_final_report(report_id, final_report_data, user_id)
-
-        logger.info("PDF upload complete and Supabase final report notification triggered for report %s", report_id)
+        logger.info(
+            "PDF upload complete and Supabase final report notification triggered for report %s",
+            report_id
+        )
 
     except Exception as e:
         logger.error(

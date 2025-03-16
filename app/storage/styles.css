@@ -6,9 +6,10 @@
       font-family: 'Arial', sans-serif;
       font-size: 10pt;
   }
+  /* Bottom corner decoration moved here for better positioning in PDF */
   background-image: url("data:image/svg+xml,%3Csvg width='300' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolygon points='0,100 300,100 300,0' fill='%23f0f0f0' /%3E%3Cpolygon points='0,100 300,100 300,30' fill='%23e8e8e8' /%3E%3Cpolygon points='0,100 300,100 300,60' fill='%23e0e0e0' /%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: bottom right;
+  background-position: right bottom;
   background-size: 300px;
 }
 
@@ -25,11 +26,16 @@ body {
 .page {
   position: relative;
   page-break-after: always;
+  margin: 0;
+  padding: 0;
+  min-height: 27.9cm; /* Approximate letter page height */
 }
 
 .page-content {
   position: relative;
   z-index: 1;
+  padding: 0;
+  margin: 0;
 }
 
 .page-background {
@@ -43,12 +49,18 @@ body {
   z-index: 0;
 }
 
+/* Remove the after pseudo-element - decoration is now at page level */
+.page::after {
+  display: none;
+}
+
 .page-number {
   position: absolute;
   bottom: -2cm;
   width: 100%;
   text-align: center;
   font-size: 10pt;
+  color: #666;
 }
 
 .page-number::before {
@@ -57,6 +69,13 @@ body {
 
 .page-number::after {
   content: "-";
+}
+
+/* Hide page numbers in the center for actual PDF */
+@media print {
+  .page-number {
+      display: none;
+  }
 }
 
 /* Header */
@@ -70,8 +89,8 @@ body {
 }
 
 .logo {
-  width: 70px;
-  height: auto;
+  height: 40px;
+  width: auto;
   display: block;
   margin: 0 auto;
 }
@@ -155,7 +174,7 @@ h4 {
   margin-bottom: 0.2cm;
 }
 
-/* Tables */
+/* Table styles with section-based colors */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -168,10 +187,45 @@ th, td {
   text-align: left;
 }
 
+/* Default table header style */
 th {
-  background-color: #c6e6c6;  /* Light green header */
-  color: #333;
   font-weight: bold;
+}
+
+/* Section-specific table header colors */
+.section-1 th {
+  background-color: #d3e5f3;  /* Light blue */
+  color: #1a365d;
+}
+
+.section-2 th {
+  background-color: #d4e9d8;  /* Light green */
+  color: #1e5631;
+}
+
+.section-3 th {
+  background-color: #f5e6d3;  /* Light orange */
+  color: #8c4510;
+}
+
+.section-4 th {
+  background-color: #e5d3e8;  /* Light purple */
+  color: #5b2175;
+}
+
+.section-5 th {
+  background-color: #f3d3d8;  /* Light red */
+  color: #881337;
+}
+
+.section-6 th {
+  background-color: #d3e8e8;  /* Light teal */
+  color: #115e59;
+}
+
+.section-7 th {
+  background-color: #e6e6d3;  /* Light olive */
+  color: #5c5c2a;
 }
 
 tr:nth-child(even) {
@@ -260,4 +314,10 @@ hr {
   padding: 0 5px;
   display: inline-block;
   margin: 0 2px;
+}
+
+/* Maturity Model label */
+.maturity-label {
+  font-weight: bold;
+  margin-right: 8px;
 }
