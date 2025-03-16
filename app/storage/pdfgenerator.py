@@ -37,7 +37,6 @@ def convert_markdown_to_html(markdown_text, section_number=1, section_title=None
         section_number (int): The section number for table styling
         section_title (str, optional): The section title to check for and remove if duplicated
     """
-
     # First, strip markdown code block delimiters if present
     if markdown_text.strip().startswith("```markdown"):
         # Extract content between markdown code blocks
@@ -108,10 +107,12 @@ def convert_markdown_to_html(markdown_text, section_number=1, section_title=None
 def extract_subsections(content):
     """Extract subsections from the markdown content based on ## headings."""
     subsections = []
-    pattern = r'^## (\d+\)\s*)?(.+)$'
+    # Modified pattern to handle headings with markdown anchors
+    pattern = r'^## (\d+\)\s*)?(.+?)(\s*\{#.*?\})?$'
     matches = re.finditer(pattern, content, re.MULTILINE)
     
     for match in matches:
+        # Use the captured title without the anchor ID
         subsections.append({
             "title": match.group(2).strip(),
             "id": f"subsection-{len(subsections) + 1}"
@@ -120,7 +121,10 @@ def extract_subsections(content):
     return subsections
 
 def clean_title(title):
-    """Clean section title by removing duplicated prefixes and numeric markers."""
+    """Clean section title by removing duplicated prefixes, numeric markers, and anchor IDs."""
+    # Remove any markdown anchors {#anchor-id}
+    title = re.sub(r'\s*\{#.*?\}', '', title)
+    
     # Remove any numbered prefixes like "1) "
     title = re.sub(r'^\d+\)\s*', '', title)
     
@@ -221,6 +225,9 @@ def generate_pdf(
         for j, subsection in enumerate(section["subsections"]):
             if "id" not in subsection:
                 subsection["id"] = f"section-{i+1}-subsection-{j+1}"
+            
+            # Clean subsection titles
+            subsection["title"] = clean_title(subsection["title"])
         
         # Estimate content height for pagination
         content_height = estimate_content_height(section["content"], len(section["subsections"]))
@@ -248,22 +255,21 @@ def generate_pdf(
     # Main section entries
     for i, section in enumerate(tier2_sections, start=1):
         section_id = f"section-{i}"
-        page_num = section["page_number"]
         
         toc_html += f'<div class="toc-item">\n'
         toc_html += f'<span><a href="#{section_id}">Section {i}: {section["clean_title"]}</a></span>\n'
         toc_html += f'<span class="toc-leader"></span>\n'
-        toc_html += f'<span>{page_num}</span>\n'
+        # Removed page number from TOC
         toc_html += f'</div>\n'
         
         # Add subsections if available
         if "subsections" in section and section["subsections"]:
             for subsection in section["subsections"]:
-                sub_title = re.sub(r'^\d+\)\s*', '', subsection["title"])
+                sub_title = clean_title(subsection["title"])
                 toc_html += f'<div class="toc-item" style="padding-left: 20px;">\n'
                 toc_html += f'<span><a href="#{subsection["id"]}">{sub_title}</a></span>\n'
                 toc_html += f'<span class="toc-leader"></span>\n'
-                toc_html += f'<span>{page_num}</span>\n'
+                # Removed page number from TOC
                 toc_html += f'</div>\n'
                 
     toc_html += '</div>'
@@ -289,9 +295,10 @@ def generate_pdf(
         # Add ID attributes to subsection headings
         for j, subsection in enumerate(section["subsections"]):
             subsection_id = subsection["id"]
-            subsection_title_pattern = re.escape(subsection["title"])
+            subsection_title = clean_title(subsection["title"])
+            subsection_title_pattern = re.escape(subsection_title)
             heading_pattern = f'<h3>(\\d+\\)\\s*)?{subsection_title_pattern}</h3>'
-            replacement = f'<h3 id="{subsection_id}">\\1{subsection["title"]}</h3>'
+            replacement = f'<h3 id="{subsection_id}">\\1{subsection_title}</h3>'
             content_html = re.sub(heading_pattern, replacement, content_html)
         
         # Replace placeholders in the content

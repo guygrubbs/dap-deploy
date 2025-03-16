@@ -1,5 +1,3 @@
-# app/storage/supabase_uploader.py
-
 import os
 import logging
 from supabase import create_client, Client
@@ -80,11 +78,12 @@ def upload_pdf_to_supabase(
             public_url = ""
 
         # 4. Update the record in the specified Supabase table
+        # Use external_id instead of id for numeric report IDs
         update_resp = supabase.table(table_name).update({
             "storage_path": storage_path,
             "report_url": public_url,
             "status": "ready_for_review"
-        }).eq("id", report_id).execute()
+        }).eq("external_id", str(report_id)).execute()
 
         # 5. Check update response
         # In supabase-py 2.x, update_resp might be a `PostgrestResponse`,
