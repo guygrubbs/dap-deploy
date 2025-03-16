@@ -1,84 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{report_title}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{report_title} for Founders</title>
 </head>
 <body>
-  <!-- Page 1: Table of Contents Only -->
-  <div class="page">
-    <div class="page-background"></div>
-    <div class="page-content">
-      <div class="toc">
-        <h2>Table of Contents:</h2>
-        
-        <!-- Example: Link to dynamic sections with known IDs (section-1, section-2, etc.) -->
-        <div class="toc-item">
-          <a href="#section-1">Section 1: Executive Summary &amp; Investment Rationale</a>
-          <span class="toc-leader"></span>
-          <span>2</span>
+    <!-- Cover Page -->
+    <div class="page">
+        <div class="page-background"></div>
+        <div class="page-content">
+            <div class="header">
+                <div class="logo-container">
+                    <svg class="logo" viewBox="0 0 100 100">
+                        <rect x="30" y="30" width="40" height="40" fill="white" stroke="#333" stroke-width="2"/>
+                        <path d="M50,30 L50,10 L70,30 Z" fill="#333"/>
+                        <path d="M50,70 L50,90 L30,70 Z" fill="#333"/>
+                        <path d="M50,50 L30,30 L70,30 Z" fill="none" stroke="#333" stroke-width="2"/>
+                        <path d="M40,40 C40,40 45,50 50,50 C55,50 60,40 60,40" fill="none" stroke="#333" stroke-width="1.5"/>
+                    </svg>
+                </div>
+                <div class="company-name">GetFresh Ventures</div>
+                <div class="tagline">Growth by Design</div>
+            </div>
+            
+            <h1>{report_title} for Founders</h1>
+            
+            <div class="meta-info">
+                <p><strong>Prepared for:</strong> <span class="highlight-box">{founder_name}</span>, <span class="highlight-box">{company_name}</span></p>
+                <p><strong>Prepared by:</strong> {prepared_by}</p>
+                <p><strong>Date:</strong> {date}</p>
+            </div>
+            
+            {toc}
         </div>
-        <div class="toc-item" style="padding-left: 20px;">
-          <a href="#section-1">Key Investment Considerations</a>
-          <span class="toc-leader"></span>
-          <span>2</span>
-        </div>
-        
-        <div class="toc-item">
-          <a href="#section-2">Section 2: Market Opportunity &amp; Competitive Landscape</a>
-          <span class="toc-leader"></span>
-          <span>3</span>
-        </div>
-        <div class="toc-item" style="padding-left: 20px;">
-          <a href="#section-2">Market Overview</a>
-          <span class="toc-leader"></span>
-          <span>3</span>
-        </div>
-        
-        <div class="toc-item">
-          <a href="#section-3">Section 3: Financial Performance &amp; Investment Readiness</a>
-          <span class="toc-leader"></span>
-          <span>4</span>
-        </div>
-        
-        <div class="toc-item">
-          <a href="#section-4">Section 4: Go-To-Market (GTM) Strategy &amp; Customer Traction</a>
-          <span class="toc-leader"></span>
-          <span>5</span>
-        </div>
-        
-        <div class="toc-item">
-          <a href="#section-5">Section 5: Leadership &amp; Team</a>
-          <span class="toc-leader"></span>
-          <span>6</span>
-        </div>
-        
-        <div class="toc-item">
-          <a href="#section-6">Section 6: Investor Fit, Exit Strategy &amp; Funding Narrative</a>
-          <span class="toc-leader"></span>
-          <span>7</span>
-        </div>
-        
-        <div class="toc-item">
-          <a href="#section-7">Section 7: Final Recommendations &amp; Next Steps</a>
-          <span class="toc-leader"></span>
-          <span>8</span>
-        </div>
-        
-        <!-- Adjust or add TOC items as needed; the page numbers are static placeholders. -->
-      </div>
+        <div class="page-number">1</div>
     </div>
-    <div class="page-number">1</div>
-  </div>
-
-  <!-- Page 2 (and onward): Injected dynamic sections -->
-  <div class="page">
-    <div class="page-background"></div>
-    <div class="page-content">
-      {content}
-    </div>
-    <div class="page-number">2</div>
-  </div>
+    
+    <!-- Content Sections -->
+    {content}
 </body>
 </html>

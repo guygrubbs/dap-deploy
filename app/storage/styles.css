@@ -6,6 +6,10 @@
       font-family: 'Arial', sans-serif;
       font-size: 10pt;
   }
+  background-image: url("data:image/svg+xml,%3Csvg width='300' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolygon points='0,100 300,100 300,0' fill='%23f0f0f0' /%3E%3Cpolygon points='0,100 300,100 300,30' fill='%23e8e8e8' /%3E%3Cpolygon points='0,100 300,100 300,60' fill='%23e0e0e0' /%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: bottom right;
+  background-size: 300px;
 }
 
 body {
@@ -34,7 +38,8 @@ body {
   right: 0;
   width: 30%;
   height: 100%;
-  background: linear-gradient(135deg, rgba(230,230,230,0.4) 0%, rgba(200,200,200,0.1) 100%);
+  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='diagonalHatch' width='10' height='10' patternTransform='rotate(45 0 0)' patternUnits='userSpaceOnUse'%3E%3Cline x1='0' y1='0' x2='0' y2='10' style='stroke:%23f0f0f0; stroke-width:1' /%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100' height='100' fill='%23f8f8f8' /%3E%3Crect width='100' height='100' fill='url(%23diagonalHatch)' opacity='0.5' /%3E%3C/svg%3E");
+  background-repeat: repeat;
   z-index: 0;
 }
 
@@ -67,6 +72,8 @@ body {
 .logo {
   width: 70px;
   height: auto;
+  display: block;
+  margin: 0 auto;
 }
 
 .company-name {
@@ -141,6 +148,13 @@ h3 {
   margin-bottom: 0.3cm;
 }
 
+h4 {
+  font-size: 12pt;
+  color: #2d3748;
+  margin-top: 0.6cm;
+  margin-bottom: 0.2cm;
+}
+
 /* Tables */
 table {
   width: 100%;
@@ -148,8 +162,7 @@ table {
   margin: 0.5cm 0;
 }
 
-th,
-td {
+th, td {
   border: 1px solid #cbd5e0;
   padding: 8px 12px;
   text-align: left;
@@ -187,8 +200,7 @@ tr:nth-child(even) {
 }
 
 /* Lists */
-ul,
-ol {
+ul, ol {
   margin: 0.3cm 0;
   padding-left: 1cm;
 }
@@ -219,6 +231,20 @@ ol {
   display: inline-block;
   width: 1em;
   margin-left: -1em;
+}
+
+.warning-symbol::before {
+  content: "⚠";
+  color: #ffc107;
+  font-weight: bold;
+  margin-right: 5px;
+}
+
+.check-symbol::before {
+  content: "✓";
+  color: #4caf50;
+  font-weight: bold;
+  margin-right: 5px;
 }
 
 /* Separator line */
