@@ -64,7 +64,6 @@ class UploadToOpenAIRequest(BaseModel):
     bucket: Optional[str] = "pitchdecks"
     output_filename: Optional[str] = "pitchdeck_data.jsonl"
     upload_to_openai: Optional[bool] = True
-    # You can add more fields as needed.
 
 
 @router.post("/pitchdecks/{deck_file}/upload_to_openai", summary="Convert a pitch deck to .jsonl and upload it to OpenAI.")
@@ -79,19 +78,6 @@ def upload_deck_to_openai(
     3) Creates a .jsonl file in memory or on disk.
     4) Optionally uploads that file to OpenAI with `purpose="fine-tune"`.
     5) Returns the OpenAI file ID if upload is successful, or an error if any step fails.
-
-    Path Params:
-      - deck_file: The PDF filename stored in Supabase, e.g. "deck1.pdf".
-
-    JSON Body (UploadToOpenAIRequest):
-      - bucket: Name of the Supabase bucket containing the PDF (default "pitchdecks").
-      - output_filename: The local .jsonl filename to create (default "pitchdeck_data.jsonl").
-      - upload_to_openai: Whether to upload the .jsonl file to OpenAI (default True).
-
-    Returns:
-      A JSON dict with either:
-        {"file_id": <OpenAI file ID>} on success, or
-        {"error": <message>} on failure.
     """
     try:
         # 1) Download the PDF as bytes from Supabase
@@ -160,7 +146,6 @@ def create_report(
             parameters=request.parameters
         )
 
-        # Example progress; adjust to your actual logic
         progress = 0 if new_report.status.lower() != "completed" else 100
 
         return ReportResponse(
@@ -173,8 +158,8 @@ def create_report(
             startup_id=new_report.startup_id,
             user_id=new_report.user_id,
             report_type=new_report.report_type,
-            parameters=new_report.parameters,  # or None if your DB defaults differ
-            sections=[],  # Newly created report typically has no sections yet
+            parameters=new_report.parameters,
+            sections=[],
             signed_pdf_download_url=None
         )
 
@@ -206,12 +191,10 @@ def generate_full_report(
         logger.warning("Report with id %s not found", report_id)
         raise HTTPException(status_code=404, detail="Report not found")
 
-    # 2) Prepare the request_params dict from the report data
-    #    We assume your DB or request 'parameters' might store the pitch-deck URL.
-    #    For example, "pitch_deck_url": "https://<supabasePublicURL>?token=..."
+    # 2) Prepare the request_params dict
     request_params = {
         "report_query": f"Full investment readiness for report_id={report_id}",
-        "company": "{}",   # placeholders
+        "company": "{}",
         "industry": "{}",
     }
     # decode parameters from JSON string to dict if needed
@@ -226,25 +209,20 @@ def generate_full_report(
     # 3) If the DB or parameters has a "pitch_deck_url", fetch that PDF
     pitch_deck_url = request_params.get("pitch_deck_url")
     if pitch_deck_url:
-        logger.info("Attempting to download PDF from Supabase public URL: %s", pitch_deck_url)
+        logger.info("Attempting to download PDF from: %s", pitch_deck_url)
         try:
-            # a) Download PDF via HTTP GET
             response = requests.get(pitch_deck_url, timeout=30)
             response.raise_for_status()
             pdf_bytes = response.content
 
-            # b) Extract text from PDF
-            #    Here, you can reuse your OCR-based text extraction logic or a snippet:
             from app.matching_engine.pdf_to_openai_jsonl import extract_text_with_ocr
             pitch_deck_text = extract_text_with_ocr(pdf_bytes)
             logger.info("Pitch deck text extracted, length=%s chars", len(pitch_deck_text))
 
-            # c) Store ephemeral text in request_params
             request_params["pitch_deck_text"] = pitch_deck_text
 
         except Exception as e:
             logger.error("Error downloading or extracting pitch deck: %s", str(e), exc_info=True)
-            # Optionally, you can raise HTTP 400 or continue with no deck text
             raise HTTPException(status_code=400, detail=f"Failed to fetch pitch deck PDF: {str(e)}")
 
     logger.info("Generating full Tier-2 sections for report %s", report_id)
@@ -257,7 +235,7 @@ def generate_full_report(
     # 6) Mark the report as completed
     update_report_status(db, report_id, "completed")
 
-    # 7) Build a list of sections for PDF output
+    # 7) Build list of sections for PDF output
     section_id_map = {
         "executive_summary_investment_rationale": "Section 1: Executive Summary & Investment Rationale",
         "market_opportunity_competitive_landscape": "Section 2: Market Opportunity & Competitive Landscape",
@@ -282,10 +260,15 @@ def generate_full_report(
     pdf_data = None
     try:
         logger.info("Generating PDF for report %s", report_id)
+        # Pass the startup_id as the "company_name" param
         pdf_data = generate_pdf(
             report_id=report_model.id,
             report_title=report_model.title or "GFV Investment Report",
             tier2_sections=sections_list,
+            founder_name="",
+            company_name=report_model.startup_id or "Unknown Startup",
+            company_type="",
+            company_description="",
             output_path=None
         )
         logger.info("PDF generated successfully for report %s", report_id)

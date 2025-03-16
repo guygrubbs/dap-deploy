@@ -75,7 +75,7 @@ class BaseAIAgent:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an expert report writer with deep industry knowledge."
+                        "content": "You are an expert report writer with deep industry knowledge. Respond only with the requested headings and content. Do not include disclaimers or source references."
                     },
                     {
                         "role": "user",
@@ -108,10 +108,9 @@ class ResearcherAgent(BaseAIAgent):
             "relevant information, focusing on clarity and data completeness. "
             "Please address each category below and note any missing or unclear details.\n\n"
 
-            "Company Name: {{company_name}}\n"
-            "Industry or Sector: {{industry}}\n"
+            "Company Name: {company_name}\n"
             "Additional Context Provided:\n"
-            "{{retrieved_context}}\n\n"
+            "{retrieved_context}\n\n"
 
             "Research Objectives:\n"
             "1) Market & Industry Overview:\n"
@@ -175,31 +174,32 @@ class ExecutiveSummaryAgent(BaseAIAgent):
     
     Now produces markdown aligned with the desired layout:
     
-    ### **Section 1: Executive Summary & Investment Rationale** {#section-1:-executive-summary-&-investment-rationale}
+    ### **Section 1: Executive Summary & Investment Rationale** {{#section-1:-executive-summary-&-investment-rationale}
 
-    #### Overview {#overview}
+    #### Overview {{#overview}
     ...
-    #### Key Investment Considerations {#key-investment-considerations}
+    #### Key Investment Considerations {{#key-investment-considerations}
     ...
-    #### Investment Readiness Overview {#investment-readiness-overview}
+    #### Investment Readiness Overview {{#investment-readiness-overview}
     ...
-    #### Investment Risks & Considerations {#investment-risks-&-considerations}
+    #### Investment Risks & Considerations {{#investment-risks-&-considerations}
     ...
-    #### Investment Recommendations & Next Steps {#investment-recommendations-&-next-steps}
+    #### Investment Recommendations & Next Steps {{#investment-recommendations-&-next-steps}
     ...
-    ##### Short-Term (1-3 Months): {#short-term-(1-3-months):}
+    ##### Short-Term (1-3 Months): {{#short-term-(1-3-months):}
     ...
-    ##### Medium-Term (3-6 Months): {#medium-term-(3-6-months):}
+    ##### Medium-Term (3-6 Months): {{#medium-term-(3-6-months):}
     ...
-    ##### Long-Term (6-12 Months): {#long-term-(6-12-months):}
+    ##### Long-Term (6-12 Months): {{#long-term-(6-12-months):}
     ...
     """
     def __init__(self):
+        # This prompt instructs GPT to produce the Markdown structure matching your sample
         prompt_template = (
             "You are an expert at drafting the **Executive Summary & Investment Rationale** section "
             "of an investment readiness report in Markdown format. Use **the exact headings, subheadings, "
             "and anchor links** provided below. Where relevant, include color-coded maturity assessments "
-            "(🟢, 🟡, 🔴) and incorporate any details from the '{{retrieved_context}}'.\n\n"
+            "(🟢, 🟡, 🔴) and incorporate any details from the 'retrieved_context'.\n\n"
 
             "The company details are:\n"
             "- Founder Name: {founder_name}\n"
@@ -212,14 +212,14 @@ class ExecutiveSummaryAgent(BaseAIAgent):
 
             "## Your Task\n"
             "Generate **Section 1** in the following markdown structure:\n\n"
-            "### **Section 1: Executive Summary & Investment Rationale**\n\n"
-            "#### Overview\n"
+            "### **Section 1: Executive Summary & Investment Rationale** {{#section-1:-executive-summary-&-investment-rationale}}\n\n"
+            "#### Overview {{#overview}}\n"
             "1. Briefly describe the company (name, type, what it provides).\n"
             "2. Mention relevant revenue growth, customer traction, or market potential details.\n"
             "3. Indicate the scope of this assessment (finances, leadership, market fit, etc.).\n\n"
-            "#### Key Investment Considerations \n"
+            "#### Key Investment Considerations {{#key-investment-considerations}}\n"
             "- Add bullet points for top considerations (e.g., scalability, revenue strength, differentiation, data gaps, etc.).\n\n"
-            "#### Investment Readiness Overview \n"
+            "#### Investment Readiness Overview {{#investment-readiness-overview}}\n"
             "Create a table showing relevant investment categories and an assessment (🟢, 🟡, or 🔴). For example:\n\n"
             "| Investment Category | Assessment |\n"
             "| :---- | :---- |\n"
@@ -229,15 +229,15 @@ class ExecutiveSummaryAgent(BaseAIAgent):
             "| Operational Scalability | 🟡 Needs Improvement |\n"
             "| Leadership Depth | 🟡 Moderate Risk |\n"
             "| Exit Potential | 🟢 Favorable Pathways |\n\n"
-            "#### Investment Risks & Considerations \n"
+            "#### Investment Risks & Considerations {{#investment-risks-&-considerations}}\n"
             "- Provide a bullet list of risks or concerns (financial, operational, market-based, etc.).\n\n"
-            "#### Investment Recommendations & Next Steps \n"
+            "#### Investment Recommendations & Next Steps {{#investment-recommendations-&-next-steps}}\n"
             "- Provide general recommendations, then break them down by timeframe.\n\n"
-            "##### Short-Term (1-3 Months): \n"
+            "##### Short-Term (1-3 Months): {{#short-term-(1-3-months):}}\n"
             "- List short-term action items.\n\n"
-            "##### Medium-Term (3-6 Months): \n"
+            "##### Medium-Term (3-6 Months): {{#medium-term-(3-6-months):}}\n"
             "- List medium-term action items.\n\n"
-            "##### Long-Term (6-12 Months): \n"
+            "##### Long-Term (6-12 Months): {{#long-term-(6-12-months):}}\n"
             "- List long-term action items.\n\n"
             "### Instructions\n"
             "1. Write your final answer in valid **Markdown**.\n"
@@ -268,34 +268,34 @@ class MarketAnalysisAgent(BaseAIAgent):
 
     Now produces Markdown matching the desired layout:
     
-    ### **Section 2: Market Opportunity & Competitive Landscape** {#section-2:-market-opportunity-&-competitive-landscape}
+    ### **Section 2: Market Opportunity & Competitive Landscape** {{#section-2:-market-opportunity-&-competitive-landscape}
 
-    #### Market Overview {#market-overview}
+    #### Market Overview {{#market-overview}
 
-    #### Market Size & Growth Projections: {#market-size-&-growth-projections:}
+    #### Market Size & Growth Projections: {{#market-size-&-growth-projections:}
     - ...
     - ...
     - ...
 
-    #### Competitive Positioning {#competitive-positioning}
+    #### Competitive Positioning {{#competitive-positioning}
 
-    ##### Competitive Landscape {#competitive-landscape}
+    ##### Competitive Landscape {{#competitive-landscape}
     | Competitor | Market Focus | Key Strengths | Challenges |
     | ----- | ----- | ----- | ----- |
     |  |  |  |  |
 
-    #### Key Market Takeaways: {#key-market-takeaways:}
+    #### Key Market Takeaways: {{#key-market-takeaways:}
     - ...
 
-    ##### Challenges & Expansion Opportunities {#challenges-&-expansion-opportunities}
-    ###### Challenges: {#challenges:}
+    ##### Challenges & Expansion Opportunities {{#challenges-&-expansion-opportunities}
+    ###### Challenges: {{#challenges:}
     - ...
-    ###### Opportunities for Market Expansion: {#opportunities-for-market-expansion:}
+    ###### Opportunities for Market Expansion: {{#opportunities-for-market-expansion:}
     ✅ ...
     ✅ ...
     ✅ ...
 
-    #### Market Fit Assessment {#market-fit-assessment}
+    #### Market Fit Assessment {{#market-fit-assessment}
     | Market Factor | Assessment |
     | ----- | ----- |
     |  | 🟢 Strong |
@@ -309,34 +309,33 @@ class MarketAnalysisAgent(BaseAIAgent):
             "market size) and mention color-coded assessments (🟢, 🟡, 🔴) where fitting.\n\n"
 
             "Company: {company}\n"
-            "Industry: {industry}\n"
             "\n"
             "Retrieved Context:\n"
             "{retrieved_context}\n\n"
 
             "## Your Task\n"
             "Generate **Section 2** in the following markdown structure:\n\n"
-            "### **Section 2: Market Opportunity & Competitive Landscape**\n\n"
-            "#### Market Overview\n"
+            "### **Section 2: Market Opportunity & Competitive Landscape** {{#section-2:-market-opportunity-&-competitive-landscape}}\n\n"
+            "#### Market Overview {{#market-overview}}\n"
             "Provide a high-level description...\n\n"
-            "#### Market Size & Growth Projections:\n"
+            "#### Market Size & Growth Projections: {{#market-size-&-growth-projections:}}\n"
             "- **Total Addressable Market (TAM):**\n"
             "- **Annual Growth Rate:**\n"
             "- **Adoption Trends:**\n\n"
-            "#### Competitive Positioning\n"
+            "#### Competitive Positioning {{#competitive-positioning}}\n"
             "Explain the company’s core advantages...\n\n"
-            "##### Competitive Landscape\n"
+            "##### Competitive Landscape {{#competitive-landscape}}\n"
             "| Competitor | Market Focus | Key Strengths | Challenges |\n"
             "| ----- | ----- | ----- | ----- |\n"
             "|  |  |  |  |\n\n"
-            "#### Key Market Takeaways:\n"
+            "#### Key Market Takeaways: {{#key-market-takeaways:}}\n"
             "- Provide bullet points...\n\n"
-            "##### Challenges & Expansion Opportunities\n"
-            "###### Challenges:\n"
+            "##### Challenges & Expansion Opportunities {{#challenges-&-expansion-opportunities}}\n"
+            "###### Challenges: {{#challenges:}}\n"
             "- List any known barriers...\n\n"
-            "###### Opportunities for Market Expansion:\n"
+            "###### Opportunities for Market Expansion: {{#opportunities-for-market-expansion:}}\n"
             "✅ Outline potential growth...\n\n"
-            "#### Market Fit Assessment\n"
+            "#### Market Fit Assessment {{#market-fit-assessment}}\n"
             "| Market Factor | Assessment |\n"
             "| ----- | ----- |\n"
             "|  | 🟢 Strong |\n"
@@ -363,15 +362,15 @@ class FinancialPerformanceAgent(BaseAIAgent):
       5) Financial Risk Assessment
 
     The desired Markdown template includes:
-      ### **Section 3: Financial Performance & Investment Readiness** {#section-3:-financial-performance-&-investment-readiness}
+      ### **Section 3: Financial Performance & Investment Readiness** {{#section-3:-financial-performance-&-investment-readiness}
 
-      #### **Revenue Growth & Profitability Overview** {#revenue-growth-&-profitability-overview}
+      #### **Revenue Growth & Profitability Overview** {{#revenue-growth-&-profitability-overview}
       | Metric | Founder Company Performance | Industry Benchmark |
       | ----- | ----- | ----- |
       |  |  |  |
       |  |  |  |
 
-      #### **Investment Raised & Fund Utilization** {#investment-raised-&-fund-utilization}
+      #### **Investment Raised & Fund Utilization** {{#investment-raised-&-fund-utilization}
       | Funding Stage | Founder Company Status | Industry Benchmark |
       | ----- | ----- | ----- |
       | **Pre-Seed → Seed** |  |  |
@@ -384,16 +383,16 @@ class FinancialPerformanceAgent(BaseAIAgent):
       ⚠  
       ⚠  
 
-      #### **Revenue Streams & Financial Risk Analysis** {#revenue-streams-&-financial-risk-analysis}
+      #### **Revenue Streams & Financial Risk Analysis** {{#revenue-streams-&-financial-risk-analysis}
       | Revenue Source | Contribution | Risk Factor |
       | ----- | ----- | ----- |
       | **SaaS Subscriptions** |  |  |
       | **Other Streams** |  |  |
 
-      #### **Key Financial Risks & Considerations** {#key-financial-risks-&-considerations}
+      #### **Key Financial Risks & Considerations** {{#key-financial-risks-&-considerations}
       - bullet points
 
-      #### **Financial Risk Assessment** {#financial-risk-assessment}
+      #### **Financial Risk Assessment** {{#financial-risk-assessment}
       | Risk Factor | Assessment |
       | ----- | ----- |
       | **Revenue Concentration Risk** | 🟡 Moderate |
@@ -408,19 +407,18 @@ class FinancialPerformanceAgent(BaseAIAgent):
             "Incorporate any relevant details from '{{retrieved_context}}' and apply color-coded references (🟢, 🟡, 🔴) if needed.\n\n"
 
             "Company: {company}\n"
-            "Industry: {industry}\n\n"
             "Retrieved Context:\n"
             "{retrieved_context}\n\n"
 
             "## Your Task\n"
             "Generate **Section 3** in the following markdown structure:\n\n"
-            "### **Section 3: Financial Performance & Investment Readiness**\n\n"
-            "#### **Revenue Growth & Profitability Overview**\n"
+            "### **Section 3: Financial Performance & Investment Readiness** {{#section-3:-financial-performance-&-investment-readiness}}\n\n"
+            "#### **Revenue Growth & Profitability Overview** {{#revenue-growth-&-profitability-overview}}\n"
             "| Metric | Founder Company Performance | Industry Benchmark |\n"
             "| ----- | ----- | ----- |\n"
             "|  |  |  |\n"
             "|  |  |  |\n\n"
-            "#### **Investment Raised & Fund Utilization**\n"
+            "#### **Investment Raised & Fund Utilization** {{#investment-raised-&-fund-utilization}}\n"
             "| Funding Stage | Founder Company Status | Industry Benchmark |\n"
             "| ----- | ----- | ----- |\n"
             "| **Pre-Seed → Seed** |  |  |\n"
@@ -429,14 +427,14 @@ class FinancialPerformanceAgent(BaseAIAgent):
             "| **Valuation Transparency** |  |  |\n\n"
             "**Investor Concerns:**\n"
             "⚠ (list 2-3 concerns)\n\n"
-            "#### **Revenue Streams & Financial Risk Analysis**\n"
+            "#### **Revenue Streams & Financial Risk Analysis** {{#revenue-streams-&-financial-risk-analysis}}\n"
             "| Revenue Source | Contribution | Risk Factor |\n"
             "| ----- | ----- | ----- |\n"
             "| **SaaS Subscriptions** |  |  |\n"
             "| **Other Streams** |  |  |\n\n"
-            "#### **Key Financial Risks & Considerations**\n"
+            "#### **Key Financial Risks & Considerations** {{#key-financial-risks-&-considerations}}\n"
             "- Provide bullet points.\n\n"
-            "#### **Financial Risk Assessment**\n"
+            "#### **Financial Risk Assessment** {{#financial-risk-assessment}}\n"
             "| Risk Factor | Assessment |\n"
             "| ----- | ----- |\n"
             "| **Revenue Concentration Risk** | 🟡 Moderate |\n"
@@ -460,9 +458,9 @@ class GoToMarketAgent(BaseAIAgent):
 
     Desired Markdown Template:
 
-    ### **Section 4: Go-To-Market (GTM) Strategy & Customer Traction** {#section-4:-go-to-market-(gtm)-strategy-&-customer-traction}
+    ### **Section 4: Go-To-Market (GTM) Strategy & Customer Traction** {{#section-4:-go-to-market-(gtm)-strategy-&-customer-traction}
 
-    #### **Customer Acquisition Strategy** {#customer-acquisition-strategy}
+    #### **Customer Acquisition Strategy** {{#customer-acquisition-strategy}
     - Potential bullet points, table of channels, etc.
 
     | Acquisition Channel | Performance | Challenges |
@@ -473,7 +471,7 @@ class GoToMarketAgent(BaseAIAgent):
     ✅ **Strengths:**
     ⚠ **Challenges:**
 
-    #### **Customer Retention & Lifetime Value** {#customer-retention-&-lifetime-value}
+    #### **Customer Retention & Lifetime Value** {{#customer-retention-&-lifetime-value}
     (Table example)
 
     | Retention Metric | Founder Company Performance | Industry Benchmark |
@@ -485,7 +483,7 @@ class GoToMarketAgent(BaseAIAgent):
     ✅ **Strengths:**
     ⚠ **Challenges:**
 
-    #### **Challenges & Market Expansion Plan** {#challenges-&-market-expansion-plan}
+    #### **Challenges & Market Expansion Plan** {{#challenges-&-market-expansion-plan}
     ⚠ **Customer Acquisition Cost (CAC) Optimization Needed**
 
     - **Challenge:** ...
@@ -496,12 +494,12 @@ class GoToMarketAgent(BaseAIAgent):
     - **Challenge:** ...
     - **Solution:** ...
 
-    #### **Market Expansion Strategy** {#market-expansion-strategy}
+    #### **Market Expansion Strategy** {{#market-expansion-strategy}
     ✅ **Franchise Pilot Growth** –
     ✅ **Supplier Network Growth** –
     ✅ **AI-Driven Enhancements** –
 
-    #### **GTM Performance Assessment** {#gtm-performance-assessment}
+    #### **GTM Performance Assessment** {{#gtm-performance-assessment}
     | Category | Performance | Assessment |
     | ----- | ----- | ----- |
     | **Lead Generation Efficiency** |  |  |
@@ -518,21 +516,20 @@ class GoToMarketAgent(BaseAIAgent):
             "color-coded references if appropriate.\n\n"
 
             "Company: {company}\n"
-            "Industry: {industry}\n\n"
             "Retrieved Context:\n"
             "{retrieved_context}\n\n"
 
             "## Your Task\n"
             "Generate **Section 4** in the following markdown structure:\n\n"
-            "### **Section 4: Go-To-Market (GTM) Strategy & Customer Traction**\n\n"
-            "#### **Customer Acquisition Strategy**\n"
+            "### **Section 4: Go-To-Market (GTM) Strategy & Customer Traction** {{#section-4:-go-to-market-(gtm)-strategy-&-customer-traction}}\n\n"
+            "#### **Customer Acquisition Strategy** {{#customer-acquisition-strategy}}\n"
             "| Acquisition Channel | Performance | Challenges |\n"
             "| ----- | ----- | ----- |\n"
             "|  |  |  |\n"
             "|  |  |  |\n\n"
             "✅ **Strengths:**\n"
             "⚠ **Challenges:**\n\n"
-            "#### **Customer Retention & Lifetime Value**\n"
+            "#### **Customer Retention & Lifetime Value** {{#customer-retention-&-lifetime-value}}\n"
             "| Retention Metric | Founder Company Performance | Industry Benchmark |\n"
             "| ----- | ----- | ----- |\n"
             "| **Customer Retention Rate** |  |  |\n"
@@ -540,18 +537,18 @@ class GoToMarketAgent(BaseAIAgent):
             "| **Referral-Based Growth** |  |  |\n\n"
             "✅ **Strengths:**\n"
             "⚠ **Challenges:**\n\n"
-            "#### **Challenges & Market Expansion Plan**\n"
+            "#### **Challenges & Market Expansion Plan** {{#challenges-&-market-expansion-plan}}\n"
             "⚠ **Customer Acquisition Cost (CAC) Optimization Needed**\n"
             "* **Challenge:**\n"
             "* **Solution:**\n\n"
             "⚠ **Revenue Concentration Risk**\n"
             "* **Challenge:**\n"
             "* **Solution:**\n\n"
-            "#### **Market Expansion Strategy**\n"
+            "#### **Market Expansion Strategy** {{#market-expansion-strategy}}\n"
             "✅ **Franchise Pilot Growth** –\n"
             "✅ **Supplier Network Growth** –\n"
             "✅ **AI-Driven Enhancements** –\n\n"
-            "#### **GTM Performance Assessment**\n"
+            "#### **GTM Performance Assessment** {{#gtm-performance-assessment}}\n"
             "| Category | Performance | Assessment |\n"
             "| ----- | ----- | ----- |\n"
             "| **Lead Generation Efficiency** |  |  |\n"
@@ -575,9 +572,9 @@ class LeadershipTeamAgent(BaseAIAgent):
     AI Agent for Section 5: Leadership & Team
 
     Desired Markdown structure:
-    ### **Section 5: Leadership & Team** {#section-5:-leadership-&-team}
+    ### **Section 5: Leadership & Team** {{#section-5:-leadership-&-team}
 
-    #### **Leadership Expertise & Strategic Decision-Making** {#leadership-expertise-&-strategic-decision-making}
+    #### **Leadership Expertise & Strategic Decision-Making** {{#leadership-expertise-&-strategic-decision-making}
     Leadership Expertise & Strategic Decision-Making
 
     | Leadership Role | Experience & Contributions | Identified Gaps |
@@ -590,7 +587,7 @@ class LeadershipTeamAgent(BaseAIAgent):
     ✅ **Strengths:**  
     ⚠ **Challenges:** 
 
-    #### **Organizational Structure & Growth Plan** {#organizational-structure-&-growth-plan}
+    #### **Organizational Structure & Growth Plan** {{#organizational-structure-&-growth-plan}
     | Functional Area | Current Status | Planned Expansion | Impact on Scalability |
     | ----- | ----- | ----- | ----- |
     | **Product & Engineering** |  |  |  |
@@ -600,7 +597,7 @@ class LeadershipTeamAgent(BaseAIAgent):
     ✅  
     ⚠ 
 
-    #### **Strategic Hiring Roadmap** {#strategic-hiring-roadmap}
+    #### **Strategic Hiring Roadmap** {{#strategic-hiring-roadmap}
     | Role | Current Status | Planned Hiring Timeline | Impact |
     | ----- | ----- | ----- | ----- |
     | **CTO / Senior Product Leader** |  |  |  |
@@ -610,12 +607,12 @@ class LeadershipTeamAgent(BaseAIAgent):
     ✅  
     ⚠ 
 
-    #### **Leadership Stability & Investor Confidence** {#leadership-stability-&-investor-confidence}
+    #### **Leadership Stability & Investor Confidence** {{#leadership-stability-&-investor-confidence}
     * **Investor View:**   
     * **Identified Risks:**   
     * **Mitigation Strategy:** 
 
-    #### **Leadership & Organizational Stability Assessment** {#leadership-&-organizational-stability-assessment}
+    #### **Leadership & Organizational Stability Assessment** {{#leadership-&-organizational-stability-assessment}
     | Leadership Category | Assessment |
     | ----- | ----- |
     | **Strategic Vision & Execution** | 🟢 Strong |
@@ -630,14 +627,13 @@ class LeadershipTeamAgent(BaseAIAgent):
             "incorporating details from '{{retrieved_context}}' and mentioning color-coded references if relevant.\n\n"
 
             "Company: {company}\n"
-            "Industry: {industry}\n\n"
             "Retrieved Context:\n"
             "{retrieved_context}\n\n"
 
             "## Your Task\n"
             "Generate **Section 5** in the following markdown structure:\n\n"
-            "### **Section 5: Leadership & Team**\n\n"
-            "#### **Leadership Expertise & Strategic Decision-Making**\n"
+            "### **Section 5: Leadership & Team** {{#section-5:-leadership-&-team}}\n\n"
+            "#### **Leadership Expertise & Strategic Decision-Making** {{#leadership-expertise-&-strategic-decision-making}}\n"
             "Leadership Expertise & Strategic Decision-Making\n\n"
             "| Leadership Role | Experience & Contributions | Identified Gaps |\n"
             "| ----- | ----- | ----- |\n"
@@ -647,7 +643,7 @@ class LeadershipTeamAgent(BaseAIAgent):
             "| **Engineering & Product Development** |  |  |\n\n"
             "✅ **Strengths:**  \n"
             "⚠ **Challenges:** \n\n"
-            "#### **Organizational Structure & Growth Plan**\n"
+            "#### **Organizational Structure & Growth Plan** {{#organizational-structure-&-growth-plan}}\n"
             "| Functional Area | Current Status | Planned Expansion | Impact on Scalability |\n"
             "| ----- | ----- | ----- | ----- |\n"
             "| **Product & Engineering** |  |  |  |\n"
@@ -655,7 +651,7 @@ class LeadershipTeamAgent(BaseAIAgent):
             "| **Customer Success & Support** |  |  |  |\n\n"
             "✅  \n"
             "⚠ \n\n"
-            "#### **Strategic Hiring Roadmap**\n"
+            "#### **Strategic Hiring Roadmap** {{#strategic-hiring-roadmap}}\n"
             "| Role | Current Status | Planned Hiring Timeline | Impact |\n"
             "| ----- | ----- | ----- | ----- |\n"
             "| **CTO / Senior Product Leader** |  |  |  |\n"
@@ -663,11 +659,11 @@ class LeadershipTeamAgent(BaseAIAgent):
             "| **Customer Success & Ops Growth** |  |  |  |\n\n"
             "✅  \n"
             "⚠ \n\n"
-            "#### **Leadership Stability & Investor Confidence**\n"
+            "#### **Leadership Stability & Investor Confidence** {{#leadership-stability-&-investor-confidence}}\n"
             "* **Investor View:**   \n"
             "* **Identified Risks:**   \n"
             "* **Mitigation Strategy:** \n\n"
-            "#### **Leadership & Organizational Stability Assessment**\n"
+            "#### **Leadership & Organizational Stability Assessment** {{#leadership-&-organizational-stability-assessment}}\n"
             "| Leadership Category | Assessment |\n"
             "| ----- | ----- |\n"
             "| **Strategic Vision & Execution** | 🟢 Strong |\n"
@@ -690,9 +686,9 @@ class InvestorFitAgent(BaseAIAgent):
     AI Agent for Section 6: Investor Fit, Exit Strategy & Funding Narrative
 
     Desired Markdown structure:
-    ### **Section 6: Investor Fit, Exit Strategy & Funding Narrative** {#section-6:-investor-fit,-exit-strategy-&-funding-narrative}
+    ### **Section 6: Investor Fit, Exit Strategy & Funding Narrative** {{#section-6:-investor-fit,-exit-strategy-&-funding-narrative}
 
-    #### **Investor Profile & Strategic Alignment** {#investor-profile-&-strategic-alignment}
+    #### **Investor Profile & Strategic Alignment** {{#investor-profile-&-strategic-alignment}
     Founder Company Investor Profile & Strategic Alignment
 
     **Ideal Investor Profile:**  
@@ -703,7 +699,7 @@ class InvestorFitAgent(BaseAIAgent):
     ⚠ **Investor Concerns:**
     - 
 
-    #### **Exit Strategy Analysis** {#exit-strategy-analysis}
+    #### **Exit Strategy Analysis** {{#exit-strategy-analysis}
     | Exit Type | Viability | Potential Acquirers / Investors | Challenges |
     | ----- | ----- | ----- | ----- |
     | **M&A by FSM Software Companies** |  |  |  |
@@ -713,7 +709,7 @@ class InvestorFitAgent(BaseAIAgent):
     ✅ **Most Likely Exit:**  
     ⚠ **IPO Variability**
 
-    #### **Current Funding Narrative & Investor Messaging** {#current-funding-narrative-&-investor-messaging}
+    #### **Current Funding Narrative & Investor Messaging** {{#current-funding-narrative-&-investor-messaging}
     * **Total Funding Raised:**  
     * **Current Round:**  
     * **Valuation Transparency:**  
@@ -728,12 +724,12 @@ class InvestorFitAgent(BaseAIAgent):
     ✅ **Strengths:**  
     ⚠ **Challenges:** 
 
-    #### **Investor Messaging & Priorities** {#investor-messaging-&-priorities}
+    #### **Investor Messaging & Priorities** {{#investor-messaging-&-priorities}
     * **High-Growth SaaS Opportunity:**  
     * **Defensible Market Positioning:**  
     * **Exit Potential:**  
 
-    #### **Investor Fit Assessment** {#investor-fit-assessment}
+    #### **Investor Fit Assessment** {{#investor-fit-assessment}
     | Investment Factor | Assessment |
     | ----- | ----- |
     | **Scalability & ROI Potential** | 🟢 Strong |
@@ -749,14 +745,13 @@ class InvestorFitAgent(BaseAIAgent):
             "color-coded references (🟢, 🟡, 🔴) if needed.\n\n"
 
             "Company: {company}\n"
-            "Industry: {industry}\n\n"
             "Retrieved Context:\n"
             "{retrieved_context}\n\n"
 
             "## Your Task\n"
             "Generate **Section 6** in the following markdown structure:\n\n"
-            "### **Section 6: Investor Fit, Exit Strategy & Funding Narrative**\n\n"
-            "#### **Investor Profile & Strategic Alignment**\n"
+            "### **Section 6: Investor Fit, Exit Strategy & Funding Narrative** {{#section-6:-investor-fit,-exit-strategy-&-funding-narrative}}\n\n"
+            "#### **Investor Profile & Strategic Alignment** {{#investor-profile-&-strategic-alignment}}\n"
             "Founder Company Investor Profile & Strategic Alignment\n\n"
             "**Ideal Investor Profile:**  \n"
             "✅ **Venture Capital (VC) Firms** –  \n"
@@ -764,7 +759,7 @@ class InvestorFitAgent(BaseAIAgent):
             "✅ **Strategic FSM Acquirers** –  \n\n"
             "⚠ **Investor Concerns:**\n"
             "- List concerns here.\n\n"
-            "#### **Exit Strategy Analysis**\n"
+            "#### **Exit Strategy Analysis** {{#exit-strategy-analysis}}\n"
             "| Exit Type | Viability | Potential Acquirers / Investors | Challenges |\n"
             "| ----- | ----- | ----- | ----- |\n"
             "| **M&A by FSM Software Companies** |  |  |  |\n"
@@ -772,7 +767,7 @@ class InvestorFitAgent(BaseAIAgent):
             "| **IPO as a Growth-Stage SaaS** |  |  |  |\n\n"
             "✅ **Most Likely Exit:**  \n"
             "⚠ **IPO Variability**\n\n"
-            "#### **Current Funding Narrative & Investor Messaging**\n"
+            "#### **Current Funding Narrative & Investor Messaging** {{#current-funding-narrative-&-investor-messaging}}\n"
             "* **Total Funding Raised:**  \n"
             "* **Current Round:**  \n"
             "* **Valuation Transparency:**  \n\n"
@@ -784,11 +779,11 @@ class InvestorFitAgent(BaseAIAgent):
             "| **Valuation Transparency** |  |  |\n\n"
             "✅ **Strengths:**  \n"
             "⚠ **Challenges:** \n\n"
-            "#### **Investor Messaging & Priorities**\n"
+            "#### **Investor Messaging & Priorities** {{#investor-messaging-&-priorities}}\n"
             "* **High-Growth SaaS Opportunity:**  \n"
             "* **Defensible Market Positioning:**  \n"
             "* **Exit Potential:**  \n\n"
-            "#### **Investor Fit Assessment**\n"
+            "#### **Investor Fit Assessment** {{#investor-fit-assessment}}\n"
             "| Investment Factor | Assessment |\n"
             "| ----- | ----- |\n"
             "| **Scalability & ROI Potential** | 🟢 Strong |\n"
@@ -812,9 +807,9 @@ class RecommendationsAgent(BaseAIAgent):
 
     Desired Markdown structure (matching your provided template):
 
-    ### **Section 7: Final Recommendations & Next Steps** {#section-7:-final-recommendations-&-next-steps}
+    ### **Section 7: Final Recommendations & Next Steps** {{#section-7:-final-recommendations-&-next-steps}
 
-    #### **Key Strengths Supporting Investment Consideration** {#key-strengths-supporting-investment-consideration}
+    #### **Key Strengths Supporting Investment Consideration** {{#key-strengths-supporting-investment-consideration}
     ✅ **High Market Traction & Growth Metrics**
     * 
     ✅ **Scalable SaaS Business Model**
@@ -822,7 +817,7 @@ class RecommendationsAgent(BaseAIAgent):
     ✅ **Potential for Strategic M&A Exit**
     * 
 
-    #### **Key Investment Risks & Mitigation Strategies** {#key-investment-risks-&-mitigation-strategies}
+    #### **Key Investment Risks & Mitigation Strategies** {{#key-investment-risks-&-mitigation-strategies}
     ⚠ **Over-Reliance on ...**
     * **Risk:**  
     * **Mitigation:**  
@@ -830,21 +825,21 @@ class RecommendationsAgent(BaseAIAgent):
     * **Risk:**  
     * **Mitigation:**  
 
-    #### **Prioritized Action Plan for Investment Readiness** {#prioritized-action-plan-for-investment-readiness}
+    #### **Prioritized Action Plan for Investment Readiness** {{#prioritized-action-plan-for-investment-readiness}
     | Priority Level | Action Item | Impact | Feasibility |
     | ----- | ----- | ----- | ----- |
     | **Short-Term (1-3 Months)** |  |  |  |
     | **Medium-Term (3-6 Months)** |  |  |  |
     | **Long-Term (6-12 Months)** |  |  |  |
 
-    #### **Strategic Roadmap for Growth & Exit Planning** {#strategic-roadmap-for-growth-&-exit-planning}
+    #### **Strategic Roadmap for Growth & Exit Planning** {{#strategic-roadmap-for-growth-&-exit-planning}
     | Phase | Actionable Steps | Key Performance Indicators (KPIs) |
     | ----- | ----- | ----- |
     | **Short-Term (1-3 Months)** |  |  |
     | **Medium-Term (3-6 Months)** |  |  |
     | **Long-Term (6-12 Months)** |  |  |
 
-    #### **Investment Readiness & Market Positioning** {#investment-readiness-&-market-positioning}
+    #### **Investment Readiness & Market Positioning** {{#investment-readiness-&-market-positioning}
     | Category | Assessment |
     | ----- | ----- |
     | **Investment Readiness** | 🟢 Strong Alignment |
@@ -853,15 +848,15 @@ class RecommendationsAgent(BaseAIAgent):
     | **Leadership & Operational Scalability** | 🟡 Moderate Risk |
     | **Exit Viability & M&A Potential** | 🟢 Favorable Pathways |
 
-    ### **Final Investment Recommendation** {#final-investment-recommendation}
+    ### **Final Investment Recommendation** {{#final-investment-recommendation}
 
-    ### **Next Steps for Investment Consideration** {#next-steps-for-investment-consideration}
+    ### **Next Steps for Investment Consideration** {{#next-steps-for-investment-consideration}
     1. 
     2. 
     3. 
     4. 
 
-    ### **Final Conclusion** {#final-conclusion}
+    ### **Final Conclusion** {{#final-conclusion}
     ...
     """
     def __init__(self):
@@ -871,40 +866,39 @@ class RecommendationsAgent(BaseAIAgent):
             "incorporating data from '{{retrieved_context}}' and applying color-coded references (🟢, 🟡, 🔴) if relevant.\n\n"
             
             "Company: {company}\n"
-            "Industry: {industry}\n\n"
             "Retrieved Context:\n"
             "{retrieved_context}\n\n"
 
             "## Your Task\n"
             "Generate **Section 7** in the following markdown structure:\n\n"
-            "### **Section 7: Final Recommendations & Next Steps**\n\n"
-            "#### **Key Strengths Supporting Investment Consideration**\n"
+            "### **Section 7: Final Recommendations & Next Steps** {{#section-7:-final-recommendations-&-next-steps}}\n\n"
+            "#### **Key Strengths Supporting Investment Consideration** {{#key-strengths-supporting-investment-consideration}}\n"
             "✅ **High Market Traction & Growth Metrics**\n"
             "* ...\n"
             "✅ **Scalable SaaS Business Model**\n"
             "* ...\n"
             "✅ **Potential for Strategic M&A Exit**\n"
             "* ...\n\n"
-            "#### **Key Investment Risks & Mitigation Strategies**\n"
+            "#### **Key Investment Risks & Mitigation Strategies** {{#key-investment-risks-&-mitigation-strategies}}\n"
             "⚠ **Over-Reliance on**\n"
             "* **Risk:**\n"
             "* **Mitigation:**\n\n"
             "⚠ **Limited Financial Transparency**\n"
             "* **Risk:**\n"
             "* **Mitigation:**\n\n"
-            "#### **Prioritized Action Plan for Investment Readiness**\n"
+            "#### **Prioritized Action Plan for Investment Readiness** {{#prioritized-action-plan-for-investment-readiness}}\n"
             "| Priority Level | Action Item | Impact | Feasibility |\n"
             "| ----- | ----- | ----- | ----- |\n"
             "| **Short-Term (1-3 Months)** |  |  |  |\n"
             "| **Medium-Term (3-6 Months)** |  |  |  |\n"
             "| **Long-Term (6-12 Months)** |  |  |  |\n\n"
-            "#### **Strategic Roadmap for Growth & Exit Planning**\n"
+            "#### **Strategic Roadmap for Growth & Exit Planning** {{#strategic-roadmap-for-growth-&-exit-planning}}\n"
             "| Phase | Actionable Steps | Key Performance Indicators (KPIs) |\n"
             "| ----- | ----- | ----- |\n"
             "| **Short-Term (1-3 Months)** |  |  |\n"
             "| **Medium-Term (3-6 Months)** |  |  |\n"
             "| **Long-Term (6-12 Months)** |  |  |\n\n"
-            "#### **Investment Readiness & Market Positioning**\n"
+            "#### **Investment Readiness & Market Positioning** {{#investment-readiness-&-market-positioning}}\n"
             "| Category | Assessment |\n"
             "| ----- | ----- |\n"
             "| **Investment Readiness** | 🟢 Strong Alignment |\n"
@@ -912,14 +906,14 @@ class RecommendationsAgent(BaseAIAgent):
             "| **Funding Transparency & Investor Reporting** | 🟡 Needs Improvement |\n"
             "| **Leadership & Operational Scalability** | 🟡 Moderate Risk |\n"
             "| **Exit Viability & M&A Potential** | 🟢 Favorable Pathways |\n\n"
-            "### **Final Investment Recommendation**\n"
+            "### **Final Investment Recommendation** {{#final-investment-recommendation}}\n"
             "A short paragraph...\n\n"
-            "### **Next Steps for Investment Consideration**\n"
+            "### **Next Steps for Investment Consideration** {{#next-steps-for-investment-consideration}}\n"
             "1. ...\n"
             "2. ...\n"
             "3. ...\n"
             "4. ...\n\n"
-            "### **Final Conclusion**\n"
+            "### **Final Conclusion** {{#final-conclusion}}\n"
             "Wrap up with a concluding statement.\n\n"
             "### Instructions\n"
             "1. Write your final answer in valid **Markdown**.\n"
