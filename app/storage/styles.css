@@ -152,6 +152,16 @@ h1 {
   bottom: 4px;
 }
 
+/* TOC Links */
+.toc a {
+  color: #1a365d;
+  text-decoration: none;
+}
+
+.toc a:hover {
+  text-decoration: underline;
+}
+
 /* Section Styles */
 h2 {
   font-size: 16pt;

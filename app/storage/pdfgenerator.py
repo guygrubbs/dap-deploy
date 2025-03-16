@@ -77,10 +77,30 @@ def extract_subsections(content):
     
     for match in matches:
         subsections.append({
-            "title": match.group(2).strip()
+            "title": match.group(2).strip(),
+            "id": f"subsection-{len(subsections) + 1}"
         })
     
     return subsections
+
+def clean_title(title):
+    """Clean section title by removing duplicated prefixes and numeric markers."""
+    # Remove any numbered prefixes like "1) "
+    title = re.sub(r'^\d+\)\s*', '', title)
+    
+    # Clean duplicate section prefix (e.g., "Section 1: Section 1: ...")
+    title_pattern = r'^Section \d+:\s*Section \d+:\s*(.+)$'
+    match = re.match(title_pattern, title)
+    if match:
+        return match.group(1)
+    
+    # Remove any "Section X: " prefix if present
+    section_prefix = r'^Section \d+:\s*(.+)$'
+    match = re.match(section_prefix, title)
+    if match:
+        return match.group(1)
+    
+    return title
 
 def generate_pdf(
     report_id: int, 
@@ -115,22 +135,35 @@ def generate_pdf(
     css_content = read_file(STYLESHEET_PATH)
 
     # Preprocess sections to extract subsections if not provided
-    for section in tier2_sections:
+    section_start_page = 3  # First content starts at page 3
+    for i, section in enumerate(tier2_sections):
+        # Calculate the actual page number for this section
+        if i > 0:
+            section_start_page += 1  # Each section starts on a new page
+        
+        section["page_number"] = section_start_page
+        
         if "subsections" not in section or not section["subsections"]:
             section["subsections"] = extract_subsections(section["content"])
+        
+        # Assign IDs to subsections for linking
+        for j, subsection in enumerate(section["subsections"]):
+            if "id" not in subsection:
+                subsection["id"] = f"section-{i+1}-subsection-{j+1}"
+        
+        # Clean the section title
+        section["clean_title"] = clean_title(section["title"])
 
     # Generate table of contents
     toc_html = '<div class="toc">\n<h2>Table of Contents:</h2>\n'
     
     # Main section entries
     for i, section in enumerate(tier2_sections, start=1):
-        page_num = i + 2  # +2 because first content page starts at page 3
-        
-        # Clean title for display (remove any numbered prefixes like "1) ")
-        clean_title = re.sub(r'^\d+\)\s*', '', section["title"])
+        section_id = f"section-{i}"
+        page_num = section["page_number"]
         
         toc_html += f'<div class="toc-item">\n'
-        toc_html += f'<span>Section {i}: {clean_title}</span>\n'
+        toc_html += f'<span><a href="#{section_id}">Section {i}: {section["clean_title"]}</a></span>\n'
         toc_html += f'<span class="toc-leader"></span>\n'
         toc_html += f'<span>{page_num}</span>\n'
         toc_html += f'</div>\n'
@@ -140,7 +173,7 @@ def generate_pdf(
             for subsection in section["subsections"]:
                 sub_title = re.sub(r'^\d+\)\s*', '', subsection["title"])
                 toc_html += f'<div class="toc-item" style="padding-left: 20px;">\n'
-                toc_html += f'<span>{sub_title}</span>\n'
+                toc_html += f'<span><a href="#{subsection["id"]}">{sub_title}</a></span>\n'
                 toc_html += f'<span class="toc-leader"></span>\n'
                 toc_html += f'<span>{page_num}</span>\n'
                 toc_html += f'</div>\n'
@@ -150,23 +183,26 @@ def generate_pdf(
     # Convert sections to HTML with page breaks
     sections_html = ""
     for i, section in enumerate(tier2_sections, start=1):
-        page_num = i + 2  # +2 because first content page starts at page 3
-        
-        # Clean title for display (remove any numbered prefixes)
-        clean_title = re.sub(r'^\d+\)\s*', '', section["title"])
+        section_id = f"section-{i}"
         
         section_html = f'<div class="page">\n'
         section_html += f'<div class="page-background"></div>\n'
         section_html += f'<div class="page-content">\n'
-        section_html += f'<h2>Section {i}: {clean_title}</h2>\n'
+        section_html += f'<h2 id="{section_id}">Section {i}: {section["clean_title"]}</h2>\n'
         
         # Remove the first heading if it duplicates the section title
         section_content = section["content"]
-        # Remove any first level heading that matches the section title
-        section_content = re.sub(r'^# .*' + re.escape(clean_title) + r'.*\n', '', section_content)
         
         # Convert markdown content to HTML with section number for table styling
         content_html = convert_markdown_to_html(section_content, i)
+        
+        # Add ID attributes to subsection headings
+        for j, subsection in enumerate(section["subsections"]):
+            subsection_id = subsection["id"]
+            subsection_title_pattern = re.escape(subsection["title"])
+            heading_pattern = f'<h3>(\\d+\\)\\s*)?{subsection_title_pattern}</h3>'
+            replacement = f'<h3 id="{subsection_id}">\\1{subsection["title"]}</h3>'
+            content_html = re.sub(heading_pattern, replacement, content_html)
         
         # Replace placeholders in the content
         content_html = content_html.replace("{company_name}", company_name)
@@ -176,7 +212,7 @@ def generate_pdf(
         
         section_html += content_html
         section_html += f'</div>\n'
-        section_html += f'<div class="page-number">{page_num}</div>\n'
+        section_html += f'<div class="page-number">{section["page_number"]}</div>\n'
         section_html += f'</div>\n'
         sections_html += section_html
     
