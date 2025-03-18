@@ -8,8 +8,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 class Report(Base):
     __tablename__ = "reports"
-
     id = Column(Integer, primary_key=True, index=True)
+    report_id = Column(String(50), nullable=True, index=True)  # Add this line
     user_id = Column(String(50), nullable=True)
     startup_id = Column(String(50), nullable=True)
     report_type = Column(String(50), nullable=True)
@@ -34,6 +34,7 @@ class ReportSection(Base):
     __tablename__ = "report_sections"
 
     id = Column(Integer, primary_key=True, index=True)
+    report_id = Column(String(50), nullable=True, index=True)  # Add this line
     user_id = Column(String(50), nullable=True)
     startup_id = Column(String(50), nullable=True)
     report_type = Column(String(50), nullable=True)
