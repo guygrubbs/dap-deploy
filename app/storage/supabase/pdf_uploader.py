@@ -1,4 +1,3 @@
-
 """
 PDF upload functionality for Supabase storage.
 """
@@ -84,7 +83,7 @@ def upload_pdf_to_supabase(
         else:
             # Try to find a pending report without external_id (as a fallback)
             # The order() method only takes 2 arguments - the column name and direction as a string
-            pending_resp = supabase.table(table_name).select("id").is_("external_id", "null").eq("status", "pending").order("created_at", "desc").limit(1).execute()
+            pending_resp = supabase.table(table_name).select("id").is_("external_id", None).eq("status", "pending").order("created_at", desc=True).limit(1).execute()
             
             if hasattr(pending_resp, "data") and pending_resp.data and isinstance(pending_resp.data, list) and len(pending_resp.data) > 0:
                 # Found a pending report, update it
