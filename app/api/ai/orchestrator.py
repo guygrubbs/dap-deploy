@@ -593,42 +593,49 @@ def generate_report(request_params: dict) -> dict:
     # Shared context for these sections
     section_context = request_params.copy()
     section_context["retrieved_context"] = ephemeral_context
+    time.sleep(60)
 
     market_opportunity_competitive_landscape = generate_with_retry(
         market_opportunity_agent,
         section_context,
         "Market Opportunity & Competitive Landscape"
     )
+    time.sleep(60)
 
     financial_performance_investment_readiness = generate_with_retry(
         financial_performance_agent,
         section_context,
         "Financial Performance & Investment Readiness"
     )
+    time.sleep(60)
 
     go_to_market_strategy_customer_traction = generate_with_retry(
         gtm_strategy_agent,
         section_context,
         "Go-To-Market (GTM) Strategy & Customer Traction"
     )
+    time.sleep(60)
 
     leadership_team = generate_with_retry(
         leadership_team_agent,
         section_context,
         "Leadership & Team"
     )
+    time.sleep(60)
 
     investor_fit_exit_strategy_funding = generate_with_retry(
         investor_fit_agent,
         section_context,
         "Investor Fit, Exit Strategy & Funding Narrative"
     )
+    time.sleep(60)
 
     final_recommendations_next_steps = generate_with_retry(
         recommendations_agent,
         section_context,
         "Final Recommendations & Next Steps"
     )
+    time.sleep(60)
 
     # ----------------------------------------------------------------------------
     # Step 3: Generate the Executive Summary LAST, referencing *all other* sections
