@@ -82,7 +82,9 @@ def upload_pdf_to_supabase(
             }).eq("external_id", report_id_str).execute()
         else:
             # Try to find a pending report without external_id (as a fallback)
-            pending_resp = supabase.table(table_name).select("id").is_("external_id", "null").eq("status", "pending").order("created_at", {"ascending": False}).limit(1).execute()
+            # FIX: The order() method only takes 2 arguments - the column name and direction as a string
+            # Changed from order("created_at", {"ascending": False}) to order("created_at", "desc")
+            pending_resp = supabase.table(table_name).select("id").is_("external_id", "null").eq("status", "pending").order("created_at", "desc").limit(1).execute()
             
             if hasattr(pending_resp, "data") and pending_resp.data and isinstance(pending_resp.data, list) and len(pending_resp.data) > 0:
                 # Found a pending report, update it
