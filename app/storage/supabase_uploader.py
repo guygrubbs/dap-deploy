@@ -1,19 +1,12 @@
-import os
+"""
+PDF upload functionality for Supabase storage.
+"""
+
 import logging
-from supabase import create_client, Client
+from .client import supabase
+from .report_sync import sync_report_to_supabase
 
 logger = logging.getLogger(__name__)
-
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
-if not SUPABASE_URL or not SUPABASE_KEY:
-    logger.warning("Supabase URL or Service Role Key is not set. Supabase uploads will fail.")
-
-# Initialize Supabase client if credentials exist
-supabase: Client = None
-if SUPABASE_URL and SUPABASE_KEY:
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
 
 def upload_pdf_to_supabase(
     user_id: int,
@@ -44,14 +37,6 @@ def upload_pdf_to_supabase(
             file_options={"content-type": "application/pdf"}
         )
 
-        """
-        Typically upload_resp looks like:
-        {
-          "data": { ...some metadata... } or None,
-          "error": { "message": "...some error..." } or None
-        }
-        """
-
         # 2. Check for upload errors
         if isinstance(upload_resp, dict):
             error = upload_resp.get("error")
@@ -77,54 +62,60 @@ def upload_pdf_to_supabase(
         else:
             public_url = ""
 
+        # Get auto-approve setting
+        auto_approve = _get_auto_approve_setting()
+        status = "approved" if auto_approve else "ready_for_review"
+        
         # 4. Update the record in the specified Supabase table
-        # Use external_id instead of id for numeric report IDs
-        update_resp = supabase.table(table_name).update({
-            "storage_path": storage_path,
-            "report_url": public_url,
-            "status": "ready_for_review"
-        }).eq("external_id", str(report_id)).execute()
+        # Always use external_id as string to match the report_id
+        report_id_str = str(report_id)
+        
+        # Check if there's an existing record with this external_id
+        check_resp = supabase.table(table_name).select("id").eq("external_id", report_id_str).execute()
+        
+        if hasattr(check_resp, "data") and check_resp.data and len(check_resp.data) > 0:
+            # Record exists, update it
+            update_resp = supabase.table(table_name).update({
+                "storage_path": storage_path,
+                "report_url": public_url,
+                "status": status
+            }).eq("external_id", report_id_str).execute()
+        else:
+            # Try to find a pending report without external_id (as a fallback)
+            pending_resp = supabase.table(table_name).select("id").is_("external_id", "null").eq("status", "pending").order("created_at", {"ascending": False}).limit(1).execute()
+            
+            if hasattr(pending_resp, "data") and pending_resp.data and isinstance(pending_resp.data, list) and len(pending_resp.data) > 0:
+                # Found a pending report, update it
+                report_internal_id = pending_resp.data[0].get("id")
+                if report_internal_id:
+                    logger.info(f"Found pending report {report_internal_id}, updating with external_id {report_id}")
+                    update_resp = supabase.table(table_name).update({
+                        "storage_path": storage_path,
+                        "report_url": public_url,
+                        "status": status,
+                        "external_id": report_id_str
+                    }).eq("id", report_internal_id).execute()
+                else:
+                    logger.warning(f"Found pending report but id is missing")
+            else:
+                logger.warning(f"No report found with external_id {report_id_str} and no pending reports found")
 
-        # 5. Check update response
-        # In supabase-py 2.x, update_resp might be a `PostgrestResponse`,
-        # which has properties like .status_code, .data, .error
-        if hasattr(update_resp, "status_code") and update_resp.status_code not in [200, 204]:
-            logger.warning(
-                "Supabase table update may have failed. Status code: %s; Data: %s; Error: %s",
-                update_resp.status_code,
-                getattr(update_resp, "data", None),
-                getattr(update_resp, "error", None)
-            )
-
-        # 6. Also update the reports table with PDF URL
-        # For completeness, also update the reports table if it exists
-        try:
-            # First get the report title from report_requests to use in reports table
-            report_data_resp = supabase.table(table_name).select("title").eq("external_id", str(report_id)).execute()
-            
-            title = "Generated Report"
-            if hasattr(report_data_resp, "data") and report_data_resp.data:
-                if isinstance(report_data_resp.data, list) and len(report_data_resp.data) > 0:
-                    title = report_data_resp.data[0].get("title", title)
-            
-            # Update reports table with PDF URL and title
-            reports_resp = supabase.table("reports").upsert({
-                "report_id": str(report_id),
-                "title": title,
-                "pdf_url": public_url,
-                "status": "completed"
-            }).execute()
-            
-            if hasattr(reports_resp, "status_code") and reports_resp.status_code not in [200, 204]:
-                logger.warning(
-                    "Supabase reports table update may have failed. Status code: %s; Data: %s; Error: %s",
-                    reports_resp.status_code,
-                    getattr(reports_resp, "data", None),
-                    getattr(reports_resp, "error", None)
-                )
-        except Exception as reports_err:
-            # Log but don't fail the whole operation if reports table update fails
-            logger.warning(f"Error updating reports table: {str(reports_err)}")
+        # 5. Sync the report data to ensure a single consistent entry in the reports table
+        # Create minimal report data with the PDF URL
+        report_data = {
+            "status": status,
+            "pdf_url": public_url
+        }
+        
+        # Use report_sync.py to ensure consistent syncing with reports table
+        sync_result = sync_report_to_supabase(
+            report_id=report_id,
+            report_data=report_data,
+            user_id=str(user_id) if user_id else None
+        )
+        
+        if not sync_result:
+            logger.warning(f"Failed to sync report {report_id} to reports table")
 
         logger.info("Successfully uploaded PDF to Supabase at %s", storage_path)
         return {
@@ -136,71 +127,19 @@ def upload_pdf_to_supabase(
         logger.error("Failed to upload/update Supabase for report_id=%s: %s", report_id, str(e), exc_info=True)
         raise
 
-
-def sync_report_to_supabase(
-    report_id: int,
-    report_data: dict,
-    user_id: str = None,
-    startup_id: str = None
-) -> bool:
+def _get_auto_approve_setting() -> bool:
     """
-    Sync report data to the Supabase reports table.
-    Used by the notification system to keep Supabase in sync with report status.
-    
-    Args:
-        report_id: The external ID of the report
-        report_data: The complete report data including sections, status, etc.
-        user_id: Optional user ID
-        startup_id: Optional startup ID
-        
-    Returns:
-        bool: True if successful, False otherwise
+    Helper function to retrieve auto-approve setting from system_settings table.
+    Defaults to True if the setting doesn't exist.
     """
-    if not supabase:
-        logger.warning("Supabase client not initialized. Cannot sync report data.")
-        return False
-        
     try:
-        # Get the title from report_requests if available
-        title = "Generated Report"
-        try:
-            report_req_resp = supabase.table("report_requests").select("title").eq("external_id", str(report_id)).execute()
-            if hasattr(report_req_resp, "data") and report_req_resp.data:
-                if isinstance(report_req_resp.data, list) and len(report_req_resp.data) > 0:
-                    title = report_req_resp.data[0].get("title", title)
-        except Exception as title_err:
-            logger.warning(f"Could not get report title: {str(title_err)}")
-            
-        # Prepare the data to upsert
-        data = {
-            "report_id": str(report_id),
-            "report_data": report_data,
-            "status": report_data.get("status", "pending"),
-            "title": title  # Use the title we retrieved or the default
-        }
-        
-        # Add optional fields if provided
-        if user_id:
-            data["user_id"] = user_id
-        if startup_id:
-            data["startup_id"] = startup_id
-            
-        # Upsert to reports table
-        response = supabase.table("reports").upsert(data).execute()
-        
-        # Check response
-        if hasattr(response, "status_code") and response.status_code not in [200, 204]:
-            logger.warning(
-                "Supabase reports sync failed. Status code: %s; Data: %s; Error: %s",
-                response.status_code,
-                getattr(response, "data", None),
-                getattr(response, "error", None)
-            )
-            return False
-            
-        logger.info(f"Successfully synced report {report_id} to Supabase")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Failed to sync report {report_id} to Supabase: {str(e)}", exc_info=True)
-        return False
+        settings_resp = supabase.table("system_settings").select("auto_approve_reports").execute()
+        if hasattr(settings_resp, "data") and settings_resp.data:
+            if isinstance(settings_resp.data, list) and len(settings_resp.data) > 0:
+                # Return True if auto_approve_reports is True or None
+                return settings_resp.data[0].get("auto_approve_reports") is not False
+    except Exception as err:
+        logger.warning(f"Could not get auto-approve setting: {str(err)}")
+    
+    # Default to True if we can't get the setting
+    return True
