@@ -33,52 +33,59 @@ def sync_report_to_supabase(
     try:
         # Convert report_id to string for consistent querying
         report_id_str = str(report_id)
+        logger.info(f"Syncing report with ID: {report_id_str}")
         
-        # SCHEMA CORRECTION: Check the actual column structure
-        # Try to get the table structure first to verify what fields exist
-        table_info = supabase.table("reports").select("*").limit(1).execute()
-        if hasattr(table_info, "data") and table_info.data:
-            # Log the actual column names for debugging
-            if isinstance(table_info.data, list) and len(table_info.data) > 0:
-                logger.info(f"Reports table columns: {list(table_info.data[0].keys())}")
+        # Check if the report already exists in the reports table
+        # This is important to avoid creating duplicate entries
+        logger.info("Checking if report already exists in reports table")
+        existing_report_response = None
         
-        # Check if 'report_id' column exists, otherwise try using 'id' column
-        report_exists = False
-        
-        # First try to query based on 'report_id' column if it exists
         try:
-            logger.info(f"Trying to find report using 'report_id' column with value: {report_id_str}")
-            existing_report = supabase.table("reports").select("id").eq("report_id", report_id_str).execute()
-            
-            if hasattr(existing_report, "data") and existing_report.data:
-                if isinstance(existing_report.data, list) and len(existing_report.data) > 0:
-                    report_exists = True
+            # First try by report_id column
+            existing_report_response = supabase.table("reports").select("*").eq("report_id", report_id_str).execute()
+            if hasattr(existing_report_response, "data") and existing_report_response.data:
+                if isinstance(existing_report_response.data, list) and len(existing_report_response.data) > 0:
                     logger.info(f"Found existing report with report_id: {report_id_str}")
         except Exception as e:
-            logger.warning(f"Error querying 'report_id' column: {str(e)}")
+            logger.warning(f"Error checking for existing report by report_id: {e}")
             
-            # Fallback: Try using 'id' column instead if 'report_id' query failed
+            # Try by id column as fallback
             try:
-                logger.info(f"Trying to find report using 'id' column with value: {report_id_str}")
-                existing_report = supabase.table("reports").select("*").eq("id", report_id_str).execute()
-                
-                if hasattr(existing_report, "data") and existing_report.data:
-                    if isinstance(existing_report.data, list) and len(existing_report.data) > 0:
-                        report_exists = True
-                        logger.info(f"Found existing report with id: {report_id_str}")
+                existing_report_response = supabase.table("reports").select("*").eq("id", report_id_str).execute()
             except Exception as inner_e:
-                logger.warning(f"Error querying 'id' column: {str(inner_e)}")
+                logger.warning(f"Error checking for existing report by id: {inner_e}")
+        
+        # Determine if the report exists
+        report_exists = False
+        existing_report_id = None
+        if existing_report_response and hasattr(existing_report_response, "data") and existing_report_response.data:
+            if isinstance(existing_report_response.data, list) and len(existing_report_response.data) > 0:
+                report_exists = True
+                existing_report_id = existing_report_response.data[0].get("id")
+                logger.info(f"Found existing report with database ID: {existing_report_id}")
         
         # Get the title from report_requests if available
-        title = _get_report_title(report_id)
+        title = _get_report_title(report_id_str)
         
         # Find original report request to get additional metadata
-        req_data = _get_report_request_data(report_id)
+        req_data = _get_report_request_data(report_id_str)
         
         # If we found the original request, extract metadata
         original_user_id = req_data.get("user_id") if req_data else None
         original_startup_id = req_data.get("startup_id") if req_data else None
         report_type = req_data.get("report_type") if req_data else None
+        
+        # Check if this is a report for a new company (entered by investor)
+        startup_details = None
+        if req_data and req_data.get("parameters") and isinstance(req_data["parameters"], dict):
+            startup_details = req_data["parameters"].get("startup_details")
+            
+        # If we have startup details but the startup_id matches the user_id, 
+        # this is likely a report created by an investor for a new company
+        is_new_company_report = (startup_details and 
+                               original_startup_id and 
+                               original_user_id and 
+                               original_startup_id == original_user_id)
             
         # Prepare the data to upsert
         # Ensure we have a valid status - this was the root cause of the error
@@ -112,22 +119,39 @@ def sync_report_to_supabase(
         # Add optional fields if provided
         if user_id:
             data["user_id"] = user_id
+            
+        # If this is a new company report (from investor), add company name in report data
+        if is_new_company_report and startup_details and startup_details.get("company_name"):
+            # Include company name in report data
+            if "report_data" not in data or not isinstance(data["report_data"], dict):
+                data["report_data"] = {}
+            data["report_data"]["company_name"] = startup_details["company_name"]
+            
+            # Log that we're handling a new company report
+            logger.info(f"Handling report for new company: {startup_details['company_name']}")
+        
+        # Always include startup_id (either existing one or the investor's ID as fallback)
         if startup_id:
             data["startup_id"] = startup_id
         
         # If the report exists, update it; otherwise insert it
-        if report_exists:
-            logger.info(f"Updating existing report with report_id: {report_id_str}")
-            # Try updating by 'report_id' first
+        if report_exists and existing_report_id:
+            logger.info(f"Updating existing report with database ID: {existing_report_id}")
+            # Update by primary key 'id' which is most reliable
             try:
-                response = supabase.table("reports").update(data).eq("report_id", report_id_str).execute()
+                response = supabase.table("reports").update(data).eq("id", existing_report_id).execute()
+                logger.info(f"Update response status code: {getattr(response, 'status_code', 'Unknown')}")
             except Exception as e:
-                logger.warning(f"Error updating by 'report_id', trying 'id' instead: {str(e)}")
-                # Fallback to updating by 'id'
-                response = supabase.table("reports").update(data).eq("id", report_id_str).execute()
+                logger.error(f"Error updating report: {e}", exc_info=True)
+                return False
         else:
             logger.info(f"Inserting new report with report_id: {report_id_str}")
-            response = supabase.table("reports").insert(data).execute()
+            try:
+                response = supabase.table("reports").insert(data).execute()
+                logger.info(f"Insert response status code: {getattr(response, 'status_code', 'Unknown')}")
+            except Exception as e:
+                logger.error(f"Error inserting report: {e}", exc_info=True)
+                return False
             
         # Check response
         if hasattr(response, "status_code") and response.status_code not in [200, 201, 204]:
@@ -182,78 +206,109 @@ def _update_report_request_external_id(request_id: str, external_id: int) -> Non
     except Exception as e:
         logger.warning(f"Error updating report_requests with external ID: {str(e)}")
 
-def _get_report_request_data(report_id: int) -> dict:
+def _get_report_request_data(external_id: str) -> dict:
     """
-    Helper function to retrieve report data from report_requests table.
+    Gets the report request data from the report_requests table
+    based on the external ID.
+    
+    Args:
+        external_id: The external ID of the report
+        
+    Returns:
+        dict: The report request data or None if not found
     """
     try:
-        # Convert to string for consistent querying
-        report_id_str = str(report_id)
+        if not supabase:
+            logger.warning("Supabase client not initialized. Cannot get report request data.")
+            return None
+            
+        # Try to find the report request by external_id
+        response = supabase.table("report_requests").select("*").eq("external_id", external_id).execute()
         
-        # First try to look up by external_id
-        report_req_resp = supabase.table("report_requests").select("*").eq("external_id", report_id_str).execute()
-        
-        if hasattr(report_req_resp, "data") and report_req_resp.data:
-            if isinstance(report_req_resp.data, list) and len(report_req_resp.data) > 0:
-                return report_req_resp.data[0]
+        if hasattr(response, "data") and response.data:
+            if isinstance(response.data, list) and len(response.data) > 0:
+                logger.info(f"Found report request with external ID: {external_id}")
+                return response.data[0]
                 
-        # If not found, we might be dealing with the internal ID
-        # (though this is less likely for this function's use case)
-        report_req_resp = supabase.table("report_requests").select("*").eq("id", str(report_id)).execute()
-        
-        if hasattr(report_req_resp, "data") and report_req_resp.data:
-            if isinstance(report_req_resp.data, list) and len(report_req_resp.data) > 0:
-                return report_req_resp.data[0]
-    except Exception as err:
-        logger.warning(f"Could not get report request data: {str(err)}")
-    
-    return {}
+        logger.info(f"No report request found with external ID: {external_id}")
+        return None
+    except Exception as e:
+        logger.warning(f"Error getting report request data: {str(e)}")
+        return None
 
 def _get_auto_approve_setting() -> bool:
     """
-    Helper function to retrieve auto-approve setting from system_settings table.
-    Defaults to True if the setting doesn't exist.
+    Gets the auto-approve setting from the system_settings table.
+    
+    Returns:
+        bool: True if auto-approve is enabled, False otherwise
     """
     try:
-        settings_resp = supabase.table("system_settings").select("auto_approve_reports").execute()
-        if hasattr(settings_resp, "data") and settings_resp.data:
-            if isinstance(settings_resp.data, list) and len(settings_resp.data) > 0:
-                # Return True if auto_approve_reports is True or None
-                return settings_resp.data[0].get("auto_approve_reports") is not False
-    except Exception as err:
-        logger.warning(f"Could not get auto-approve setting: {str(err)}")
-    
-    # Default to True if we can't get the setting
-    return True
+        if not supabase:
+            logger.warning("Supabase client not initialized. Cannot get auto-approve setting.")
+            return True  # Default to auto-approve if we can't check
+            
+        response = supabase.table("system_settings").select("auto_approve_reports").limit(1).execute()
+        
+        if hasattr(response, "data") and response.data:
+            if isinstance(response.data, list) and len(response.data) > 0:
+                # If setting exists and is explicitly set to false, return false
+                if "auto_approve_reports" in response.data[0] and response.data[0]["auto_approve_reports"] is False:
+                    return False
+                    
+        # Default to auto-approve if setting doesn't exist or is not explicitly false
+        return True
+    except Exception as e:
+        logger.warning(f"Error getting auto-approve setting: {str(e)}")
+        return True  # Default to auto-approve if there's an error
 
-def _get_report_title(report_id: int) -> str:
+def _get_report_title(report_id: str) -> str:
     """
-    Helper function to retrieve report title from report_requests table.
+    Gets the title for a report, either from an existing report or
+    from the report_requests table.
+    
+    Args:
+        report_id: The external ID of the report
+        
+    Returns:
+        str: The report title or a default title if none is found
     """
     try:
-        report_id_str = str(report_id)
-        report_req_resp = supabase.table("report_requests").select("title").eq("external_id", report_id_str).execute()
-        if hasattr(report_req_resp, "data") and report_req_resp.data:
-            if isinstance(report_req_resp.data, list) and len(report_req_resp.data) > 0:
-                return report_req_resp.data[0].get("title", "Generated Report")
-    except Exception as title_err:
-        logger.warning(f"Could not get report title: {str(title_err)}")
-    
-    return "Generated Report"
+        if not supabase:
+            logger.warning("Supabase client not initialized. Cannot get report title.")
+            return f"Report {report_id}"
+            
+        # First try to get the title from the report_requests table
+        req_data = _get_report_request_data(report_id)
+        
+        if req_data and "title" in req_data and req_data["title"]:
+            return req_data["title"]
+            
+        # If no title is found in report_requests, use a default title
+        return f"Generated Report {report_id}"
+    except Exception as e:
+        logger.warning(f"Error getting report title: {str(e)}")
+        return f"Report {report_id}"
 
 def _extract_valid_status(report_data: dict) -> str:
     """
     Helper function to extract a valid status from report data.
     Ensures we have a string status value to avoid database constraints.
     """
-    report_status = "pending"  # Default status
+    # Default status if nothing can be extracted from report_data
+    report_status = "pending"
+    
     if report_data:
         if isinstance(report_data, dict):
             # Get status from report_data or default to "pending"
-            report_status = report_data.get("status", "pending")
+            status_value = report_data.get("status")
             
-            # Make sure we have a valid status value
-            if not report_status or not isinstance(report_status, str):
-                report_status = "pending"
+            # Make sure we have a valid string status value
+            if status_value and isinstance(status_value, str):
+                report_status = status_value
+    
+    # Final safety check - never return None or empty string
+    if not report_status or not isinstance(report_status, str):
+        report_status = "pending"
     
     return report_status
