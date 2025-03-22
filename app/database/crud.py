@@ -1,116 +1,143 @@
 from sqlalchemy.orm import Session
 from datetime import datetime
 import json
-from typing import Dict, Any
+from typing import Dict
 
-# 1) Updated import to use ReportRequest instead of Report/ReportSection
-from app.database.models import ReportRequest
+from app.database.models import Report, ReportSection
 
-def create_report_request(
+def create_report_entry(
     db: Session,
     title: str,
     user_id: str,
     startup_id: str,
     report_type: str,
     parameters: dict
-) -> ReportRequest:
-    """
-    Creates a new record in the 'report_requests' table (status='pending' by default)
-    with any initial parameters you supply.
+) -> Report:
+    # parameters_str = json.dumps(parameters) if parameters else None
 
-    Args:
-        db: SQLAlchemy Session
-        title: Title of the report
-        user_id: The user who requested the report
-        startup_id: The startup ID associated with this report
-        report_type: e.g., 'investment_readiness'
-        parameters: Additional JSON parameters (pitch_deck_url, etc.)
-
-    Returns:
-        The newly created ReportRequest object (already committed to DB).
-    """
-    new_request = ReportRequest(
+    new_report = Report(
         title=title,
-        status="pending",  # if you'd rather let DB defaults handle this, remove this line
+        status="pending",
         user_id=user_id,
         startup_id=startup_id,
         report_type=report_type,
         parameters=parameters
     )
-    db.add(new_request)
+    db.add(new_report)
     try:
         db.commit()
-        db.refresh(new_request)
-        return new_request
+        db.refresh(new_report)
+        return new_report
     except:
         db.rollback()
         raise
 
-def get_report_request_by_id(db: Session, request_id: str) -> ReportRequest:
+def update_report_status(db: Session, report_id: int, new_status: str) -> Report:
     """
-    Retrieve a single record from 'report_requests' by its primary key (UUID string).
+    Update the status of a report. If setting status to 'completed', update completed_at timestamp.
     """
-    return db.query(ReportRequest).filter(ReportRequest.id == request_id).first()
+    report = db.query(Report).filter(Report.id == report_id).first()
+    if not report:
+        raise ValueError("Report not found")
 
-def update_report_request_status(db: Session, request_id: str, new_status: str) -> ReportRequest:
-    """
-    Update the status of a report request in 'report_requests' (e.g., 'processing', 'ready_for_review').
-    Remove references to 'completed' if not using that exact status.
-    """
-    report_request = db.query(ReportRequest).filter(ReportRequest.id == request_id).first()
-    if not report_request:
-        raise ValueError("Report request not found")
+    report.status = new_status
+    if new_status.lower() == "completed":
+        report.completed_at = datetime.utcnow()
 
-    report_request.status = new_status
     try:
         db.commit()
-        db.refresh(report_request)
-        return report_request
+        db.refresh(report)
+        return report
     except Exception as e:
         db.rollback()
         raise e
 
-def update_report_sections(db: Session, request_id: str, sections_dict: Dict[str, Any]):
+def save_section(db: Session, report_id: int, section_name: str, content: str) -> ReportSection:
     """
-    Stores the entire sections data in the JSONB 'sections' column of 'report_requests'.
-    If your sections are a dict like:
+    Save or update a specific report section in the database.
+    """
+    new_section = ReportSection(
+        report_id=report_id,
+        section_name=section_name,
+        content=content
+    )
+    db.add(new_section)
+    try:
+        db.commit()
+        db.refresh(new_section)
+        return new_section
+    except Exception as e:
+        db.rollback()
+        raise e
+
+def get_report_by_id(db: Session, report_id: int) -> Report:
+    """
+    Retrieve a report from the database by its ID.
+    """
+    return db.query(Report).filter(Report.id == report_id).first()
+
+def get_report_content(db: Session, report_id: int) -> dict:
+    """
+    Retrieve and aggregate the content of each section for a given report as {section_name: content}.
+    """
+    sections = db.query(ReportSection).filter(ReportSection.report_id == report_id).all()
+    if not sections:
+        return {}
+    return {section.section_name: section.content for section in sections}
+
+def update_pdf_url(db: Session, report_id: int, pdf_url: str) -> Report:
+    """
+    If you need to update pdf_url after report generation, call this.
+    """
+    report = db.query(Report).filter(Report.id == report_id).first()
+    if not report:
+        raise ValueError("Report not found")
+    report.pdf_url = pdf_url
+
+    try:
+        db.commit()
+        db.refresh(report)
+        return report
+    except Exception as e:
+        db.rollback()
+        raise e
+
+# -------------------------------
+# Missing function for storing multi-section results:
+# -------------------------------
+def update_report_sections(db: Session, report_id: int, sections_dict: Dict[str, str]):
+    """
+    Takes a dictionary like:
       {
-        "executive_summary_investment_rationale": "...",
-        "market_opportunity_competitive_landscape": "...",
+        "executive_summary_investment_rationale": "...section text...",
+        "market_opportunity_competitive_landscape": "...section text...",
         ...
       }
-    or a list of section objects, you can assign it directly to 'sections'.
-    """
-    request_obj = db.query(ReportRequest).filter(ReportRequest.id == request_id).first()
-    if not request_obj:
-        raise ValueError("Report request not found")
+    and saves/updates each one into the 'report_sections' table 
+    for the given report_id.
 
-    request_obj.sections = sections_dict  # Overwrite the existing JSON data
+    Adjust logic if you want to only create new or always overwrite existing.
+    """
+    for section_key, content in sections_dict.items():
+        # Optional: check if we have an existing section row or not
+        existing_section = db.query(ReportSection).filter(
+            ReportSection.report_id == report_id,
+            ReportSection.section_name == section_key
+        ).first()
+
+        if existing_section:
+            # Overwrite content if you want to update in place
+            existing_section.content = content
+        else:
+            # Create a new row
+            new_section = ReportSection(
+                report_id=report_id,
+                section_name=section_key,
+                content=content
+            )
+            db.add(new_section)
     try:
         db.commit()
-        db.refresh(request_obj)
-        return request_obj
-    except Exception as e:
-        db.rollback()
-        raise e
-
-def update_report_request_pdf(db: Session, request_id: str, pdf_url: str) -> ReportRequest:
-    """
-    If you need to update a 'signed_pdf_download_url' or 'report_url' after generation,
-    call this function. Adjust the field if you store the PDF differently.
-    """
-    report_request = db.query(ReportRequest).filter(ReportRequest.id == request_id).first()
-    if not report_request:
-        raise ValueError("Report request not found")
-
-    # e.g., if you're storing the final PDF URL in 'signed_pdf_download_url':
-    report_request.signed_pdf_download_url = pdf_url
-    report_request.storage_path = pdf_url
-
-    try:
-        db.commit()
-        db.refresh(report_request)
-        return report_request
     except Exception as e:
         db.rollback()
         raise e

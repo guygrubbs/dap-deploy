@@ -7,7 +7,8 @@ This module is maintained for backward compatibility.
 from app.storage.supabase import (
     supabase,
     initialize_supabase,
-    upload_pdf_to_supabase
+    upload_pdf_to_supabase,
+    sync_report_to_supabase
 )
 
 # For backward compatibility, ensure the client is available directly
