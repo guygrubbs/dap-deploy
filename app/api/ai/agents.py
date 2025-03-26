@@ -41,8 +41,7 @@ class BaseAIAgent:
                         "role": "user",
                         "content": prompt
                     }
-                ],
-                temperature=0.7,
+                ]
             )
             content = response["choices"][0]["message"]["content"].strip()
             logger.info("Research completed successfully using model: %s", model_name)
@@ -81,8 +80,7 @@ class BaseAIAgent:
                         "role": "user",
                         "content": prompt
                     }
-                ],
-                temperature=0.7,
+                ]
             )
             content = response["choices"][0]["message"]["content"].strip()
             logger.info("Section generated successfully using model: %s", model_name)
