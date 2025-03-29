@@ -2,6 +2,7 @@ import os
 import openai
 import logging
 from typing import Any, Dict
+from random import randint
 
 logger = logging.getLogger(__name__)
 
@@ -9,8 +10,15 @@ class BaseAIAgent:
     """
     Base class for AI agents using the OpenAI GPT-4 API.
     This class provides a method to generate a report section
-    based on a dynamic prompt template and context.
+    or gather research based on a dynamic prompt template and context.
+
+    Key Updates:
+    1. Automatic model selection from env var 'OPENAI_MODEL'.
+    2. Optionally incorporate random subtle variations so the
+       exact same placeholders/tables are not repeated verbatim 
+       when context data is present.
     """
+
     def __init__(self, prompt_template: str):
         self.prompt_template = prompt_template
 
@@ -18,12 +26,14 @@ class BaseAIAgent:
         """
         Calls the GPT API to gather data based on the prompt template.
         Returns text that can be used as context for other agents.
+
+        If relevant data is in 'context', encourage the model 
+        to use that data in place of placeholders.
         """
         prompt = self.prompt_template.format(**context)
         logger.info("Gathering research with prompt:\n%s", prompt)
 
-        # Retrieve model name from environment or default to "gpt-4"
-        model_name = os.getenv("OPENAI_MODEL", "o1")
+        model_name = os.getenv("OPENAI_MODEL", "gpt-4")  # default to GPT-4
 
         try:
             response = openai.ChatCompletion.create(
@@ -32,9 +42,9 @@ class BaseAIAgent:
                     {
                         "role": "system",
                         "content": (
-                            "You are a specialized research agent focused on gathering factual details, "
-                            "identifying missing data, and providing an objective overview of the company's "
-                            "market position, traction, financial health, and other relevant insights."
+                            "You are a specialized research agent. Your job is to collect factual details "
+                            "and relevant data about the company, the market, financial metrics, etc. "
+                            "Avoid placeholders if real information is found in the provided context."
                         )
                     },
                     {
@@ -52,21 +62,22 @@ class BaseAIAgent:
 
     def generate_section(self, context: Dict[str, Any]) -> str:
         """
-        Generates a report section using the provided context.
+        Generates a report section using the provided 'context'.
 
-        The method dynamically formats the prompt template with the given context,
-        ensuring that details like industry, company name, key metrics, etc.,
-        tailor the output. Then it calls the GPT API (default "gpt-4") to generate the section.
+        The method dynamically formats the prompt template with context
+        (founder_name, company_name, pitch_deck_text, etc.), then calls
+        the OpenAI ChatCompletion API with a system instruction to produce
+        structured output in Markdown, using the required headings/subheadings.
 
-        If you want to reference a custom fine-tuned model (e.g. "ft:gpt-3.5-turbo-1234abc"),
-        just set the environment variable OPENAI_MODEL to that string.
+        If data is missing, it can either mention 'unknown' or skip that part,
+        rather than repeating placeholders each time.
         """
-        # Dynamically generate the prompt based on input context
+
+        # Dynamically generate the prompt
         prompt = self.prompt_template.format(**context)
         logger.info("Generating section with prompt:\n%s", prompt)
 
-        # Retrieve model name from environment or default to "gpt-4"
-        model_name = os.getenv("OPENAI_MODEL", "o1")
+        model_name = os.getenv("OPENAI_MODEL", "gpt-4")
 
         try:
             response = openai.ChatCompletion.create(
@@ -74,7 +85,12 @@ class BaseAIAgent:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an expert report writer with deep industry knowledge. Respond only with the requested headings and content. Do not include disclaimers or source references."
+                        "content": (
+                            "You are an expert report writer with deep industry knowledge. "
+                            "Respond only with the requested headings and content in valid Markdown. "
+                            "If the context includes real data, incorporate it; do not fill with placeholders. "
+                            "If data is missing or unknown, label it clearly as such."
+                        )
                     },
                     {
                         "role": "user",
@@ -92,133 +108,69 @@ class BaseAIAgent:
 
 class ResearcherAgent(BaseAIAgent):
     """
-    A single agent that consolidates essential research prompts
-    to gather high-level data about a company. The output is meant
-    to be used as context for subsequent section-generation agents.
-    
-    This agent is company-agnostic and focuses on collecting 
-    relevant details, key metrics, and identifying data gaps.
+    Gathers raw research details about a company. This output
+    feeds into the subsequent section-generation agents.
+
+    Updated to encourage actual data usage from context, 
+    rather than placeholders.
     """
     def __init__(self):
-        # Consolidated prompt template—no specific section headings or color codes.
         prompt_template = (
             "You are tasked with researching the following company and gathering "
-            "relevant information, focusing on clarity and data completeness. "
-            "Please address each category below and note any missing or unclear details.\n\n"
+            "factual information. Do not use placeholders if real data is given in context. "
+            "If data is missing or not provided, label it as 'unknown' or 'not disclosed'.\n\n"
 
             "Company Name: {company_name}\n"
-            "Additional Context Provided:\n"
+            "Additional Context:\n"
             "{retrieved_context}\n\n"
 
             "Research Objectives:\n"
-            "1) Market & Industry Overview:\n"
-            "   - Identify the company's market focus, key segments, and major industry trends.\n"
-            "   - Pinpoint known competitors and where this company stands relative to them.\n"
-            "   - Highlight any known pain points the company aims to solve and how they differ from existing solutions.\n"
-            "   - Note missing or unclear market details.\n\n"
-
-            "2) Customer Traction & Revenue:\n"
-            "   - Summarize any publicly known traction (customer base, notable partnerships, revenue streams, or growth metrics).\n"
-            "   - Identify any major revenue drivers or channels.\n"
-            "   - Note missing data about customer satisfaction, sales metrics, or revenue reporting.\n\n"
-
-            "3) Financial & Growth Indicators:\n"
-            "   - Gather any available funding details (rounds, investors, total raised, valuation) and overall financial stability.\n"
-            "   - Note key revenue trends or profitability metrics if disclosed.\n"
-            "   - Identify gaps in financial data that impede a full assessment.\n\n"
-
-            "4) Go-To-Market & Competitive Position:\n"
-            "   - Outline the company's approach to acquiring and retaining customers.\n"
-            "   - Highlight any noteworthy GTM strategies or channels.\n"
-            "   - Compare or contrast with competitor approaches if possible.\n"
-            "   - Note missing data on GTM effectiveness.\n\n"
-
-            "5) Leadership & Team:\n"
-            "   - Summarize the leadership team's background or expertise if available.\n"
-            "   - Indicate known team size, skill sets, or hiring trends.\n"
-            "   - Identify any leadership gaps or unclear organizational details.\n\n"
-
-            "6) Investor Alignment & Risks:\n"
-            "   - Describe how the company aligns (or not) with typical investor interests (e.g., growth potential, market fit).\n"
-            "   - Note any major risks or red flags (e.g., data gaps, unproven market, regulatory concerns).\n\n"
-
-            "7) Recommendations or Next Steps (High-Level):\n"
-            "   - Based on the data gathered, suggest areas needing further validation or deeper diligence.\n"
-            "   - Highlight the most significant missing elements that should be clarified.\n\n"
+            "1) Market & Industry Overview\n"
+            "2) Customer Traction & Revenue\n"
+            "3) Financial & Growth Indicators\n"
+            "4) Go-To-Market & Competitive Position\n"
+            "5) Leadership & Team\n"
+            "6) Investor Alignment & Risks\n"
+            "7) Recommendations or Next Steps (High-Level)\n\n"
 
             "Instructions:\n"
             "• Provide factual details wherever possible.\n"
-            "• Note clearly if certain data points (e.g., revenue, churn, or competitor analyses) are not publicly available.\n"
-            "• Avoid drafting a final report narrative. Instead, focus on presenting raw research findings and data gaps.\n"
-            "• Your output will be used as context in a later step.\n"
+            "• If info is not found, say 'unknown' or 'not disclosed'.\n"
+            "• Avoid drafting a final 'report'; simply present data.\n"
+            "• This output will be appended to further sections.\n"
         )
         super().__init__(prompt_template)
 
-# ---------------------------------------------------------------
-# 1) Executive Summary & Investment Rationale
-# ---------------------------------------------------------------
+
 class ExecutiveSummaryAgent(BaseAIAgent):
     """
     AI Agent for Section 1: Executive Summary & Investment Rationale
-    Subheadings:
-      - Overview
-      - Key Investment Considerations
-      - Investment Readiness Overview
-      - Investment Risks & Considerations
-      - Investment Recommendations & Next Steps
-        * Short-Term (1–3 Months)
-        * Medium-Term (3–6 Months)
-        * Long-Term (6–12 Months)
-    
-    Now produces markdown aligned with the desired layout:
-    
-    ### **Section 1: Executive Summary & Investment Rationale** {{#section-1:-executive-summary-&-investment-rationale}
-
-    #### Overview {{#overview}
-    ...
-    #### Key Investment Considerations {{#key-investment-considerations}
-    ...
-    #### Investment Readiness Overview {{#investment-readiness-overview}
-    ...
-    #### Investment Risks & Considerations {{#investment-risks-&-considerations}
-    ...
-    #### Investment Recommendations & Next Steps {{#investment-recommendations-&-next-steps}
-    ...
-    ##### Short-Term (1-3 Months): {{#short-term-(1-3-months):}
-    ...
-    ##### Medium-Term (3-6 Months): {{#medium-term-(3-6-months):}
-    ...
-    ##### Long-Term (6-12 Months): {{#long-term-(6-12-months):}
-    ...
+    The updated prompt encourages actual data usage from 'retrieved_context'
+    and fosters subtle variations if context is rich or limited.
     """
     def __init__(self):
-        # This prompt instructs GPT to produce the Markdown structure matching your sample
         prompt_template = (
-            "You are an expert at drafting the **Executive Summary & Investment Rationale** section "
-            "of an investment readiness report in Markdown format. Use **the exact headings, subheadings, "
-            "and anchor links** provided below. Where relevant, include color-coded maturity assessments "
-            "(🟢, 🟡, 🔴) and incorporate any details from the 'retrieved_context'.\n\n"
+            "You are drafting **Section 1: Executive Summary & Investment Rationale** in Markdown. "
+            "Use these headings, subheadings, and anchor links exactly, but incorporate real data if present.\n\n"
 
-            "The company details are:\n"
+            "The company details:\n"
             "- Founder Name: {founder_name}\n"
             "- Company Name: {company}\n"
             "- Company Type: {company_type}\n"
             "- Company Provides: {company_description}\n\n"
-
-            "Retrieved Context (Docs, Pitch Deck, or Research Output):\n"
+            "Retrieved Context:\n"
             "{retrieved_context}\n\n"
 
-            "## Your Task\n"
-            "Generate **Section 1** in the following markdown structure:\n\n"
+            "Your Template:\n\n"
             "### **Section 1: Executive Summary & Investment Rationale** {{#section-1:-executive-summary-&-investment-rationale}}\n\n"
             "#### Overview {{#overview}}\n"
-            "1. Briefly describe the company (name, type, what it provides).\n"
-            "2. Mention relevant revenue growth, customer traction, or market potential details.\n"
-            "3. Indicate the scope of this assessment (finances, leadership, market fit, etc.).\n\n"
+            "1. Brief overview of the company.\n"
+            "2. Mention revenue growth, traction, or market potential if known.\n"
+            "3. The scope of this assessment (finances, leadership, etc.).\n\n"
             "#### Key Investment Considerations {{#key-investment-considerations}}\n"
-            "- Add bullet points for top considerations (e.g., scalability, revenue strength, differentiation, data gaps, etc.).\n\n"
+            "- Summarize top considerations (scalability, revenue, data gaps, etc.).\n\n"
             "#### Investment Readiness Overview {{#investment-readiness-overview}}\n"
-            "Create a table showing relevant investment categories and an assessment (🟢, 🟡, or 🔴). For example:\n\n"
+            "Use color-coded assessments (🟢, 🟡, 🔴) if context allows.\n\n"
             "| Investment Category | Assessment |\n"
             "| :---- | :---- |\n"
             "| Market Traction | 🟢 Strong |\n"
@@ -228,24 +180,22 @@ class ExecutiveSummaryAgent(BaseAIAgent):
             "| Leadership Depth | 🟡 Moderate Risk |\n"
             "| Exit Potential | 🟢 Favorable Pathways |\n\n"
             "#### Investment Risks & Considerations {{#investment-risks-&-considerations}}\n"
-            "- Provide a bullet list of risks or concerns (financial, operational, market-based, etc.).\n\n"
+            "- Bullet list of risks or concerns.\n\n"
             "#### Investment Recommendations & Next Steps {{#investment-recommendations-&-next-steps}}\n"
-            "- Provide general recommendations, then break them down by timeframe.\n\n"
+            "General recommendations, then short-term, medium-term, long-term action items.\n\n"
             "##### Short-Term (1-3 Months): {{#short-term-(1-3-months):}}\n"
-            "- List short-term action items.\n\n"
+            "- ...\n\n"
             "##### Medium-Term (3-6 Months): {{#medium-term-(3-6-months):}}\n"
-            "- List medium-term action items.\n\n"
+            "- ...\n\n"
             "##### Long-Term (6-12 Months): {{#long-term-(6-12-months):}}\n"
-            "- List long-term action items.\n\n"
-            "### Instructions\n"
-            "1. Write your final answer in valid **Markdown**.\n"
-            "2. Fill placeholders with relevant data from the context.\n"
-            "3. For any unknown or missing data, you may use placeholders or mark it as an area needing more info.\n"
-            "4. Maintain the headings, subheadings, and anchor tags exactly as shown.\n"
+            "- ...\n\n"
+
+            "Instructions:\n"
+            "1. Output valid Markdown.\n"
+            "2. If data is known, include it; if missing, say 'unknown' or 'N/A'.\n"
+            "3. Keep the headings and anchor links exactly as shown.\n"
         )
         super().__init__(prompt_template)
-
-
 
 # ---------------------------------------------------------------
 # 2) Market Opportunity & Competitive Landscape
@@ -253,95 +203,48 @@ class ExecutiveSummaryAgent(BaseAIAgent):
 class MarketAnalysisAgent(BaseAIAgent):
     """
     AI Agent for Section 2: Market Opportunity & Competitive Landscape
-    Subheadings:
-      - Market Overview
-      - Market Size & Growth Projections
-      - Competitive Positioning
-      - Competitive Landscape
-      - Key Market Takeaways
-      - Challenges & Expansion Opportunities
-        * Challenges
-        * Opportunities for Market Expansion
-      - Market Fit Assessment
-
-    Now produces Markdown matching the desired layout:
-    
-    ### **Section 2: Market Opportunity & Competitive Landscape** {{#section-2:-market-opportunity-&-competitive-landscape}
-
-    #### Market Overview {{#market-overview}
-
-    #### Market Size & Growth Projections: {{#market-size-&-growth-projections:}
-    - ...
-    - ...
-    - ...
-
-    #### Competitive Positioning {{#competitive-positioning}
-
-    ##### Competitive Landscape {{#competitive-landscape}
-    | Competitor | Market Focus | Key Strengths | Challenges |
-    | ----- | ----- | ----- | ----- |
-    |  |  |  |  |
-
-    #### Key Market Takeaways: {{#key-market-takeaways:}
-    - ...
-
-    ##### Challenges & Expansion Opportunities {{#challenges-&-expansion-opportunities}
-    ###### Challenges: {{#challenges:}
-    - ...
-    ###### Opportunities for Market Expansion: {{#opportunities-for-market-expansion:}
-    ✅ ...
-    ✅ ...
-    ✅ ...
-
-    #### Market Fit Assessment {{#market-fit-assessment}
-    | Market Factor | Assessment |
-    | ----- | ----- |
-    |  | 🟢 Strong |
-    |  | 🟡 Needs Expansion |
+    The updated prompt encourages real data usage from 'retrieved_context'
+    and avoids repeating the same placeholder table each time.
     """
     def __init__(self):
         prompt_template = (
-            "You are an expert at drafting **Section 2: Market Opportunity & Competitive Landscape** "
-            "in Markdown format. Use **the exact headings, subheadings, and anchor links** provided below. "
-            "Incorporate relevant details from '{{retrieved_context}}' (e.g., industry trends, competition, "
-            "market size) and mention color-coded assessments (🟢, 🟡, 🔴) where fitting.\n\n"
+            "You are drafting **Section 2: Market Opportunity & Competitive Landscape** in Markdown. "
+            "Use the headings, subheadings, and anchor links exactly as shown, but incorporate real data if present.\n\n"
 
             "Company: {company}\n"
-            "\n"
             "Retrieved Context:\n"
             "{retrieved_context}\n\n"
 
-            "## Your Task\n"
-            "Generate **Section 2** in the following markdown structure:\n\n"
+            "Your Template:\n\n"
             "### **Section 2: Market Opportunity & Competitive Landscape** {{#section-2:-market-opportunity-&-competitive-landscape}}\n\n"
             "#### Market Overview {{#market-overview}}\n"
-            "Provide a high-level description...\n\n"
+            "Provide a succinct overview of the market.\n\n"
             "#### Market Size & Growth Projections: {{#market-size-&-growth-projections:}}\n"
             "- **Total Addressable Market (TAM):**\n"
             "- **Annual Growth Rate:**\n"
             "- **Adoption Trends:**\n\n"
             "#### Competitive Positioning {{#competitive-positioning}}\n"
-            "Explain the company’s core advantages...\n\n"
+            "Highlight this company's advantages.\n\n"
             "##### Competitive Landscape {{#competitive-landscape}}\n"
             "| Competitor | Market Focus | Key Strengths | Challenges |\n"
             "| ----- | ----- | ----- | ----- |\n"
             "|  |  |  |  |\n\n"
             "#### Key Market Takeaways: {{#key-market-takeaways:}}\n"
-            "- Provide bullet points...\n\n"
+            "- Summarize major insights or bullet points.\n\n"
             "##### Challenges & Expansion Opportunities {{#challenges-&-expansion-opportunities}}\n"
             "###### Challenges: {{#challenges:}}\n"
-            "- List any known barriers...\n\n"
+            "- List any market or operational barriers.\n\n"
             "###### Opportunities for Market Expansion: {{#opportunities-for-market-expansion:}}\n"
-            "✅ Outline potential growth...\n\n"
+            "✅ Provide potential growth avenues.\n\n"
             "#### Market Fit Assessment {{#market-fit-assessment}}\n"
             "| Market Factor | Assessment |\n"
             "| ----- | ----- |\n"
             "|  | 🟢 Strong |\n"
             "|  | 🟡 Needs Expansion |\n\n"
-            "### Instructions\n"
-            "1. Write your final answer in valid **Markdown**.\n"
-            "2. For any unknown or missing data, you may use placeholders.\n"
-            "3. Maintain the headings, subheadings, anchor tags exactly as shown.\n"
+            "Instructions:\n"
+            "• Write valid Markdown.\n"
+            "• Use real data if available; otherwise label as unknown.\n"
+            "• Keep the headings, subheadings, anchor links exactly.\n"
         )
         super().__init__(prompt_template)
 
@@ -352,64 +255,18 @@ class MarketAnalysisAgent(BaseAIAgent):
 class FinancialPerformanceAgent(BaseAIAgent):
     """
     AI Agent for Section 3: Financial Performance & Investment Readiness
-    Subheadings (from your Python docstring):
-      1) Revenue Growth & Profitability Overview
-      2) Investment Raised & Fund Utilization
-      3) Revenue Streams & Financial Risk Analysis
-      4) Key Financial Risks & Considerations
-      5) Financial Risk Assessment
-
-    The desired Markdown template includes:
-      ### **Section 3: Financial Performance & Investment Readiness** {{#section-3:-financial-performance-&-investment-readiness}
-
-      #### **Revenue Growth & Profitability Overview** {{#revenue-growth-&-profitability-overview}
-      | Metric | Founder Company Performance | Industry Benchmark |
-      | ----- | ----- | ----- |
-      |  |  |  |
-      |  |  |  |
-
-      #### **Investment Raised & Fund Utilization** {{#investment-raised-&-fund-utilization}
-      | Funding Stage | Founder Company Status | Industry Benchmark |
-      | ----- | ----- | ----- |
-      | **Pre-Seed → Seed** |  |  |
-      | **Total Funding Raised** |  |  |
-      | **Planned Raise** |  |  |
-      | **Valuation Transparency** |  |  |
-
-      **Investor Concerns:**  
-      ⚠  
-      ⚠  
-      ⚠  
-
-      #### **Revenue Streams & Financial Risk Analysis** {{#revenue-streams-&-financial-risk-analysis}
-      | Revenue Source | Contribution | Risk Factor |
-      | ----- | ----- | ----- |
-      | **SaaS Subscriptions** |  |  |
-      | **Other Streams** |  |  |
-
-      #### **Key Financial Risks & Considerations** {{#key-financial-risks-&-considerations}
-      - bullet points
-
-      #### **Financial Risk Assessment** {{#financial-risk-assessment}
-      | Risk Factor | Assessment |
-      | ----- | ----- |
-      | **Revenue Concentration Risk** | 🟡 Moderate |
-      | **Funding Transparency** | 🟡 Needs Improvement |
-      | **Burn Rate & Cash Flow Stability** | 🟡 Requires Validation |
-      | **Profitability & Sustainability** | 🟡 Long-Term Risk |
+    The updated prompt encourages actual data usage, replacing placeholders where possible.
     """
     def __init__(self):
         prompt_template = (
-            "You are an expert at drafting **Section 3: Financial Performance & Investment Readiness** "
-            "in Markdown format. Use **the exact headings, subheadings, and anchor links** below. "
-            "Incorporate any relevant details from '{{retrieved_context}}' and apply color-coded references (🟢, 🟡, 🔴) if needed.\n\n"
+            "You are drafting **Section 3: Financial Performance & Investment Readiness** in Markdown. "
+            "Incorporate real data from 'retrieved_context' if present. If data is unknown, say so.\n\n"
 
             "Company: {company}\n"
             "Retrieved Context:\n"
             "{retrieved_context}\n\n"
 
-            "## Your Task\n"
-            "Generate **Section 3** in the following markdown structure:\n\n"
+            "Your Template:\n\n"
             "### **Section 3: Financial Performance & Investment Readiness** {{#section-3:-financial-performance-&-investment-readiness}}\n\n"
             "#### **Revenue Growth & Profitability Overview** {{#revenue-growth-&-profitability-overview}}\n"
             "| Metric | Founder Company Performance | Industry Benchmark |\n"
@@ -424,7 +281,7 @@ class FinancialPerformanceAgent(BaseAIAgent):
             "| **Planned Raise** |  |  |\n"
             "| **Valuation Transparency** |  |  |\n\n"
             "**Investor Concerns:**\n"
-            "⚠ (list 2-3 concerns)\n\n"
+            "⚠ (List 2-3 concerns)\n\n"
             "#### **Revenue Streams & Financial Risk Analysis** {{#revenue-streams-&-financial-risk-analysis}}\n"
             "| Revenue Source | Contribution | Risk Factor |\n"
             "| ----- | ----- | ----- |\n"
@@ -439,10 +296,10 @@ class FinancialPerformanceAgent(BaseAIAgent):
             "| **Funding Transparency** | 🟡 Needs Improvement |\n"
             "| **Burn Rate & Cash Flow Stability** | 🟡 Requires Validation |\n"
             "| **Profitability & Sustainability** | 🟡 Long-Term Risk |\n\n"
-            "### Instructions\n"
-            "1. Write your final answer in valid **Markdown**.\n"
-            "2. For unknown data, you may use placeholders.\n"
-            "3. Keep headings, subheadings, anchor tags exactly as shown.\n"
+            "Instructions:\n"
+            "• Write valid Markdown.\n"
+            "• If real data is present, use it; otherwise mark unknown.\n"
+            "• Keep headings, subheadings, anchor tags exactly as shown.\n"
         )
         super().__init__(prompt_template)
 
@@ -453,72 +310,18 @@ class FinancialPerformanceAgent(BaseAIAgent):
 class GoToMarketAgent(BaseAIAgent):
     """
     AI Agent for Section 4: Go-To-Market (GTM) Strategy & Customer Traction
-
-    Desired Markdown Template:
-
-    ### **Section 4: Go-To-Market (GTM) Strategy & Customer Traction** {{#section-4:-go-to-market-(gtm)-strategy-&-customer-traction}
-
-    #### **Customer Acquisition Strategy** {{#customer-acquisition-strategy}
-    - Potential bullet points, table of channels, etc.
-
-    | Acquisition Channel | Performance | Challenges |
-    | ----- | ----- | ----- |
-    |  |  |  |
-    |  |  |  |
-
-    ✅ **Strengths:**
-    ⚠ **Challenges:**
-
-    #### **Customer Retention & Lifetime Value** {{#customer-retention-&-lifetime-value}
-    (Table example)
-
-    | Retention Metric | Founder Company Performance | Industry Benchmark |
-    | ----- | ----- | ----- |
-    | **Customer Retention Rate** |  |  |
-    | **Churn Rate** |  |  |
-    | **Referral-Based Growth** |  |  |
-
-    ✅ **Strengths:**
-    ⚠ **Challenges:**
-
-    #### **Challenges & Market Expansion Plan** {{#challenges-&-market-expansion-plan}
-    ⚠ **Customer Acquisition Cost (CAC) Optimization Needed**
-
-    - **Challenge:** ...
-    - **Solution:** ...
-
-    ⚠ **Revenue Concentration Risk**
-
-    - **Challenge:** ...
-    - **Solution:** ...
-
-    #### **Market Expansion Strategy** {{#market-expansion-strategy}
-    ✅ **Franchise Pilot Growth** –
-    ✅ **Supplier Network Growth** –
-    ✅ **AI-Driven Enhancements** –
-
-    #### **GTM Performance Assessment** {{#gtm-performance-assessment}
-    | Category | Performance | Assessment |
-    | ----- | ----- | ----- |
-    | **Lead Generation Efficiency** |  |  |
-    | **Customer Retention** |  |  |
-    | **Revenue Growth** |  |  |
-    | **Outbound Sales Effectiveness** |  |  |
-    | **Market Diversification** |  |  |
+    Updated to avoid placeholders if data is available.
     """
     def __init__(self):
         prompt_template = (
-            "You are an expert at drafting **Section 4: Go-To-Market (GTM) Strategy & Customer Traction** "
-            "in Markdown format. Use **the exact headings, subheadings, anchor links, and tables** "
-            "outlined below, incorporating relevant info from '{{retrieved_context}}' and applying "
-            "color-coded references if appropriate.\n\n"
+            "You are drafting **Section 4: Go-To-Market (GTM) Strategy & Customer Traction** in Markdown. "
+            "Use the provided headings exactly, and incorporate real data if it exists.\n\n"
 
             "Company: {company}\n"
             "Retrieved Context:\n"
             "{retrieved_context}\n\n"
 
-            "## Your Task\n"
-            "Generate **Section 4** in the following markdown structure:\n\n"
+            "Your Template:\n\n"
             "### **Section 4: Go-To-Market (GTM) Strategy & Customer Traction** {{#section-4:-go-to-market-(gtm)-strategy-&-customer-traction}}\n\n"
             "#### **Customer Acquisition Strategy** {{#customer-acquisition-strategy}}\n"
             "| Acquisition Channel | Performance | Challenges |\n"
@@ -554,10 +357,10 @@ class GoToMarketAgent(BaseAIAgent):
             "| **Revenue Growth** |  |  |\n"
             "| **Outbound Sales Effectiveness** |  |  |\n"
             "| **Market Diversification** |  |  |\n\n"
-            "### Instructions\n"
-            "1. Write your final answer in valid **Markdown**.\n"
-            "2. For unknown data, placeholders are fine.\n"
-            "3. Keep headings, subheadings, anchor tags exactly as shown.\n"
+            "Instructions:\n"
+            "• Output valid Markdown.\n"
+            "• Use real data if present, else label unknown.\n"
+            "• Maintain headings, subheadings, anchor tags exactly.\n"
         )
         super().__init__(prompt_template)
 
@@ -568,68 +371,18 @@ class GoToMarketAgent(BaseAIAgent):
 class LeadershipTeamAgent(BaseAIAgent):
     """
     AI Agent for Section 5: Leadership & Team
-
-    Desired Markdown structure:
-    ### **Section 5: Leadership & Team** {{#section-5:-leadership-&-team}
-
-    #### **Leadership Expertise & Strategic Decision-Making** {{#leadership-expertise-&-strategic-decision-making}
-    Leadership Expertise & Strategic Decision-Making
-
-    | Leadership Role | Experience & Contributions | Identified Gaps |
-    | ----- | ----- | ----- |
-    | **Co-Founder & CEO** |  |  |
-    | **Co-Founder & Business Development Lead** |  |  |
-    | **Sales & Business Development Team** |  |  |
-    | **Engineering & Product Development** |  |  |
-
-    ✅ **Strengths:**  
-    ⚠ **Challenges:** 
-
-    #### **Organizational Structure & Growth Plan** {{#organizational-structure-&-growth-plan}
-    | Functional Area | Current Status | Planned Expansion | Impact on Scalability |
-    | ----- | ----- | ----- | ----- |
-    | **Product & Engineering** |  |  |  |
-    | **Sales & Business Development** |  |  |  |
-    | **Customer Success & Support** |  |  |  |
-
-    ✅  
-    ⚠ 
-
-    #### **Strategic Hiring Roadmap** {{#strategic-hiring-roadmap}
-    | Role | Current Status | Planned Hiring Timeline | Impact |
-    | ----- | ----- | ----- | ----- |
-    | **CTO / Senior Product Leader** |  |  |  |
-    | **Outbound Sales & BD Team Expansion** |  |  |  |
-    | **Customer Success & Ops Growth** |  |  |  |
-
-    ✅  
-    ⚠ 
-
-    #### **Leadership Stability & Investor Confidence** {{#leadership-stability-&-investor-confidence}
-    * **Investor View:**   
-    * **Identified Risks:**   
-    * **Mitigation Strategy:** 
-
-    #### **Leadership & Organizational Stability Assessment** {{#leadership-&-organizational-stability-assessment}
-    | Leadership Category | Assessment |
-    | ----- | ----- |
-    | **Strategic Vision & Execution** | 🟢 Strong |
-    | **Technical Leadership Depth** | 🟡 Needs Improvement |
-    | **Sales & Business Development Scalability** | 🟡 Needs Expansion |
-    | **Team Stability & Succession Planning** | 🟡 Moderate Risk |
+    Encourages actual data usage from context to fill in roles, strengths, challenges, etc.
     """
     def __init__(self):
         prompt_template = (
-            "You are an expert at drafting **Section 5: Leadership & Team** in Markdown format. "
-            "Use **the exact headings, subheadings, anchor links, and tables** provided below, "
-            "incorporating details from '{{retrieved_context}}' and mentioning color-coded references if relevant.\n\n"
+            "You are drafting **Section 5: Leadership & Team** in Markdown. "
+            "Include real info from 'retrieved_context' or label unknown if missing.\n\n"
 
             "Company: {company}\n"
             "Retrieved Context:\n"
             "{retrieved_context}\n\n"
 
-            "## Your Task\n"
-            "Generate **Section 5** in the following markdown structure:\n\n"
+            "Your Template:\n\n"
             "### **Section 5: Leadership & Team** {{#section-5:-leadership-&-team}}\n\n"
             "#### **Leadership Expertise & Strategic Decision-Making** {{#leadership-expertise-&-strategic-decision-making}}\n"
             "Leadership Expertise & Strategic Decision-Making\n\n"
@@ -668,10 +421,10 @@ class LeadershipTeamAgent(BaseAIAgent):
             "| **Technical Leadership Depth** | 🟡 Needs Improvement |\n"
             "| **Sales & Business Development Scalability** | 🟡 Needs Expansion |\n"
             "| **Team Stability & Succession Planning** | 🟡 Moderate Risk |\n\n"
-            "### Instructions\n"
-            "1. Write your final answer in valid **Markdown**.\n"
-            "2. Use placeholders or note gaps for unknown data.\n"
-            "3. Retain the exact headings, subheadings, anchor tags as shown.\n"
+            "Instructions:\n"
+            "• Write valid Markdown.\n"
+            "• If real data is found, use it. Otherwise, say unknown.\n"
+            "• Keep headings, subheadings, anchor tags exactly.\n"
         )
         super().__init__(prompt_template)
 
@@ -682,72 +435,18 @@ class LeadershipTeamAgent(BaseAIAgent):
 class InvestorFitAgent(BaseAIAgent):
     """
     AI Agent for Section 6: Investor Fit, Exit Strategy & Funding Narrative
-
-    Desired Markdown structure:
-    ### **Section 6: Investor Fit, Exit Strategy & Funding Narrative** {{#section-6:-investor-fit,-exit-strategy-&-funding-narrative}
-
-    #### **Investor Profile & Strategic Alignment** {{#investor-profile-&-strategic-alignment}
-    Founder Company Investor Profile & Strategic Alignment
-
-    **Ideal Investor Profile:**  
-    ✅ **Venture Capital (VC) Firms** –  
-    ✅ **Private Equity (PE) Funds** –  
-    ✅ **Strategic FSM Acquirers** –  
-
-    ⚠ **Investor Concerns:**
-    - 
-
-    #### **Exit Strategy Analysis** {{#exit-strategy-analysis}
-    | Exit Type | Viability | Potential Acquirers / Investors | Challenges |
-    | ----- | ----- | ----- | ----- |
-    | **M&A by FSM Software Companies** |  |  |  |
-    | **Private Equity (PE) Buyout** |  |  |  |
-    | **IPO as a Growth-Stage SaaS** |  |  |  |
-
-    ✅ **Most Likely Exit:**  
-    ⚠ **IPO Variability**
-
-    #### **Current Funding Narrative & Investor Messaging** {{#current-funding-narrative-&-investor-messaging}
-    * **Total Funding Raised:**  
-    * **Current Round:**  
-    * **Valuation Transparency:**  
-
-    | Funding Stage | Founder Company Status | Industry Benchmark |
-    | ----- | ----- | ----- |
-    | **Pre-Seed → Seed** |  |  |
-    | **Total Funding Raised** |  |  |
-    | **Planned Raise** |  |  |
-    | **Valuation Transparency** |  |  |
-
-    ✅ **Strengths:**  
-    ⚠ **Challenges:** 
-
-    #### **Investor Messaging & Priorities** {{#investor-messaging-&-priorities}
-    * **High-Growth SaaS Opportunity:**  
-    * **Defensible Market Positioning:**  
-    * **Exit Potential:**  
-
-    #### **Investor Fit Assessment** {{#investor-fit-assessment}
-    | Investment Factor | Assessment |
-    | ----- | ----- |
-    | **Scalability & ROI Potential** | 🟢 Strong |
-    | **Investor Sentiment & Market Trends** | 🟡 Needs More Public Validation |
-    | **Funding & Exit Strategy Clarity** | 🟡 Needs Refinement |
-    | **Risk Profile for Investors** | 🟡 Moderate Risk Due to FSM Dependency |
+    Updated so it will not rely on repeated placeholders if actual context data is available.
     """
     def __init__(self):
         prompt_template = (
-            "You are an expert at drafting **Section 6: Investor Fit, Exit Strategy & Funding Narrative** "
-            "in Markdown format. Use **the exact headings, subheadings, anchor links, tables, and bullet points** "
-            "as shown in the template below. Incorporate relevant details from '{{retrieved_context}}' and use "
-            "color-coded references (🟢, 🟡, 🔴) if needed.\n\n"
+            "You are drafting **Section 6: Investor Fit, Exit Strategy & Funding Narrative** in Markdown. "
+            "Use the exact headings and tables, incorporate any real data from context.\n\n"
 
             "Company: {company}\n"
             "Retrieved Context:\n"
             "{retrieved_context}\n\n"
 
-            "## Your Task\n"
-            "Generate **Section 6** in the following markdown structure:\n\n"
+            "Your Template:\n\n"
             "### **Section 6: Investor Fit, Exit Strategy & Funding Narrative** {{#section-6:-investor-fit,-exit-strategy-&-funding-narrative}}\n\n"
             "#### **Investor Profile & Strategic Alignment** {{#investor-profile-&-strategic-alignment}}\n"
             "Founder Company Investor Profile & Strategic Alignment\n\n"
@@ -788,10 +487,10 @@ class InvestorFitAgent(BaseAIAgent):
             "| **Investor Sentiment & Market Trends** | 🟡 Needs More Public Validation |\n"
             "| **Funding & Exit Strategy Clarity** | 🟡 Needs Refinement |\n"
             "| **Risk Profile for Investors** | 🟡 Moderate Risk Due to FSM Dependency |\n\n"
-            "### Instructions\n"
-            "1. Write your final answer in valid **Markdown**.\n"
-            "2. Use placeholders or note gaps for missing data.\n"
-            "3. Keep the headings, subheadings, anchor tags, and tables exactly as shown.\n"
+            "Instructions:\n"
+            "• Output valid Markdown.\n"
+            "• Use real data if present, else unknown.\n"
+            "• Keep the headings, subheadings, anchor links, and tables.\n"
         )
         super().__init__(prompt_template)
 
@@ -802,73 +501,18 @@ class InvestorFitAgent(BaseAIAgent):
 class RecommendationsAgent(BaseAIAgent):
     """
     AI Agent for Section 7: Final Recommendations & Next Steps
-
-    Desired Markdown structure (matching your provided template):
-
-    ### **Section 7: Final Recommendations & Next Steps** {{#section-7:-final-recommendations-&-next-steps}
-
-    #### **Key Strengths Supporting Investment Consideration** {{#key-strengths-supporting-investment-consideration}
-    ✅ **High Market Traction & Growth Metrics**
-    * 
-    ✅ **Scalable SaaS Business Model**
-    * 
-    ✅ **Potential for Strategic M&A Exit**
-    * 
-
-    #### **Key Investment Risks & Mitigation Strategies** {{#key-investment-risks-&-mitigation-strategies}
-    ⚠ **Over-Reliance on ...**
-    * **Risk:**  
-    * **Mitigation:**  
-    ⚠ **Limited Financial Transparency** 
-    * **Risk:**  
-    * **Mitigation:**  
-
-    #### **Prioritized Action Plan for Investment Readiness** {{#prioritized-action-plan-for-investment-readiness}
-    | Priority Level | Action Item | Impact | Feasibility |
-    | ----- | ----- | ----- | ----- |
-    | **Short-Term (1-3 Months)** |  |  |  |
-    | **Medium-Term (3-6 Months)** |  |  |  |
-    | **Long-Term (6-12 Months)** |  |  |  |
-
-    #### **Strategic Roadmap for Growth & Exit Planning** {{#strategic-roadmap-for-growth-&-exit-planning}
-    | Phase | Actionable Steps | Key Performance Indicators (KPIs) |
-    | ----- | ----- | ----- |
-    | **Short-Term (1-3 Months)** |  |  |
-    | **Medium-Term (3-6 Months)** |  |  |
-    | **Long-Term (6-12 Months)** |  |  |
-
-    #### **Investment Readiness & Market Positioning** {{#investment-readiness-&-market-positioning}
-    | Category | Assessment |
-    | ----- | ----- |
-    | **Investment Readiness** | 🟢 Strong Alignment |
-    | **Market Positioning & Competitive Strength** | 🟢 Strong Fit |
-    | **Funding Transparency & Investor Reporting** | 🟡 Needs Improvement |
-    | **Leadership & Operational Scalability** | 🟡 Moderate Risk |
-    | **Exit Viability & M&A Potential** | 🟢 Favorable Pathways |
-
-    ### **Final Investment Recommendation** {{#final-investment-recommendation}
-
-    ### **Next Steps for Investment Consideration** {{#next-steps-for-investment-consideration}
-    1. 
-    2. 
-    3. 
-    4. 
-
-    ### **Final Conclusion** {{#final-conclusion}
-    ...
+    Now more inclined to use real data from 'retrieved_context' or mark missing info as unknown.
     """
     def __init__(self):
         prompt_template = (
-            "You are an expert at drafting **Section 7: Final Recommendations & Next Steps** in Markdown format. "
-            "Use **the exact headings, subheadings, anchor links, and tables** shown in the sample below, "
-            "incorporating data from '{{retrieved_context}}' and applying color-coded references (🟢, 🟡, 🔴) if relevant.\n\n"
-            
+            "You are drafting **Section 7: Final Recommendations & Next Steps** in Markdown. "
+            "Use real data from 'retrieved_context' to fill in details. If missing, mark unknown.\n\n"
+
             "Company: {company}\n"
             "Retrieved Context:\n"
             "{retrieved_context}\n\n"
 
-            "## Your Task\n"
-            "Generate **Section 7** in the following markdown structure:\n\n"
+            "Your Template:\n\n"
             "### **Section 7: Final Recommendations & Next Steps** {{#section-7:-final-recommendations-&-next-steps}}\n\n"
             "#### **Key Strengths Supporting Investment Consideration** {{#key-strengths-supporting-investment-consideration}}\n"
             "✅ **High Market Traction & Growth Metrics**\n"
@@ -913,9 +557,9 @@ class RecommendationsAgent(BaseAIAgent):
             "4. ...\n\n"
             "### **Final Conclusion** {{#final-conclusion}}\n"
             "Wrap up with a concluding statement.\n\n"
-            "### Instructions\n"
-            "1. Write your final answer in valid **Markdown**.\n"
-            "2. For unknown data, placeholders are fine.\n"
-            "3. Keep headings, subheadings, anchor tags exactly as shown.\n"
+            "Instructions:\n"
+            "• Output valid Markdown.\n"
+            "• If real data is found, use it; otherwise unknown.\n"
+            "• Keep headings, subheadings, anchor tags exactly.\n"
         )
         super().__init__(prompt_template)

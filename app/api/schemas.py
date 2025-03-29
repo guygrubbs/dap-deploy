@@ -1,41 +1,73 @@
-# schemas.py
-from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any, List
+# app/api/schemas.py
 
-class ReportSection(BaseModel):
-    id: str
-    title: str
-    content: Optional[str]
-    sub_sections: Optional[List[Dict[str, Any]]] = None
+from typing import Optional, Dict, Any, List
+from pydantic import BaseModel
 
 class CreateReportRequest(BaseModel):
-    user_id: str = Field(..., description="ID of the user requesting the report")
-    startup_id: Optional[str] = None
+    """
+    Request model for creating a new report, placing certain fields at top level.
+    """
+    user_id: int
+    startup_id: Optional[int] = None
+
+    # New top-level fields
+    founder_name: Optional[str] = None
+    founder_company: Optional[str] = None
+    company_name: Optional[str] = None
+    company_type: Optional[str] = None
+    industry: Optional[str] = None
+    funding_stage: Optional[str] = None
+    pitch_deck_url: Optional[str] = None
+
+    # Original
     report_type: Optional[str] = None
-    title: str = Field(..., description="Title of the report")
-    parameters: Dict[str, Any] = Field(..., description="Parameters for report generation")
+    title: str
+
+    # For any other user-defined data
+    parameters: Optional[Dict[str, Any]] = None
+
+
+class ReportSection(BaseModel):
+    """
+    Represents a single section within a report.
+    """
+    id: str
+    title: str
+    content: str
+    sub_sections: List["ReportSection"] = []
+
 
 class ReportResponse(BaseModel):
+    """
+    Response model for returning full report details.
+    """
     id: int
     title: str
     status: str
-    created_at: Optional[str]
-    updated_at: Optional[str]
-    progress: Optional[int]
-    startup_id: Optional[str]
-    user_id: Optional[str]
-    report_type: Optional[str]
-    parameters: Optional[Dict[str, Any]]
-    sections: Optional[List[ReportSection]] = None
-    signed_pdf_download_url: Optional[str]
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    progress: int
+    startup_id: Optional[int] = None
+    user_id: Optional[int] = None
+    report_type: Optional[str] = None
+    parameters: Optional[Dict[str, Any]] = None
+    sections: List[ReportSection]
+    signed_pdf_download_url: Optional[str] = None
 
-class ReportStatusResponse(BaseModel):
-    status: str
-    progress: Optional[int]
-    # optionally include `report_id` if you want to
-    report_id: Optional[int] = None
 
 class ReportContentResponse(BaseModel):
-    url: Optional[str]
-    status: Optional[str]
-    sections: Optional[List[ReportSection]]
+    """
+    Response model for returning report content details.
+    """
+    url: Optional[str] = None
+    status: str
+    sections: List[ReportSection]
+
+
+class ReportStatusResponse(BaseModel):
+    """
+    Response model for returning report status and progress.
+    """
+    status: str
+    progress: int
+    report_id: int

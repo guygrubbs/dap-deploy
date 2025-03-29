@@ -1,3 +1,5 @@
+# app/api/ai/orchestrator.py
+
 import logging
 import time
 import os
@@ -64,15 +66,16 @@ def generate_report(request_params: dict) -> dict:
     Returns:
         dict: The final report content with all seven sections.
     """
+    # Avoid logging sensitive data
     safe_context = {k: request_params.get(k) for k in request_params if k != "sensitive"}
     logger.info("Starting report generation with context: %s", safe_context)
 
-    # Gather any user query and environment for retrieval
+    # Gather user query or default
     user_query = request_params.get("report_query", "Investment readiness analysis")
     endpoint_resource_name = os.getenv("VERTEX_ENDPOINT_RESOURCE_NAME", "")
     deployed_index_id = os.getenv("VERTEX_DEPLOYED_INDEX_ID", "")
 
-    # Attempt to retrieve context from vector search
+    # Attempt to retrieve context from a vector search
     if endpoint_resource_name and deployed_index_id:
         top_matches = retrieve_relevant_chunks(
             query_text=user_query,
@@ -94,6 +97,8 @@ def generate_report(request_params: dict) -> dict:
         ephemeral_context += f"Pitch Deck Text:\n{pitch_deck_text}\n\n"
     if context_snippets.strip():
         ephemeral_context += f"{context_snippets}\n"
+
+    # Additional metadata for the 'researcher' context
     ephemeral_context += f"""You are given detailed context about startup stages and fundraising (the “GetFresh Maturity Model”), aggregated market data from “Carta State of Startups 2024,” and founder equity trends from the “Founder Ownership Report 2025.” Below is a pitch deck outline and relevant details for a hypothetical startup. Please provide a thorough analysis and feedback, referencing the maturity milestones, funding data, and ownership dynamics where appropriate. Identify any red flags, highlight strengths, and suggest how the startup could optimize its approach. Assume the audience is prospective investors and seasoned startup advisors.
     
     GetFresh Ventures Maturity Model v1 Draft - November 2024
@@ -565,7 +570,7 @@ def generate_report(request_params: dict) -> dict:
     # Step 1: ResearcherAgent -> gather research details & incorporate them
     # ----------------------------------------------------------------------------
     researcher_agent = ResearcherAgent()
-    # We pass in a minimal context about the company, plus ephemeral_context:
+    # We pass in minimal context about the company, plus ephemeral_context
     researcher_input = {
         "company_name": request_params.get("company", "Unknown Company"),
         "industry": request_params.get("industry", "General Industry"),
@@ -577,7 +582,6 @@ def generate_report(request_params: dict) -> dict:
         ephemeral_context += f"\nRESEARCHER FINDINGS:\n{research_output}\n"
     except Exception as e:
         logger.error("Research agent failed: %s", str(e), exc_info=True)
-        # We'll continue, but ephemeral_context might be incomplete
         ephemeral_context += "\n[Warning: ResearcherAgent failed to gather additional data.]\n"
 
     # ----------------------------------------------------------------------------
@@ -593,7 +597,9 @@ def generate_report(request_params: dict) -> dict:
     # Shared context for these sections
     section_context = request_params.copy()
     section_context["retrieved_context"] = ephemeral_context
-    time.sleep(90)
+
+    # Delay is included as in your original code
+    time.sleep(90)  # optional delay
 
     market_opportunity_competitive_landscape = generate_with_retry(
         market_opportunity_agent,
@@ -640,8 +646,7 @@ def generate_report(request_params: dict) -> dict:
     # ----------------------------------------------------------------------------
     # Step 3: Generate the Executive Summary LAST, referencing *all other* sections
     # ----------------------------------------------------------------------------
-    # The user wants the Executive Summary to rely on the texts produced by sections 2–7,
-    # not on the original pitch deck or researcher context. Let's compile the final texts:
+    # The user wants the Executive Summary to rely on the texts produced by sections 2–7
     summary_context = request_params.copy()
     summary_context["retrieved_context"] = (
         f"SECTION 2: Market Opportunity\n{market_opportunity_competitive_landscape}\n\n"
@@ -652,7 +657,10 @@ def generate_report(request_params: dict) -> dict:
         f"SECTION 7: Final Recommendations\n{final_recommendations_next_steps}\n"
     )
 
+    # Provide relevant fields explicitly if your Executive agent uses them
     summary_context["founder_name"] = request_params.get("founder_name", "Unknown Founder")
+    summary_context["founder_company"] = request_params.get("founder_company", "Unknown Operation")
+    summary_context["funding_stage"] = request_params.get("funding_stage", "Unknown Stage")
     summary_context["company_type"] = request_params.get("company_type", "Unknown Type")
     summary_context["company_description"] = request_params.get("company_description", "Unknown Offering")
 
