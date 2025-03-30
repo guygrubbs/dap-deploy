@@ -22,7 +22,8 @@ WORKDIR /home/appuser/app
 # Copy requirements file and install Python dependencies
 # Update this path to match the location of requirements.txt in your repository
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir -r requirements.txt
 
 # Copy the application code into the container
 # Adjust the source path (project-root/app/) and destination as appropriate
