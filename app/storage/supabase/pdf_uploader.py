@@ -96,7 +96,7 @@ def upload_pdf_to_supabase(
     report_id: int,
     pdf_file_path: str,
     bucket_name: str = "report-pdfs",
-    user_email: str = None
+    user_email: str = "guy.grubbs@righthandoperation.com"
 ) -> dict:
     """
     1) Uploads a local PDF file to the specified Supabase Storage bucket,
