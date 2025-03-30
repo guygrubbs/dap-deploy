@@ -8,11 +8,9 @@ import base64
 from email.mime.text import MIMEText
 
 try:
-    # If your environment has storage3 and you want typed responses:
     from storage3 import UploadResponse
     HAS_UPLOADRESPONSE = True
 except ImportError:
-    # If storage3 is not installed or is an older version without UploadResponse
     UploadResponse = None
     HAS_UPLOADRESPONSE = False
 
@@ -33,9 +31,6 @@ def _send_email_via_gmail(
     subject: str = "Your PDF is ready!",
     body_prefix: str = None
 ):
-    """
-    Sends an email via the Gmail API using domain-wide delegated service account credentials.
-    """
     SERVICE_ACCOUNT_FILE = os.getenv("SERVICE_ACCOUNT_FILE", "/path/to/service_account.json")
     SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
 
@@ -96,33 +91,31 @@ def upload_pdf_to_supabase(
 
     storage_path = f"{user_id}/{report_id}.pdf"
     try:
-        # 1) Upload to Supabase Storage
         upload_resp = supabase.storage.from_(bucket_name).upload(
             path=storage_path,
             file=pdf_file_path,
             file_options={"content-type": "application/pdf"}
         )
 
-        # 2) Handle success / error depending on type:
+        # Handle typed or dict-based response
         if HAS_UPLOADRESPONSE and isinstance(upload_resp, UploadResponse):
-            # Typed response approach
+            # Typed response
             logger.info(
                 "Upload success (UploadResponse). path=%s full_path=%s",
                 upload_resp.path,
                 getattr(upload_resp, "full_path", None)
             )
         elif isinstance(upload_resp, dict):
-            # Dict approach
+            # Dict response
             if upload_resp.get("error") is None:
                 data = upload_resp.get("data", {})
                 logger.info("Upload success (dict). path=%s", data.get("path"))
             else:
                 logger.warning("Upload failed with error: %s", upload_resp.get("error"))
         else:
-            # Unexpected type
             logger.warning("Unexpected upload_resp type: %s => %s", type(upload_resp), upload_resp)
 
-        # 3) Retrieve the public URL
+        # Retrieve the public URL
         public_url_data = supabase.storage.from_(bucket_name).get_public_url(storage_path)
         if isinstance(public_url_data, dict):
             public_url = (
@@ -131,12 +124,11 @@ def upload_pdf_to_supabase(
                 or ""
             )
         else:
-            # Possibly older or different response shape
             public_url = ""
 
         logger.info("PDF uploaded. Public URL: %s", public_url)
 
-        # 4) Optionally send email
+        # Optionally send email
         if user_email and public_url:
             logger.info("Sending PDF link email to %s (report_id=%s)", user_email, report_id)
             _send_email_via_gmail(

@@ -9,8 +9,6 @@ from google.cloud.exceptions import NotFound, Forbidden, GoogleCloudError
 from app.notifications.supabase_notifier import notify_supabase_final_report
 
 # Upload to Supabase utility:
-# IMPORTANT: Make sure your 'upload_pdf_to_supabase' function accepts a file path now.
-# E.g., upload_pdf_to_supabase(user_id, report_id, pdf_file_path, table_name="report_requests")
 from app.storage.supabase_uploader import upload_pdf_to_supabase
 
 logger = logging.getLogger(__name__)
@@ -89,10 +87,6 @@ def generate_signed_url(blob_name: str, expiration_seconds: int = 86400) -> str:
         raise
 
 
-# --------------------------------------------------------------------------
-# Example usage: Combining PDF upload, URL creation, and final report update
-# --------------------------------------------------------------------------
-
 def finalize_report_with_pdf(
     report_id: int,
     user_id: int,
@@ -118,7 +112,7 @@ def finalize_report_with_pdf(
         else:
             signed_url = "N/A"
 
-        # 3) Build the final Tier 2 object
+        # 3) Build the final data object
         final_report_data = {
             "report_id": report_id,
             "status": "completed",
@@ -132,7 +126,6 @@ def finalize_report_with_pdf(
             logger.info("Uploading PDF to Supabase for user_id=%s report_id=%s", user_id, report_id)
 
             # Use a fixed temporary file name in the same folder as gcs.py
-            # so that each new upload overwrites the old file.
             temp_pdf_path = os.path.join(os.path.dirname(__file__), "temp_supabase_report.pdf")
 
             # Remove old temp file if present
@@ -145,18 +138,17 @@ def finalize_report_with_pdf(
 
             try:
                 # Now upload to Supabase using the temp file path
+                # (No 'table_name' param here!)
                 supabase_info = upload_pdf_to_supabase(
                     user_id=user_id,
                     report_id=report_id,
-                    pdf_file_path=temp_pdf_path,  # adjust if your function param differs
-                    table_name="report_requests"
+                    pdf_file_path=temp_pdf_path
                 )
             finally:
                 # Clean up the temp file
                 if os.path.exists(temp_pdf_path):
                     os.remove(temp_pdf_path)
 
-            # Include Supabase info in the final data if needed
             final_report_data["supabase_storage_path"] = supabase_info.get("storage_path")
             final_report_data["supabase_public_url"] = supabase_info.get("public_url")
 
