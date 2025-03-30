@@ -13,7 +13,7 @@ SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")  # Use the service role
 if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
     raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set.")
 
-# Initialize the Supabase client
+# Initialize the Supabase client (still created but not used for upserts anymore)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 
@@ -26,8 +26,11 @@ def _notify_supabase(
     retry_delay: float = 2.0
 ) -> None:
     """
-    Existing internal function that upserts minimal info about a report (status, pdf_url).
-    You can retain this if you only need partial updates or for intermediate statuses.
+    Updated internal function that NO LONGER upserts info about a report.
+
+    Previously, it called:
+        supabase.table("reports").upsert(data).execute()
+    but now we have removed that logic so it won't attempt any DB writes.
     """
     data = {
         "report_id": report_id,
@@ -42,37 +45,41 @@ def _notify_supabase(
     while attempts < max_retries:
         attempts += 1
         try:
-            supabase.table("reports").upsert(data).execute()
+            # -- REMOVED: Upsert call to Supabase --
             logger.info(
-                "Supabase notification succeeded on attempt %d/%d for report_id: %s",
+                "[NO-OP] Would have notified Supabase of minimal data: %s",
+                data
+            )
+            logger.info(
+                "[NO-OP] 'Supabase notification' succeeded on attempt %d/%d for report_id: %s",
                 attempts, max_retries, report_id
             )
             break
         except Exception as e:
             logger.error(
-                "Supabase notification attempt %d/%d failed for report_id %s: %s",
+                "[NO-OP] 'Supabase notification' attempt %d/%d failed for report_id %s: %s",
                 attempts, max_retries, report_id, str(e),
                 exc_info=True
             )
             if attempts < max_retries:
                 logger.info(
-                    "Retrying Supabase notification in %s seconds for report_id: %s",
+                    "[NO-OP] Retrying 'Supabase notification' in %s seconds for report_id: %s",
                     retry_delay, report_id
                 )
                 time.sleep(retry_delay)
             else:
                 logger.error(
-                    "All retry attempts failed for report_id %s. No further retries will be made.",
+                    "[NO-OP] All retry attempts failed for report_id %s. No further retries will be made.",
                     report_id
                 )
 
 
 def notify_supabase(report_id: int, status: str, pdf_url: str, user_id: int = None) -> None:
     """
-    Existing public function that calls _notify_supabase in a background thread.
+    Public function that spawns a background thread, but no longer does any actual DB writes.
     """
     logger.debug(
-        "Queuing Supabase notification in background thread for report_id=%s, status=%s, user_id=%s",
+        "[NO-OP] Queuing Supabase notification in background thread for report_id=%s, status=%s, user_id=%s",
         report_id, status, user_id
     )
     Thread(
@@ -83,7 +90,7 @@ def notify_supabase(report_id: int, status: str, pdf_url: str, user_id: int = No
 
 
 # ----------------------------------------------------------------------
-# New function below to upsert the *final* Tier 2 report object (sections).
+# Final Tier 2 report "notification" is also a NO-OP
 # ----------------------------------------------------------------------
 
 def _notify_supabase_final_report(
@@ -94,66 +101,50 @@ def _notify_supabase_final_report(
     retry_delay: float = 2.0
 ) -> None:
     """
-    Internal function for upserting the final Tier 2 report structure into the 'reports' table.
-    final_report_data is a dictionary containing fields like:
-      {
-        "report_id": ...,
-        "status": "completed",
-        "signed_pdf_download_url": "...",
-        "sections": [
-          {"id": "...", "title": "...", "content": "..."},
-          ...
-        ]
-      }
-    We store the entire JSON object or selected fields as needed in Supabase.
+    Internal function for upserting the final Tier 2 report object.
+    Now updated to NOT do any DB writes.
     """
     attempts = 0
     while attempts < max_retries:
         attempts += 1
         try:
-            # For example, store everything in 'report_data' column (a JSONB column).
-            # You might also directly store each field in its own column if your schema is different.
-            data = {
-                "report_id": report_id,
-                "report_data": final_report_data,
-                "updated_at": datetime.utcnow().isoformat()
-            }
-            if user_id is not None:
-                data["user_id"] = user_id
-
-            supabase.table("reports").upsert(data).execute()
+            # -- REMOVED: Upsert code for 'report_data' in the 'reports' table --
             logger.info(
-                "Supabase final report update succeeded on attempt %d/%d for report_id: %s",
+                "[NO-OP] Would have posted final_report_data to Supabase for report_id=%s: %s",
+                report_id, final_report_data
+            )
+            logger.info(
+                "[NO-OP] 'Supabase final report update' succeeded on attempt %d/%d for report_id: %s",
                 attempts, max_retries, report_id
             )
             break
         except Exception as e:
             logger.error(
-                "Supabase final report update attempt %d/%d failed for report_id %s: %s",
+                "[NO-OP] 'Supabase final report update' attempt %d/%d failed for report_id %s: %s",
                 attempts, max_retries, report_id, str(e),
                 exc_info=True
             )
             if attempts < max_retries:
                 logger.info(
-                    "Retrying final report update in %s seconds for report_id: %s",
+                    "[NO-OP] Retrying final report update in %s seconds for report_id: %s",
                     retry_delay, report_id
                 )
                 time.sleep(retry_delay)
             else:
                 logger.error(
-                    "All retry attempts failed for report_id %s. No further retries will be made.",
+                    "[NO-OP] All retry attempts failed for report_id %s. No further retries will be made.",
                     report_id
                 )
 
 
 def notify_supabase_final_report(report_id: int, final_report_data: Dict[str, Any], user_id: int = None) -> None:
     """
-    Public function to asynchronously update Supabase with the *complete final report*,
-    including Tier 2 sections, 'completed' status, and signed PDF URL if applicable.
+    Public function to asynchronously update Supabase with the final report.
+    Now also a NO-OP for DB writes.
     """
     logger.debug(
-        "Queuing final report upsert to Supabase in a background thread "
-        "for report_id=%s, user_id=%s", report_id, user_id
+        "[NO-OP] Queuing final report upsert to Supabase in a background thread for report_id=%s, user_id=%s",
+        report_id, user_id
     )
     Thread(
         target=_notify_supabase_final_report,
