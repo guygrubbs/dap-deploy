@@ -1,13 +1,16 @@
 """
 PDF upload functionality for Supabase storage, plus optional email notification.
 
-This version builds a direct PUBLIC link from `upload_resp.full_path` or `upload_resp.path`
-so that you can email the user a link immediately. It does NOT call `get_public_url(...)`.
+- Reads the entire service account JSON from an environment variable (SERVICE_ACCOUNT_JSON).
+- Uses from_service_account_info(json.loads(...)) to load credentials in-memory.
+- Builds a direct "public" link from the upload response's path/fullPath.
+- Sends an email with the PDF link.
 """
 
 import os
 import logging
 import base64
+import json
 from email.mime.text import MIMEText
 
 try:
@@ -35,19 +38,33 @@ def _send_email_via_gmail(
     body_prefix: str = None
 ):
     """
-    Sends an email via the Gmail API using domain-wide delegated service account credentials.
+    Sends an email via the Gmail API using domain-wide delegated service account credentials,
+    which are read from SERVICE_ACCOUNT_JSON in the environment.
+
+    The entire JSON is stored in that variable (NOT a file path).
     """
-    SERVICE_ACCOUNT_FILE = os.getenv("SERVICE_ACCOUNT_FILE", "/path/to/service_account.json")
+    SERVICE_ACCOUNT_JSON = os.getenv("SERVICE_ACCOUNT_JSON", "")
     SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
 
-    credentials = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE,
+    # 1) Parse the JSON from the environment
+    if not SERVICE_ACCOUNT_JSON.strip():
+        raise RuntimeError("SERVICE_ACCOUNT_JSON env var is empty or not set.")
+
+    info = json.loads(SERVICE_ACCOUNT_JSON)
+
+    # 2) Build credentials from the JSON object
+    credentials = service_account.Credentials.from_service_account_info(
+        info,
         scopes=SCOPES
     )
+
+    # 3) Domain-wide delegation: impersonate `from_email` user
     delegated_credentials = credentials.with_subject(from_email)
+
+    # 4) Build the Gmail API client
     service = build("gmail", "v1", credentials=delegated_credentials)
 
-    # Build the email body
+    # 5) Construct email body
     body_lines = []
     if body_prefix:
         body_lines.append(body_prefix)
@@ -79,7 +96,7 @@ def upload_pdf_to_supabase(
     report_id: int,
     pdf_file_path: str,
     bucket_name: str = "report-pdfs",
-    user_email: str = "guy.grubbs@righthandoperation.com"
+    user_email: str = None
 ) -> dict:
     """
     1) Uploads a local PDF file to the specified Supabase Storage bucket,
@@ -100,7 +117,7 @@ def upload_pdf_to_supabase(
     # We'll store the PDF at: bucket_name/user_id/report_id.pdf
     storage_path = f"{user_id}/{report_id}.pdf"
 
-    # You can remove trailing slash from SUPABASE_URL to avoid double slashes:
+    # Remove trailing slash from SUPABASE_URL to avoid double slashes:
     base_supabase_url = (os.getenv("SUPABASE_URL") or "").rstrip("/")
 
     try:
@@ -151,7 +168,7 @@ def upload_pdf_to_supabase(
             _send_email_via_gmail(
                 to_email=user_email,
                 pdf_url=public_url,
-                from_email="noreply@righthandoperation.com",
+                from_email="noreply@righthandoperation.com",  # or your domain user
                 subject=f"Your PDF for report {report_id} is ready!",
                 body_prefix="Hello!\n"
             )
