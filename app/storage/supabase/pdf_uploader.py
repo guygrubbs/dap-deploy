@@ -1,5 +1,8 @@
 """
 PDF upload functionality for Supabase storage, plus optional email notification.
+
+This version builds a direct PUBLIC link from `upload_resp.full_path` or `upload_resp.path`
+so that you can email the user a link immediately. It does NOT call `get_public_url(...)`.
 """
 
 import os
@@ -31,6 +34,9 @@ def _send_email_via_gmail(
     subject: str = "Your PDF is ready!",
     body_prefix: str = None
 ):
+    """
+    Sends an email via the Gmail API using domain-wide delegated service account credentials.
+    """
     SERVICE_ACCOUNT_FILE = os.getenv("SERVICE_ACCOUNT_FILE", "/path/to/service_account.json")
     SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
 
@@ -41,6 +47,7 @@ def _send_email_via_gmail(
     delegated_credentials = credentials.with_subject(from_email)
     service = build("gmail", "v1", credentials=delegated_credentials)
 
+    # Build the email body
     body_lines = []
     if body_prefix:
         body_lines.append(body_prefix)
@@ -72,15 +79,16 @@ def upload_pdf_to_supabase(
     report_id: int,
     pdf_file_path: str,
     bucket_name: str = "report-pdfs",
-    user_email: str = None
+    user_email: str = "guy.grubbs@righthandoperation.com"
 ) -> dict:
     """
     1) Uploads a local PDF file to the specified Supabase Storage bucket,
        under '{user_id}/{report_id}.pdf'.
-    2) Retrieves a public URL from that storage location.
-    3) If `user_email` is provided, sends an email with the PDF URL.
-    
-    Returns:
+    2) Builds a direct "public" URL from the upload response, assuming
+       that the bucket or file is publicly accessible.
+    3) Sends an email with the PDF link if user_email is provided.
+
+    Returns a dict:
       {
         "storage_path": <str>,
         "public_url": <str>
@@ -89,47 +97,56 @@ def upload_pdf_to_supabase(
     if not supabase:
         raise RuntimeError("Supabase client not initialized. Check environment variables.")
 
+    # We'll store the PDF at: bucket_name/user_id/report_id.pdf
     storage_path = f"{user_id}/{report_id}.pdf"
+
+    # You can remove trailing slash from SUPABASE_URL to avoid double slashes:
+    base_supabase_url = (os.getenv("SUPABASE_URL") or "").rstrip("/")
+
     try:
+        # 1) Upload to Supabase Storage
         upload_resp = supabase.storage.from_(bucket_name).upload(
             path=storage_path,
             file=pdf_file_path,
             file_options={"content-type": "application/pdf"}
         )
 
-        # Handle typed or dict-based response
+        # 2) Handle typed or dict-based response
         if HAS_UPLOADRESPONSE and isinstance(upload_resp, UploadResponse):
-            # Typed response
             logger.info(
-                "Upload success (UploadResponse). path=%s full_path=%s",
+                "Upload success (UploadResponse). path=%s, full_path=%s",
                 upload_resp.path,
                 getattr(upload_resp, "full_path", None)
             )
+            # We'll build a direct public link from .full_path
+            full_path = getattr(upload_resp, "full_path", None)
+            if full_path:
+                public_url = f"{base_supabase_url}/storage/v1/object/public/{full_path}"
+            else:
+                # fallback if full_path is missing
+                public_url = f"{base_supabase_url}/storage/v1/object/public/{bucket_name}/{upload_resp.path}"
+
         elif isinstance(upload_resp, dict):
-            # Dict response
+            logger.info("Upload success (dict) => %s", upload_resp)
             if upload_resp.get("error") is None:
                 data = upload_resp.get("data", {})
-                logger.info("Upload success (dict). path=%s", data.get("path"))
+                # old-style dict may store 'path' or 'fullPath'
+                custom_path = data.get("fullPath") or data.get("path") or storage_path
+                public_url = f"{base_supabase_url}/storage/v1/object/public/{custom_path}"
             else:
-                logger.warning("Upload failed with error: %s", upload_resp.get("error"))
+                logger.warning("Upload returned an error: %s", upload_resp.get("error"))
+                # We'll still build a fallback link:
+                public_url = f"{base_supabase_url}/storage/v1/object/public/{bucket_name}/{storage_path}"
+
         else:
-            logger.warning("Unexpected upload_resp type: %s => %s", type(upload_resp), upload_resp)
+            # Some unrecognized type, assume success but no known fields
+            logger.info("Upload success (unrecognized type). raw_response=%s", upload_resp)
+            public_url = f"{base_supabase_url}/storage/v1/object/public/{bucket_name}/{storage_path}"
 
-        # Retrieve the public URL
-        public_url_data = supabase.storage.from_(bucket_name).get_public_url(storage_path)
-        if isinstance(public_url_data, dict):
-            public_url = (
-                public_url_data.get("publicURL")
-                or (public_url_data.get("data") or {}).get("publicUrl")
-                or ""
-            )
-        else:
-            public_url = ""
+        logger.info("Constructed PDF public URL: %s", public_url)
 
-        logger.info("PDF uploaded. Public URL: %s", public_url)
-
-        # Optionally send email
-        if user_email and public_url:
+        # 3) If we have a user_email, send the link
+        if user_email:
             logger.info("Sending PDF link email to %s (report_id=%s)", user_email, report_id)
             _send_email_via_gmail(
                 to_email=user_email,
@@ -138,6 +155,8 @@ def upload_pdf_to_supabase(
                 subject=f"Your PDF for report {report_id} is ready!",
                 body_prefix="Hello!\n"
             )
+        else:
+            logger.info("No user_email was provided; skipping email send.")
 
         return {
             "storage_path": storage_path,
