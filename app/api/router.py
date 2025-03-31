@@ -134,16 +134,6 @@ def generate_full_report(
     if not report_model:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    # 2) Assemble parameters for orchestrator
-    #    We'll read 'sleep(90)' from either the DB or the parameters if not stored.
-    sleep_90_db = report_model.sleep_90  # can be None
-    sleep_90_params = None
-    if report_model.parameters and isinstance(report_model.parameters, dict):
-        sleep_90_params = report_model.parameters.get("sleep(90)")
-
-    # Fallback to a default if everything is None
-    sleep_90_value = sleep_90_db or sleep_90_params or "Shweta Mokashi, Right Hand Operation"
-
     request_params = {
         "report_query": f"Full investment readiness for report_id={report_id}",
         "company": "{}",
@@ -154,8 +144,7 @@ def generate_full_report(
         "company_type": report_model.company_type or "",
         "industry": report_model.industry or "",
         "funding_stage": report_model.funding_stage or "",
-        "pitch_deck_url": report_model.pitch_deck_url or "",
-        "sleep(90)": sleep_90_value,
+        "pitch_deck_url": report_model.pitch_deck_url or ""
     }
 
     # Merge leftover parameters
@@ -215,7 +204,6 @@ def generate_full_report(
             founder_name=report_model.founder_name or "",
             company_name=report_model.company_name or "",
             company_type=report_model.company_type or "",
-            sleep_90=request_params.get("sleep(90)", "Shweta Mokashi, Right Hand Operation"),
             output_path=None
         )
     except Exception as e:
