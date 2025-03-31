@@ -166,7 +166,7 @@ def generate_pdf(
     founder_name: str = "Founder Name",
     company_name: str = "Founder Company",
     company_type: str = "Company Type",
-    sleep_90: str = "Brendan Smith, GetFresh Ventures",
+    prepared: str = "Brendan Smith, GetFresh Ventures",
     output_path: str = None
 ) -> Union[bytes, str]:
     """
@@ -282,8 +282,6 @@ def generate_pdf(
         founder_name=founder_name,
         company_name=company_name,
         company_type=company_type,
-        # 'company_description' removed
-        sleep_90=sleep_90,
         date=date_str,
         toc=toc_html,
         content=sections_html,
@@ -321,7 +319,6 @@ if __name__ == "__main__":
     founder_name = "John Smith"
     company_name = "TechSolutions Inc."
     company_type = "SaaS Platform"
-    sleep_90 = "Diligence Team, RHO"
 
     # Suppose you have some 'tier2_sections' from an orchestrator
     # For demonstration, we might reference a local sample
@@ -335,7 +332,6 @@ if __name__ == "__main__":
         founder_name=founder_name,
         company_name=company_name,
         company_type=company_type,
-        sleep_90=sleep_90,
         output_path=OUTPUT_PDF_PATH
     )
     print(f"PDF generated at: {pdf_file_path}")
