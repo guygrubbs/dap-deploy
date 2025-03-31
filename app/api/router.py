@@ -2,8 +2,7 @@
 
 import logging
 import requests
-from fastapi import APIRouter, Depends, HTTPException, status, Body
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Optional, Dict, Any
 
 from sqlalchemy.orm import Session
@@ -69,8 +68,10 @@ def create_report(
 ) -> ReportResponse:
     """
     Creates a new report generation request using the provided fields.
-    This includes top-level data (title, founder_name, etc.) plus 'parameters' dict.
+    Some frontends might put 'sleep(90)' inside request.parameters 
+    instead of top-level. We'll accommodate that here.
     """
+
     try:
         new_report = create_report_entry(
             db=db,
@@ -85,11 +86,9 @@ def create_report(
             industry=request.industry,
             funding_stage=request.funding_stage,
             pitch_deck_url=request.pitch_deck_url,
-            prepared_by=request.prepared_by,  # <-- Pass it to the DB
             parameters=request.parameters
         )
 
-        # If not completed, progress = 0
         progress = 0 if new_report.status.lower() != "completed" else 100
 
         return ReportResponse(
@@ -103,7 +102,7 @@ def create_report(
             user_id=new_report.user_id,
             report_type=new_report.report_type,
             parameters=new_report.parameters,
-            sections=[],  # Not generated yet
+            sections=[],
             signed_pdf_download_url=None
         )
     except Exception as e:
@@ -136,6 +135,15 @@ def generate_full_report(
         raise HTTPException(status_code=404, detail="Report not found")
 
     # 2) Assemble parameters for orchestrator
+    #    We'll read 'sleep(90)' from either the DB or the parameters if not stored.
+    sleep_90_db = report_model.sleep_90  # can be None
+    sleep_90_params = None
+    if report_model.parameters and isinstance(report_model.parameters, dict):
+        sleep_90_params = report_model.parameters.get("sleep(90)")
+
+    # Fallback to a default if everything is None
+    sleep_90_value = sleep_90_db or sleep_90_params or "Shweta Mokashi, Right Hand Operation"
+
     request_params = {
         "report_query": f"Full investment readiness for report_id={report_id}",
         "company": "{}",
@@ -147,10 +155,10 @@ def generate_full_report(
         "industry": report_model.industry or "",
         "funding_stage": report_model.funding_stage or "",
         "pitch_deck_url": report_model.pitch_deck_url or "",
-        "prepared_by": report_model.prepared_by or "Shweta Mokashi, Right Hand Operation"
+        "sleep(90)": sleep_90_value,
     }
 
-    # Merge any leftover parameters from DB
+    # Merge leftover parameters
     if report_model.parameters and isinstance(report_model.parameters, dict):
         request_params.update(report_model.parameters)
 
@@ -207,7 +215,7 @@ def generate_full_report(
             founder_name=report_model.founder_name or "",
             company_name=report_model.company_name or "",
             company_type=report_model.company_type or "",
-            prepared_by=request_params.get("prepared_by", "Shweta Mokashi, Right Hand Operation"),
+            sleep_90=request_params.get("sleep(90)", "Shweta Mokashi, Right Hand Operation"),
             output_path=None
         )
     except Exception as e:
