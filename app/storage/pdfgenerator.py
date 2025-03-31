@@ -282,9 +282,6 @@ def generate_pdf(
         founder_name=founder_name,
         company_name=company_name,
         company_type=company_type,
-        # 'company_description' removed
-        prepared_by=prepared_by,
-        date=date_str,
         toc=toc_html,
         content=sections_html,
         assets_dir=ASSETS_DIR

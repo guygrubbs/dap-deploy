@@ -17,8 +17,7 @@ class CreateReportRequest(BaseModel):
     funding_stage: Optional[str] = None
     pitch_deck_url: Optional[str] = None
 
-    # ✅ Add prepared_by as a top-level optional field
-    prepared_by: Optional[str] = None
+
 
     report_type: Optional[str] = None
     title: str
