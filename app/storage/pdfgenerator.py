@@ -10,9 +10,9 @@ import re
 # Directory Configuration (Adjust Paths Relative to `app/storage/`)
 # -----------------------------------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # e.g. `app/storage/`
-TEMPLATE_HTML_PATH = os.path.join(BASE_DIR, "template.html")  # Main HTML template
-STYLESHEET_PATH = os.path.join(BASE_DIR, "styles.css")        # CSS file
-OUTPUT_DIR = os.path.join(BASE_DIR, "reports")                # Where PDFs are saved
+TEMPLATE_HTML_PATH = os.path.join(BASE_DIR, "template.html")   # Main HTML template
+STYLESHEET_PATH = os.path.join(BASE_DIR, "styles.css")         # CSS file
+OUTPUT_DIR = os.path.join(BASE_DIR, "reports")                 # Where PDFs are saved
 OUTPUT_PDF_PATH = os.path.join(OUTPUT_DIR, "Investment_Readiness_Report.pdf")
 
 # Font and Asset Paths
@@ -77,7 +77,7 @@ def convert_markdown_to_html(markdown_text, section_number=1, section_title=None
     markdown_text = markdown_text.replace("⚠️", '<span class="warning-symbol"></span>')
     markdown_text = markdown_text.replace("✅", '<span class="check-symbol"></span>')
 
-    # 4) Use Python Markdown to convert the markdown to HTML
+    # 4) Use Python-Markdown to convert the markdown to HTML
     html = markdown.markdown(
         markdown_text,
         extensions=[
@@ -91,7 +91,7 @@ def convert_markdown_to_html(markdown_text, section_number=1, section_title=None
     # 5) Add a custom class to each table for styling
     html = html.replace("<table>", f'<table class="section-{section_number}">')
 
-    # 6) Optionally handle special placeholders for highlight boxes, custom lists, etc.
+    # 6) Handle special placeholders for highlight boxes, custom lists, etc.
     if "<!-- warning-list -->" in html:
         html = html.replace("<ul><!-- warning-list -->", '<ul class="warning-list">')
     if "<!-- check-list -->" in html:
@@ -126,6 +126,7 @@ def clean_title(title):
     title = re.sub(r'\s*\{#.*?\}', '', title)
     # Remove numeric prefixes like '1) '
     title = re.sub(r'^\d+\)\s*', '', title)
+
     # Handle repeated "Section X: Section X:" patterns
     pattern_dup = r'^Section \d+:\s*Section \d+:\s*(.+)$'
     match = re.match(pattern_dup, title)
@@ -165,7 +166,6 @@ def generate_pdf(
     founder_name: str = "Founder Name",
     company_name: str = "Founder Company",
     company_type: str = "Company Type",
-    company_description: str = "What company provides",
     prepared_by: str = "Brendan Smith, GetFresh Ventures",
     output_path: str = None
 ) -> Union[bytes, str]:
@@ -185,38 +185,32 @@ def generate_pdf(
     template_html = read_file(TEMPLATE_HTML_PATH)
     css_content = read_file(STYLESHEET_PATH)
 
-    # 2) We define some pagination parameters for approximate page sizing
+    # 2) Pagination parameters
     max_content_height_per_page = 1000
-    section_start_page = 3  # e.g., first content is on page 3
+    section_start_page = 3  # e.g. first content is on page 3
     current_page = section_start_page
     current_page_content_height = 0
 
-    # 3) Preprocess each 'section' to handle subsections and pagination
+    # 3) Preprocess each 'section' to handle subsections, pagination
     for i, section in enumerate(tier2_sections):
-        # Clean the top-level title
         section["clean_title"] = clean_title(section["title"])
-        # Extract subsections if not already done
         if "subsections" not in section or not section["subsections"]:
             section["subsections"] = extract_subsections(section["content"])
-        # Assign IDs to each subsection for linking
+
         for j, subsection in enumerate(section["subsections"]):
             if "id" not in subsection:
                 subsection["id"] = f"section-{i+1}-subsection-{j+1}"
             subsection["title"] = clean_title(subsection["title"])
 
-        # Estimate the 'height' of this section, then decide pagination breaks
         content_height = estimate_content_height(section["content"], len(section["subsections"]))
 
-        # Force a new page for each main section
-        if i > 0:  # skip for the very first section if you want it on the same page
+        # Force a new page for each main section (except maybe the first)
+        if i > 0:
             current_page += 1
             current_page_content_height = 0
 
-        # Assign the 'page_number' to this section
         section["page_number"] = current_page
         current_page_content_height += content_height
-
-        # If the content is very large, it might need multiple pages
         if current_page_content_height > max_content_height_per_page:
             additional_pages = int(current_page_content_height / max_content_height_per_page)
             current_page += additional_pages
@@ -232,8 +226,7 @@ def generate_pdf(
             f'<span class="toc-leader"></span>\n'
             f'</div>\n'
         )
-        # Subsections if available
-        if "subsections" in section and section["subsections"]:
+        if section.get("subsections"):
             for subsection in section["subsections"]:
                 sub_title = clean_title(subsection["title"])
                 toc_html += (
@@ -244,25 +237,23 @@ def generate_pdf(
                 )
     toc_html += '</div>'
 
-    # 5) Convert each section's content to HTML and assemble it
+    # 5) Convert each section's content to HTML and assemble
     sections_html = ""
     for i, section in enumerate(tier2_sections, start=1):
         section_id = f"section-{i}"
 
-        # Start new page container
         section_html = '<div class="page">\n'
         section_html += '<div class="page-background"></div>\n'
         section_html += '<div class="page-content">\n'
         section_html += f'<h2 id="{section_id}">Section {i}: {section["clean_title"]}</h2>\n'
 
-        # Convert the markdown to HTML
         content_html = convert_markdown_to_html(
             section["content"],
             i,
             section["clean_title"]
         )
 
-        # Insert subsection IDs so they can be anchored
+        # Insert IDs for subsections
         for j, subsection in enumerate(section["subsections"]):
             subsection_id = subsection["id"]
             subsection_title = clean_title(subsection["title"])
@@ -271,20 +262,19 @@ def generate_pdf(
             replacement = f'<h3 id="{subsection_id}">\\1{subsection_title}</h3>'
             content_html = re.sub(heading_pattern, replacement, content_html)
 
-        # Replace placeholders in the final content with the user-supplied data
+        # Replace placeholders with user-supplied data
         content_html = content_html.replace("{founder_name}", founder_name)
         content_html = content_html.replace("{company_name}", company_name)
         content_html = content_html.replace("{company_type}", company_type)
-        content_html = content_html.replace("{company_description}", company_description)
+        # Removed references to {company_description}
 
         section_html += content_html
         section_html += '</div>\n'
         section_html += f'<div class="page-number">{section["page_number"]}</div>\n'
         section_html += '</div>\n'
-
         sections_html += section_html
 
-    # 6) Fill in the template with dynamic fields (cover page, date, prepared_by, etc.)
+    # 6) Fill in the template with dynamic fields
     date_str = datetime.now().strftime("%b %d, %Y")
     filled_html = template_html.format(
         report_id=report_id,
@@ -292,7 +282,7 @@ def generate_pdf(
         founder_name=founder_name,
         company_name=company_name,
         company_type=company_type,
-        company_description=company_description,
+        # 'company_description' removed
         prepared_by=prepared_by,
         date=date_str,
         toc=toc_html,
@@ -300,10 +290,10 @@ def generate_pdf(
         assets_dir=ASSETS_DIR
     )
 
-    # 7) Ensure an output directory for the PDF
+    # 7) Ensure an output directory
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    # Save the raw HTML for debugging, if desired
+    # Optionally save debug HTML
     debug_html_path = os.path.join(OUTPUT_DIR, "debug_output.html")
     with open(debug_html_path, "w", encoding="utf-8") as html_file:
         html_file.write(filled_html)
@@ -313,7 +303,7 @@ def generate_pdf(
         stylesheets=[CSS(string=css_content)]
     )
 
-    # 9) Return or save the PDF
+    # 9) Return or save
     if output_path:
         with open(output_path, "wb") as pdf_file:
             pdf_file.write(pdf_bytes)
@@ -331,14 +321,13 @@ if __name__ == "__main__":
     founder_name = "John Smith"
     company_name = "TechSolutions Inc."
     company_type = "SaaS Platform"
-    company_description = "AI-powered solutions for enterprise automation"
     prepared_by = "Diligence Team, RHO"
 
-    # Suppose you have a list of 'tier2_sections' from your orchestrator
-    # For demonstration, we'll reference a local sample file or hard-coded sections
+    # Suppose you have some 'tier2_sections' from an orchestrator
+    # For demonstration, we might reference a local sample
     from sample_sections import investment_report_sections  # Example reference
 
-    # Now generate a PDF in the 'reports' folder
+    # Generate a PDF
     pdf_file_path = generate_pdf(
         report_id=report_id,
         report_title=report_title,
@@ -346,9 +335,7 @@ if __name__ == "__main__":
         founder_name=founder_name,
         company_name=company_name,
         company_type=company_type,
-        company_description=company_description,
         prepared_by=prepared_by,
         output_path=OUTPUT_PDF_PATH
     )
-
     print(f"PDF generated at: {pdf_file_path}")

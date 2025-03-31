@@ -54,7 +54,6 @@ def get_db():
     finally:
         db.close()
 
-
 # -------------------------------------------------------------------------
 #  Example Endpoint: Upload a Pitch Deck PDF, Convert, (Optionally) Upload
 # -------------------------------------------------------------------------
@@ -211,13 +210,15 @@ def generate_full_report(
     request_params["funding_stage"] = report_model.funding_stage or ""
     request_params["pitch_deck_url"] = report_model.pitch_deck_url or ""
 
-    # (New) if you want to pass "company_description" or "prepared_by"
-    request_params["company_description"] = report_model.company_description or ""
+    # (Optional) prepared_by (if you store it in DB or want to override):
     request_params["prepared_by"] = getattr(report_model, "prepared_by", "") or "Shweta Mokashi, Right Hand Operation"
 
     # Merge leftover "parameters"
     if report_model.parameters and isinstance(report_model.parameters, dict):
         request_params.update(report_model.parameters)
+
+    # NOTE: -------------- REMOVED --------------
+    # request_params["company_description"] = report_model.company_description or ""
 
     # 3) If pitch_deck_url is present, attempt download + text extraction
     pitch_deck_url = request_params.get("pitch_deck_url")
@@ -269,11 +270,10 @@ def generate_full_report(
             report_id=report_model.id,
             report_title=report_model.title or "GFV Investment Report",
             tier2_sections=sections_list,
-
             founder_name=report_model.founder_name or "",
             company_name=report_model.company_name or "",
             company_type=report_model.company_type or "",
-            company_description=request_params.get("company_description", ""),
+            # NOTE: "company_description" removed
             prepared_by=request_params.get("prepared_by", "Shweta Mokashi, Right Hand Operation"),
             output_path=None
         )
