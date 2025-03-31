@@ -30,7 +30,7 @@ class BaseAIAgent:
                 model=model_name,
                 messages=[
                     {
-                        "role": "system",
+                        "role": "user",
                         "content": (
                             "You are a specialized research agent focused on gathering factual details, "
                             "identifying missing data, and providing an objective overview of the company's "
@@ -73,7 +73,7 @@ class BaseAIAgent:
                 model=model_name,
                 messages=[
                     {
-                        "role": "system",
+                        "role": "user",
                         "content": "You are an expert report writer with deep industry knowledge. Respond only with the requested headings and content. Do not include disclaimers or source references."
                     },
                     {
