@@ -1,5 +1,3 @@
-# app/database/crud.py
-
 import json
 from datetime import datetime
 from typing import Optional, Dict, Any
@@ -61,8 +59,8 @@ def update_report_status(db: Session, report_id: int, new_status: str) -> None:
 
 def update_report_sections(db: Session, report_id: int, sections_dict: Dict[str, str]) -> None:
     """
-    Example: store AI-generated sections in the 'parameters' JSON.
-    Adjust if you have a separate 'report_sections' table.
+    Example: store AI-generated sections in the 'parameters' JSON 
+    under a 'generated_sections' key.
     """
     report = get_report_by_id(db, report_id)
     if report:
@@ -75,10 +73,9 @@ def update_report_sections(db: Session, report_id: int, sections_dict: Dict[str,
 def get_report_content(db: Session, report_id: int) -> Dict[str, Any]:
     """
     Return any structured content from DB (like sections).
-    Adjust to match your schema storage approach.
+    In this example, we look for 'generated_sections' in the parameters.
     """
     report = get_report_by_id(db, report_id)
     if not report:
         return {}
-    # Example if sections are stored in 'parameters["generated_sections"]':
     return report.parameters.get("generated_sections", {})

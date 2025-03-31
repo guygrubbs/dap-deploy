@@ -9,6 +9,7 @@ from typing import Optional, Dict, Any
 
 from sqlalchemy.orm import Session
 
+# Schemas & DB logic
 from app.api.schemas import (
     CreateReportRequest,
     ReportResponse,
@@ -25,14 +26,14 @@ from app.database.crud import (
 )
 from app.database.database import SessionLocal
 
-# Import orchestrator logic
+# AI orchestrator for generating multi-section text
 from app.api.ai.orchestrator import generate_report
 
-# PDF & Storage
+# PDF generation & storage finalization
 from app.storage.pdfgenerator import generate_pdf
 from app.storage.gcs import finalize_report_with_pdf
 
-# PDF -> JSONL -> OpenAI
+# Tools for pitch deck -> JSONL -> OpenAI (optional usage)
 from app.matching_engine.pdf_to_openai_jsonl import (
     download_pdf_from_supabase,
     extract_text_with_ocr,
@@ -44,6 +45,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 def get_db():
+    """
+    Dependency to provide a SQLAlchemy database session.
+    """
     db = SessionLocal()
     try:
         yield db
@@ -51,8 +55,13 @@ def get_db():
         db.close()
 
 
-# ------------------- Pitch Deck Upload Example -------------------
+# -------------------------------------------------------------------------
+#  Example Endpoint: Upload a Pitch Deck PDF, Convert, (Optionally) Upload
+# -------------------------------------------------------------------------
 class UploadToOpenAIRequest(BaseModel):
+    """
+    Payload for POST /pitchdecks/{deck_file}/upload_to_openai
+    """
     bucket: Optional[str] = "pitchdecks"
     output_filename: Optional[str] = "pitchdeck_data.jsonl"
     upload_to_openai: Optional[bool] = True
@@ -64,24 +73,33 @@ def upload_deck_to_openai(
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
-    1) Download a PDF from Supabase
-    2) Extract text
-    3) Create a .jsonl
-    4) Optionally upload to OpenAI
-    5) Return file ID
+    1) Download a PDF pitch deck from Supabase (using 'deck_file' as filename).
+    2) Extract text with OCR fallback.
+    3) Create a .jsonl file from that text.
+    4) Optionally upload it to OpenAI.
+    5) Return relevant info (OpenAI file ID, etc.).
     """
     try:
+        # 1) Download from Supabase
         bucket = request_body.bucket or "pitchdecks"
         pdf_bytes = download_pdf_from_supabase(deck_file, bucket=bucket)
+        logger.info("Downloaded PDF '%s' from bucket '%s'", deck_file, bucket)
+
+        # 2) Extract text
         extracted_text = extract_text_with_ocr(pdf_bytes)
 
+        # 3) Create JSONL locally
         out_jsonl_path = request_body.output_filename
         create_jsonl_file(extracted_text, out_jsonl_path)
+        logger.info("Created JSONL: %s", out_jsonl_path)
 
+        # 4) Optionally upload to OpenAI
         openai_file_id = None
         if request_body.upload_to_openai:
             openai_file_id = upload_jsonl_to_openai(out_jsonl_path, purpose="fine-tune")
+            logger.info("Uploaded JSONL to OpenAI: file_id=%s", openai_file_id)
 
+        # 5) Return
         return {
             "deck_file": deck_file,
             "bucket": bucket,
@@ -89,11 +107,13 @@ def upload_deck_to_openai(
             "openai_file_id": openai_file_id
         }
     except Exception as e:
-        logger.error("Error uploading deck: %s", str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to upload: {e}")
+        logger.error("Error in upload_deck_to_openai: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to upload pitch deck: {e}")
 
 
-# ------------------- REPORT ENDPOINTS ----------------------------
+# -------------------------------------------------------------------------
+#  REPORT ENDPOINTS
+# -------------------------------------------------------------------------
 
 @router.post(
     "/reports",
@@ -106,7 +126,8 @@ def create_report(
     db: Session = Depends(get_db)
 ) -> ReportResponse:
     """
-    Creates a new report generation request using provided fields.
+    Creates a new report generation request using the provided fields.
+    This includes top-level data (title, founder_name, etc.) plus 'parameters' dict.
     """
     try:
         new_report = create_report_entry(
@@ -116,7 +137,7 @@ def create_report(
             startup_id=request.startup_id,
             report_type=request.report_type,
 
-            # New top-level fields
+            # Additional fields from the request
             founder_name=request.founder_name,
             founder_company=request.founder_company,
             company_name=request.company_name,
@@ -125,10 +146,11 @@ def create_report(
             funding_stage=request.funding_stage,
             pitch_deck_url=request.pitch_deck_url,
 
-            # Additional parameters remain possible
+            # JSON/dict of arbitrary extras
             parameters=request.parameters
         )
 
+        # If not completed, progress = 0
         progress = 0 if new_report.status.lower() != "completed" else 100
 
         return ReportResponse(
@@ -142,11 +164,11 @@ def create_report(
             user_id=new_report.user_id,
             report_type=new_report.report_type,
             parameters=new_report.parameters,
-            sections=[],
+            sections=[],  # Not generated yet
             signed_pdf_download_url=None
         )
     except Exception as e:
-        logger.error("Error creating report: %s", str(e))
+        logger.error("Error creating report: %s", str(e), exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="Failed to create report"
@@ -155,7 +177,7 @@ def create_report(
 
 @router.post(
     "/reports/{report_id}/generate",
-    summary="Generate the full report, create PDF, upload to storage",
+    summary="Generate the full AI-based report, create PDF, and upload",
     response_model=ReportResponse
 )
 def generate_full_report(
@@ -163,23 +185,24 @@ def generate_full_report(
     db: Session = Depends(get_db)
 ) -> ReportResponse:
     """
-    Generates the AI-driven sections, updates the DB, and creates a PDF.
+    Generates an AI-driven multi-section report, updates DB,
+    creates a PDF, uploads it to storage, and returns the final data.
     """
-    # 1) Retrieve existing report from DB
+    # 1) Get existing report
     report_model = get_report_by_id(db, report_id)
     if not report_model:
+        logger.warning("Report with id %s not found.", report_id)
         raise HTTPException(status_code=404, detail="Report not found")
 
-    # 2) Build a request_params dict for the orchestrator
+    # 2) Prepare orchestrator params
     request_params = {
         "report_query": f"Full investment readiness for report_id={report_id}",
-
-        # Minimal placeholders or default usage from prior iteration
-        "company": "{}",   # Example placeholder
+        # minimal placeholders
+        "company": "{}",
         "industry": "{}",
     }
 
-    # Merge new top-level fields
+    # Integrate new top-level fields
     request_params["founder_name"] = report_model.founder_name or ""
     request_params["founder_company"] = report_model.founder_company or ""
     request_params["company_name"] = report_model.company_name or ""
@@ -188,11 +211,15 @@ def generate_full_report(
     request_params["funding_stage"] = report_model.funding_stage or ""
     request_params["pitch_deck_url"] = report_model.pitch_deck_url or ""
 
-    # Merge any leftover parameters from JSON
+    # (New) if you want to pass "company_description" or "prepared_by"
+    request_params["company_description"] = report_model.company_description or ""
+    request_params["prepared_by"] = getattr(report_model, "prepared_by", "") or "Shweta Mokashi, Right Hand Operation"
+
+    # Merge leftover "parameters"
     if report_model.parameters and isinstance(report_model.parameters, dict):
         request_params.update(report_model.parameters)
 
-    # 3) If pitch_deck_url is present, download it
+    # 3) If pitch_deck_url is present, attempt download + text extraction
     pitch_deck_url = request_params.get("pitch_deck_url")
     if pitch_deck_url:
         try:
@@ -202,19 +229,19 @@ def generate_full_report(
             pitch_deck_text = extract_text_with_ocr(pdf_bytes)
             request_params["pitch_deck_text"] = pitch_deck_text
         except Exception as e:
-            logger.error("Error reading pitch deck: %s", e)
+            logger.error("Error fetching pitch deck from %s: %s", pitch_deck_url, str(e), exc_info=True)
             raise HTTPException(status_code=400, detail=f"Couldn't fetch pitch deck: {e}")
 
-    # 4) Call orchestrator with all these parameters
-    full_result = generate_report(request_params)  # orchestrator returns a dict of sections
+    # 4) Orchestrate AI generation
+    full_result = generate_report(request_params)  # returns {section_key: "AI text"...}
 
-    # 5) Update DB with AI-generated sections
+    # 5) Update DB with generated sections
     update_report_sections(db, report_id, full_result)
 
-    # 6) Mark the report as completed
+    # 6) Mark status completed
     update_report_status(db, report_id, "completed")
 
-    # 7) Prepare sections for PDF output
+    # 7) Build a sections list for PDF
     section_id_map = {
         "executive_summary_investment_rationale": "Section 1: Executive Summary & Investment Rationale",
         "market_opportunity_competitive_landscape": "Section 2: Market Opportunity & Competitive Landscape",
@@ -243,17 +270,18 @@ def generate_full_report(
             report_title=report_model.title or "GFV Investment Report",
             tier2_sections=sections_list,
 
-            # pass new top-level fields to PDF generator
             founder_name=report_model.founder_name or "",
             company_name=report_model.company_name or "",
             company_type=report_model.company_type or "",
             company_description=request_params.get("company_description", ""),
+            prepared_by=request_params.get("prepared_by", "Shweta Mokashi, Right Hand Operation"),
             output_path=None
         )
+        logger.info("PDF generated for report_id=%s successfully.", report_id)
     except Exception as e:
-        logger.error("Error generating PDF for report %s: %s", report_id, str(e))
+        logger.error("Error generating PDF for report_id=%s: %s", report_id, str(e), exc_info=True)
 
-    # 9) Upload PDF to storage
+    # 9) Upload PDF if available
     if pdf_data:
         try:
             finalize_report_with_pdf(
@@ -265,13 +293,13 @@ def generate_full_report(
                 upload_to_supabase=True
             )
         except Exception as e:
-            logger.error("Error uploading PDF: %s", str(e))
+            logger.error("Error uploading PDF for report_id=%s: %s", report_id, str(e), exc_info=True)
 
-    # 10) Return the updated report
+    # 10) Return the updated ReportResponse
     updated_report = get_report_by_id(db, report_id)
     progress_value = 100
 
-    final_sections = get_report_content(db, report_id)  # if stored in "generated_sections"
+    final_sections = get_report_content(db, report_id)
     sections_list_api = []
     if isinstance(final_sections, dict):
         i = 1
@@ -303,12 +331,16 @@ def generate_full_report(
 
 
 @router.get("/reports/{report_id}", response_model=ReportResponse)
-def get_report(report_id: int, db: Session = Depends(get_db)) -> ReportResponse:
+def get_report(
+    report_id: int,
+    db: Session = Depends(get_db)
+) -> ReportResponse:
     """
-    Retrieves report details by ID, including status, sections, and PDF download URL.
+    Retrieves report details by ID, including status, generated sections, and PDF URL if available.
     """
     report_model = get_report_by_id(db, report_id)
     if not report_model:
+        logger.warning("No report found with id=%s", report_id)
         raise HTTPException(status_code=404, detail="Report not found")
 
     final_sections = get_report_content(db, report_id)
@@ -355,12 +387,16 @@ def get_report(report_id: int, db: Session = Depends(get_db)) -> ReportResponse:
 
 
 @router.get("/reports/{report_id}/content", response_model=ReportContentResponse)
-def get_report_content_endpoint(report_id: int, db: Session = Depends(get_db)) -> ReportContentResponse:
+def get_report_content_endpoint(
+    report_id: int,
+    db: Session = Depends(get_db)
+) -> ReportContentResponse:
     """
-    Retrieves the content details for a completed report, including sections & PDF link.
+    Retrieves the content details for a completed report, including sections & the PDF download URL if any.
     """
     report_model = get_report_by_id(db, report_id)
     if not report_model:
+        logger.warning("No report found with id=%s", report_id)
         raise HTTPException(status_code=404, detail="Report not found")
 
     final_sections = get_report_content(db, report_id)
@@ -386,15 +422,20 @@ def get_report_content_endpoint(report_id: int, db: Session = Depends(get_db)) -
 
 
 @router.get("/reports/{report_id}/status", response_model=ReportStatusResponse)
-def report_status(report_id: int, db: Session = Depends(get_db)) -> ReportStatusResponse:
+def report_status(
+    report_id: int,
+    db: Session = Depends(get_db)
+) -> ReportStatusResponse:
     """
-    Returns the current status and progress of a report.
+    Returns the current status and approximate progress of a report generation.
     """
     report_model = get_report_by_id(db, report_id)
     if not report_model:
+        logger.warning("No report found with id=%s", report_id)
         raise HTTPException(status_code=404, detail="Report not found")
 
     progress_value = 100 if report_model.status.lower() == "completed" else 50
+
     return ReportStatusResponse(
         status=report_model.status,
         progress=progress_value,

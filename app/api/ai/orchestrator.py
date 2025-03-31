@@ -5,7 +5,7 @@ import time
 import os
 
 from app.api.ai.agents import (
-    ResearcherAgent,                 # Do research first
+    ResearcherAgent,                 # Step 1: gather external context
     ExecutiveSummaryAgent,           # Section 1: Executive Summary & Investment Rationale
     MarketAnalysisAgent,             # Section 2: Market Opportunity & Competitive Landscape
     FinancialPerformanceAgent,       # Section 3: Financial Performance & Investment Readiness
@@ -22,9 +22,10 @@ from app.matching_engine.retrieval_utils import (
 
 logger = logging.getLogger(__name__)
 
+
 def generate_with_retry(agent, context: dict, section_name: str, max_attempts: int = 3, delay: int = 2) -> str:
     """
-    Attempt to generate a report section with retries.
+    Attempt to generate a report section with retries if any transient errors occur.
     """
     attempt = 0
     while attempt < max_attempts:
@@ -35,47 +36,55 @@ def generate_with_retry(agent, context: dict, section_name: str, max_attempts: i
             return result
         except Exception as e:
             attempt += 1
-            logger.error("Attempt %s failed for '%s' section: %s", attempt, section_name, str(e), exc_info=True)
+            logger.error(
+                "Attempt %s failed for '%s' section: %s",
+                attempt,
+                section_name,
+                str(e),
+                exc_info=True
+            )
             if attempt < max_attempts:
                 logger.info("Retrying '%s' section generation in %s seconds...", section_name, delay)
                 time.sleep(delay)
+
     logger.error("All %s attempts failed for '%s' section. Marking as failed.", max_attempts, section_name)
     return f"Error generating {section_name}."
 
+
 def generate_report(request_params: dict) -> dict:
     """
-    Generate a full Tier-2-based investment readiness report by calling AI agents
-    in a specific order:
-      1. Research Agent first (to gather external context).
-      2. Sections 2–7 (Market, Financial, GTM, Leadership, Investor Fit, Recommendations).
-      3. Section 1 (Executive Summary) last, referencing the other sections' output.
+    Orchestrates the creation of a multi-section investment readiness report:
 
-    The final naming and subheadings reflect the end-product structure:
-      1) Executive Summary & Investment Rationale
-      2) Market Opportunity & Competitive Landscape
-      3) Financial Performance & Investment Readiness
-      4) Go-To-Market (GTM) Strategy & Customer Traction
-      5) Leadership & Team
-      6) Investor Fit, Exit Strategy & Funding Narrative
-      7) Final Recommendations & Next Steps
-
-    Args:
-        request_params (dict): Contains context, parameters, and optionally references
-                               to uploaded docs (Pitch Decks, etc.).
+    1) Runs a ResearcherAgent to gather any external context.
+    2) Generates sections 2–7:
+       - Market Opportunity
+       - Financial Performance
+       - Go-To-Market Strategy
+       - Leadership & Team
+       - Investor Fit / Exit Strategy
+       - Final Recommendations
+    3) Finally generates Section 1 (Executive Summary) referencing the prior sections.
 
     Returns:
-        dict: The final report content with all seven sections.
+        dict: {
+            "executive_summary_investment_rationale": "...",
+            "market_opportunity_competitive_landscape": "...",
+            "financial_performance_investment_readiness": "...",
+            "go_to_market_strategy_customer_traction": "...",
+            "leadership_team": "...",
+            "investor_fit_exit_strategy_funding": "...",
+            "final_recommendations_next_steps": "..."
+        }
     """
-    # Avoid logging sensitive data
     safe_context = {k: request_params.get(k) for k in request_params if k != "sensitive"}
-    logger.info("Starting report generation with context: %s", safe_context)
+    logger.info("Starting orchestration with context: %s", safe_context)
 
-    # Gather user query or default
     user_query = request_params.get("report_query", "Investment readiness analysis")
+
+    # Optional: attempt vector-based retrieval if environment variables exist
     endpoint_resource_name = os.getenv("VERTEX_ENDPOINT_RESOURCE_NAME", "")
     deployed_index_id = os.getenv("VERTEX_DEPLOYED_INDEX_ID", "")
 
-    # Attempt to retrieve context from a vector search
     if endpoint_resource_name and deployed_index_id:
         top_matches = retrieve_relevant_chunks(
             query_text=user_query,
@@ -85,21 +94,17 @@ def generate_report(request_params: dict) -> dict:
         )
         context_snippets = build_context_from_matches(top_matches)
     else:
-        logger.warning("VERTEX_ENDPOINT_RESOURCE_NAME or VERTEX_DEPLOYED_INDEX_ID is not set. Skipping retrieval.")
+        logger.warning(
+            "VERTEX_ENDPOINT_RESOURCE_NAME or VERTEX_DEPLOYED_INDEX_ID is not set. Skipping retrieval."
+        )
         context_snippets = ""
 
     # Gather pitch-deck text if present
     pitch_deck_text = request_params.get("pitch_deck_text", "").strip()
 
-    # Combine them into ephemeral_context for the ResearcherAgent
-    ephemeral_context = ""
-    if pitch_deck_text:
-        ephemeral_context += f"Pitch Deck Text:\n{pitch_deck_text}\n\n"
-    if context_snippets.strip():
-        ephemeral_context += f"{context_snippets}\n"
-
-    # Additional metadata for the 'researcher' context
-    ephemeral_context += f"""You are given detailed context about startup stages and fundraising (the “GetFresh Maturity Model”), aggregated market data from “Carta State of Startups 2024,” and founder equity trends from the “Founder Ownership Report 2025.” Below is a pitch deck outline and relevant details for a hypothetical startup. Please provide a thorough analysis and feedback, referencing the maturity milestones, funding data, and ownership dynamics where appropriate. Identify any red flags, highlight strengths, and suggest how the startup could optimize its approach. Assume the audience is prospective investors and seasoned startup advisors.
+    # Build ephemeral_context for the first (Researcher) pass
+    # Placeholder text here:
+    ephemeral_context = """You are given detailed context about startup stages and fundraising (the “GetFresh Maturity Model”), aggregated market data from “Carta State of Startups 2024,” and founder equity trends from the “Founder Ownership Report 2025.” Below is a pitch deck outline and relevant details for a hypothetical startup. Please provide a thorough analysis and feedback, referencing the maturity milestones, funding data, and ownership dynamics where appropriate. Identify any red flags, highlight strengths, and suggest how the startup could optimize its approach. Assume the audience is prospective investors and seasoned startup advisors.
     
     GetFresh Ventures Maturity Model v1 Draft - November 2024
 
@@ -566,11 +571,16 @@ def generate_report(request_params: dict) -> dict:
     Exit Strategy (If relevant for investor audiences)
     Potential M&A or IPO path, timing, or industries/companies that might acquire them in the future."""
 
-    # ----------------------------------------------------------------------------
-    # Step 1: ResearcherAgent -> gather research details & incorporate them
-    # ----------------------------------------------------------------------------
+    # Optionally append pitch deck text
+    if pitch_deck_text:
+        ephemeral_context += f"Pitch Deck Text:\n{pitch_deck_text}\n\n"
+
+    # Optionally append vector context
+    if context_snippets.strip():
+        ephemeral_context += f"{context_snippets}\n"
+
+    # 1) Use the ResearcherAgent to gather extra info
     researcher_agent = ResearcherAgent()
-    # We pass in minimal context about the company, plus ephemeral_context
     researcher_input = {
         "company_name": request_params.get("company", "Unknown Company"),
         "industry": request_params.get("industry", "General Industry"),
@@ -578,15 +588,16 @@ def generate_report(request_params: dict) -> dict:
     }
     try:
         research_output = researcher_agent.gather_research(researcher_input)
-        # Append the research findings to ephemeral_context
         ephemeral_context += f"\nRESEARCHER FINDINGS:\n{research_output}\n"
     except Exception as e:
-        logger.error("Research agent failed: %s", str(e), exc_info=True)
-        ephemeral_context += "\n[Warning: ResearcherAgent failed to gather additional data.]\n"
+        logger.error("ResearcherAgent failed: %s", str(e), exc_info=True)
+        ephemeral_context += "\n[Warning: ResearcherAgent encountered an error.]\n"
 
-    # ----------------------------------------------------------------------------
-    # Step 2: Generate Sections 2–7 using the consolidated ephemeral_context
-    # ----------------------------------------------------------------------------
+    # Build a shared context for the next sections
+    section_context = request_params.copy()
+    section_context["retrieved_context"] = ephemeral_context
+
+    # 2) Generate sections 2–7
     market_opportunity_agent = MarketAnalysisAgent()
     financial_performance_agent = FinancialPerformanceAgent()
     gtm_strategy_agent = GoToMarketAgent()
@@ -594,59 +605,40 @@ def generate_report(request_params: dict) -> dict:
     investor_fit_agent = InvestorFitAgent()
     recommendations_agent = RecommendationsAgent()
 
-    # Shared context for these sections
-    section_context = request_params.copy()
-    section_context["retrieved_context"] = ephemeral_context
-
-    # Delay is included as in your original code
-    time.sleep(90)  # optional delay
+    # Optional delays
+    time.sleep(2)  # demonstration minimal delay
 
     market_opportunity_competitive_landscape = generate_with_retry(
-        market_opportunity_agent,
-        section_context,
-        "Market Opportunity & Competitive Landscape"
+        market_opportunity_agent, section_context, "Market Opportunity & Competitive Landscape"
     )
-    time.sleep(90)
+    time.sleep(2)
 
     financial_performance_investment_readiness = generate_with_retry(
-        financial_performance_agent,
-        section_context,
-        "Financial Performance & Investment Readiness"
+        financial_performance_agent, section_context, "Financial Performance & Investment Readiness"
     )
-    time.sleep(90)
+    time.sleep(2)
 
     go_to_market_strategy_customer_traction = generate_with_retry(
-        gtm_strategy_agent,
-        section_context,
-        "Go-To-Market (GTM) Strategy & Customer Traction"
+        gtm_strategy_agent, section_context, "Go-To-Market (GTM) Strategy & Customer Traction"
     )
-    time.sleep(90)
+    time.sleep(2)
 
     leadership_team = generate_with_retry(
-        leadership_team_agent,
-        section_context,
-        "Leadership & Team"
+        leadership_team_agent, section_context, "Leadership & Team"
     )
-    time.sleep(90)
+    time.sleep(2)
 
     investor_fit_exit_strategy_funding = generate_with_retry(
-        investor_fit_agent,
-        section_context,
-        "Investor Fit, Exit Strategy & Funding Narrative"
+        investor_fit_agent, section_context, "Investor Fit, Exit Strategy & Funding Narrative"
     )
-    time.sleep(90)
+    time.sleep(2)
 
     final_recommendations_next_steps = generate_with_retry(
-        recommendations_agent,
-        section_context,
-        "Final Recommendations & Next Steps"
+        recommendations_agent, section_context, "Final Recommendations & Next Steps"
     )
-    time.sleep(90)
+    time.sleep(2)
 
-    # ----------------------------------------------------------------------------
-    # Step 3: Generate the Executive Summary LAST, referencing *all other* sections
-    # ----------------------------------------------------------------------------
-    # The user wants the Executive Summary to rely on the texts produced by sections 2–7
+    # 3) Generate the Executive Summary (Section 1) referencing the previous sections
     summary_context = request_params.copy()
     summary_context["retrieved_context"] = (
         f"SECTION 2: Market Opportunity\n{market_opportunity_competitive_landscape}\n\n"
@@ -657,7 +649,7 @@ def generate_report(request_params: dict) -> dict:
         f"SECTION 7: Final Recommendations\n{final_recommendations_next_steps}\n"
     )
 
-    # Provide relevant fields explicitly if your Executive agent uses them
+    # Provide relevant fields for the ExecutiveSummaryAgent
     summary_context["founder_name"] = request_params.get("founder_name", "Unknown Founder")
     summary_context["founder_company"] = request_params.get("founder_company", "Unknown Operation")
     summary_context["funding_stage"] = request_params.get("funding_stage", "Unknown Stage")
@@ -671,9 +663,7 @@ def generate_report(request_params: dict) -> dict:
         "Executive Summary & Investment Rationale"
     )
 
-    # ----------------------------------------------------------------------------
-    # Build and return the final report dict
-    # ----------------------------------------------------------------------------
+    # Build final result
     full_report = {
         "executive_summary_investment_rationale": executive_summary_investment_rationale,
         "market_opportunity_competitive_landscape": market_opportunity_competitive_landscape,
@@ -684,7 +674,7 @@ def generate_report(request_params: dict) -> dict:
         "final_recommendations_next_steps": final_recommendations_next_steps
     }
 
-    # Log statuses
+    # Log each section's status
     status_summary = {}
     for section_name, content in full_report.items():
         if "Error generating" in content:
@@ -692,5 +682,5 @@ def generate_report(request_params: dict) -> dict:
         else:
             status_summary[section_name] = "generated"
 
-    logger.info("Report generation completed. Section statuses: %s", status_summary)
+    logger.info("Report generation complete. Section statuses: %s", status_summary)
     return full_report

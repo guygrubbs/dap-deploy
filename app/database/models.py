@@ -1,9 +1,7 @@
-# app/database/models.py
-
 import datetime
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.dialects.postgresql import JSONB
-from app.database.database import Base  # or wherever your Base is defined
+from app.database.database import Base
 
 class Report(Base):
     __tablename__ = "reports"
@@ -23,7 +21,7 @@ class Report(Base):
     funding_stage = Column(String, nullable=True)
     pitch_deck_url = Column(String, nullable=True)
 
-    # For arbitrary user-defined fields
+    # JSON field for extra data or sections
     parameters = Column(JSONB, nullable=True)
 
     status = Column(String, default="pending", nullable=False)

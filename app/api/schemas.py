@@ -1,5 +1,3 @@
-# app/api/schemas.py
-
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel
 
@@ -19,7 +17,6 @@ class CreateReportRequest(BaseModel):
     funding_stage: Optional[str] = None
     pitch_deck_url: Optional[str] = None
 
-    # Original
     report_type: Optional[str] = None
     title: str
 

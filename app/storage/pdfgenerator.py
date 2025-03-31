@@ -9,290 +9,260 @@ import re
 # -----------------------------------------------------------------------------
 # Directory Configuration (Adjust Paths Relative to `app/storage/`)
 # -----------------------------------------------------------------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # `app/storage/`
-TEMPLATE_HTML_PATH = os.path.join(BASE_DIR, "template.html")  # Template
-STYLESHEET_PATH = os.path.join(BASE_DIR, "styles.css")  # CSS file
-OUTPUT_DIR = os.path.join(BASE_DIR, "reports")  # Where PDFs are saved
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # e.g. `app/storage/`
+TEMPLATE_HTML_PATH = os.path.join(BASE_DIR, "template.html")  # Main HTML template
+STYLESHEET_PATH = os.path.join(BASE_DIR, "styles.css")        # CSS file
+OUTPUT_DIR = os.path.join(BASE_DIR, "reports")                # Where PDFs are saved
 OUTPUT_PDF_PATH = os.path.join(OUTPUT_DIR, "Investment_Readiness_Report.pdf")
 
 # Font and Asset Paths
-FONTS_DIR = os.path.join(BASE_DIR, "fonts")  # Fonts directory
-ASSETS_DIR = os.path.join(BASE_DIR, "assets")  # Assets directory
-LOGO_PATH = os.path.join(ASSETS_DIR, "logo.png")  # Logo path
+FONTS_DIR = os.path.join(BASE_DIR, "fonts")   # Fonts directory (if using custom fonts)
+ASSETS_DIR = os.path.join(BASE_DIR, "assets") # Assets directory (for images/logos)
+LOGO_PATH = os.path.join(ASSETS_DIR, "logo.png")  # Example logo path
 
 # -----------------------------------------------------------------------------
 # Helper Functions
 # -----------------------------------------------------------------------------
 def read_file(file_path):
-    """Reads and returns the content of a given file."""
+    """
+    Reads and returns the entire content of a file as a string.
+    """
     with open(file_path, "r", encoding="utf-8") as file:
         return file.read()
 
 def convert_markdown_to_html(markdown_text, section_number=1, section_title=None):
     """
-    Converts Markdown text to HTML while preserving tables and formatting.
-    
+    Converts Markdown text into HTML while preserving tables and basic formatting.
+
     Args:
-        markdown_text (str): The markdown text to convert
-        section_number (int): The section number for table styling
-        section_title (str, optional): The section title to check for and remove if duplicated
+        markdown_text (str): The raw markdown text to convert.
+        section_number (int): Used to add custom classes to <table> tags for styling.
+        section_title (str, optional): The section title, used to remove repeated headings.
+
+    Returns:
+        str: The converted HTML string.
     """
-    # First, strip markdown code block delimiters if present
+    # 1) Strip code block delimiters if the content starts with ```markdown
     if markdown_text.strip().startswith("```markdown"):
-        # Extract content between markdown code blocks
         pattern = r"```markdown\n(.*?)```"
         match = re.search(pattern, markdown_text, re.DOTALL)
         if match:
             markdown_text = match.group(1)
-    
-    # Remove section title if it appears at the beginning of the content
+
+    # 2) Remove the section title if it appears at the beginning
     if section_title:
-        # Safely escape the section title for regex
         escaped_title = re.escape(section_title)
-        escaped_section_number = re.escape(str(section_number))
-        
-        # Create patterns with escaped values to match various heading formats
+        escaped_num   = re.escape(str(section_number))
         patterns = [
-            rf"^### \*\*Section {escaped_section_number}: {escaped_title}\*\*.*$",
-            rf"^### Section {escaped_section_number}: {escaped_title}.*$",
-            rf"^## Section {escaped_section_number}: {escaped_title}.*$",
-            rf"^# Section {escaped_section_number}: {escaped_title}.*$",
+            rf"^### \*\*Section {escaped_num}: {escaped_title}\*\*.*$",
+            rf"^### Section {escaped_num}: {escaped_title}.*$",
+            rf"^## Section {escaped_num}: {escaped_title}.*$",
+            rf"^# Section {escaped_num}: {escaped_title}.*$",
             rf"^#### {escaped_title}.*$",
             rf"^### {escaped_title}.*$",
             rf"^## {escaped_title}.*$",
             rf"^# {escaped_title}.*$"
         ]
-        
-        # Try to remove each pattern from the content
-        for pattern in patterns:
-            markdown_text = re.sub(pattern, "", markdown_text, flags=re.MULTILINE)
-        
-        # Also look for markdown heading IDs/anchors to remove
-        anchor_pattern = rf" \{{#.*?\}}"
+        for p in patterns:
+            markdown_text = re.sub(p, "", markdown_text, flags=re.MULTILINE)
+
+        # Remove any leftover anchor IDs like {#some-anchor}
+        anchor_pattern = r" \{#.*?\}"
         markdown_text = re.sub(anchor_pattern, "", markdown_text, flags=re.MULTILINE)
-    
-    # Replace emoji indicators to HTML spans for consistent rendering
+
+    # 3) Replace special emoji indicators with HTML elements for consistent rendering
     markdown_text = markdown_text.replace("🟢", '<span class="indicator green"></span>')
     markdown_text = markdown_text.replace("🟡", '<span class="indicator yellow"></span>')
     markdown_text = markdown_text.replace("🔴", '<span class="indicator red"></span>')
     markdown_text = markdown_text.replace("⚠️", '<span class="warning-symbol"></span>')
     markdown_text = markdown_text.replace("✅", '<span class="check-symbol"></span>')
-    
-    # Convert markdown to HTML
+
+    # 4) Use Python Markdown to convert the markdown to HTML
     html = markdown.markdown(
-        markdown_text, 
+        markdown_text,
         extensions=[
-            "tables", 
+            "tables",
             "fenced_code",
-            "nl2br",  # Convert newlines to <br>
-            "sane_lists",  # Better list handling
+            "nl2br",
+            "sane_lists",
         ]
     )
-    
-    # Add section-specific class to tables for styling
+
+    # 5) Add a custom class to each table for styling
     html = html.replace("<table>", f'<table class="section-{section_number}">')
-    
-    # Convert standard lists to special lists when needed
+
+    # 6) Optionally handle special placeholders for highlight boxes, custom lists, etc.
     if "<!-- warning-list -->" in html:
         html = html.replace("<ul><!-- warning-list -->", '<ul class="warning-list">')
     if "<!-- check-list -->" in html:
         html = html.replace("<ul><!-- check-list -->", '<ul class="check-list">')
-    
-    # Replace highlight boxes placeholders
     html = html.replace("[highlight]", '<span class="highlight-box">')
     html = html.replace("[/highlight]", '</span>')
-    
+
     return html
 
 def extract_subsections(content):
-    """Extract subsections from the markdown content based on ## headings."""
+    """
+    Extracts subsections from the markdown content based on '##' headings.
+
+    Returns a list of dicts with 'title' and 'id' for each subsection discovered.
+    """
     subsections = []
-    # Modified pattern to handle headings with markdown anchors
     pattern = r'^## (\d+\)\s*)?(.+?)(\s*\{#.*?\})?$'
     matches = re.finditer(pattern, content, re.MULTILINE)
-    
     for match in matches:
-        # Use the captured title without the anchor ID
         subsections.append({
             "title": match.group(2).strip(),
             "id": f"subsection-{len(subsections) + 1}"
         })
-    
     return subsections
 
 def clean_title(title):
-    """Clean section title by removing duplicated prefixes, numeric markers, and anchor IDs."""
-    # Remove any markdown anchors {#anchor-id}
+    """
+    Cleans a section title, removing duplicates and numeric prefixes.
+    Also removes any anchor IDs (e.g., {#anchor}).
+    """
+    # Remove anchor IDs
     title = re.sub(r'\s*\{#.*?\}', '', title)
-    
-    # Remove any numbered prefixes like "1) "
+    # Remove numeric prefixes like '1) '
     title = re.sub(r'^\d+\)\s*', '', title)
-    
-    # Clean duplicate section prefix (e.g., "Section 1: Section 1: ...")
-    title_pattern = r'^Section \d+:\s*Section \d+:\s*(.+)$'
-    match = re.match(title_pattern, title)
+    # Handle repeated "Section X: Section X:" patterns
+    pattern_dup = r'^Section \d+:\s*Section \d+:\s*(.+)$'
+    match = re.match(pattern_dup, title)
     if match:
         return match.group(1)
-    
-    # Remove any "Section X: " prefix if present
-    section_prefix = r'^Section \d+:\s*(.+)$'
-    match = re.match(section_prefix, title)
+
+    # If we have a single "Section X:" prefix, remove it
+    pattern_single = r'^Section \d+:\s*(.+)$'
+    match = re.match(pattern_single, title)
     if match:
         return match.group(1)
-    
+
     return title
 
 def estimate_content_height(content, subsections_count):
     """
-    Estimate the height a section will take when rendered.
-    This is a simplified approximation based on content length and complexity.
-    
-    Args:
-        content (str): The markdown content
-        subsections_count (int): Number of subsections which indicates complexity
-    
-    Returns:
-        float: Estimated height in arbitrary units (used for pagination calculation)
+    Roughly estimates the 'height' of a section based on its length, table usage,
+    code blocks, and number of subsections. Used for deciding pagination breaks.
     """
-    # Base height estimate on content length
     base_height = len(content) * 0.05
-    
-    # Add height for tables
     table_count = content.count('|---')
     table_height = table_count * 50
-    
-    # Add height for subsections
     subsection_height = subsections_count * 80
-    
-    # Count images, charts, or other complex elements
+
     complex_elements = 0
-    complex_elements += content.count('```')  # Code blocks
+    complex_elements += content.count('```')  # code blocks
     complex_elements += content.count('<!-- warning-list -->')
     complex_elements += content.count('<!-- check-list -->')
-    
     complex_element_height = complex_elements * 60
-    
+
     return base_height + table_height + subsection_height + complex_element_height
 
 def generate_pdf(
-    report_id: int, 
-    report_title: str, 
-    tier2_sections: list, 
-    founder_name: str = "Founder Name", 
+    report_id: int,
+    report_title: str,
+    tier2_sections: list,
+    founder_name: str = "Founder Name",
     company_name: str = "Founder Company",
     company_type: str = "Company Type",
     company_description: str = "What company provides",
-    prepared_by: str = "Brendan Smith, GetFresh Ventures", 
+    prepared_by: str = "Brendan Smith, GetFresh Ventures",
     output_path: str = None
 ) -> Union[bytes, str]:
     """
-    Generates a PDF from structured Markdown content.
+    Generates a PDF from structured Markdown content for each 'section'.
 
-    Args:
-        report_id (int): Unique ID of the report.
-        report_title (str): Title of the report.
-        tier2_sections (list): List of section dictionaries containing "title" and "content".
-        founder_name (str): Name of the founder.
-        company_name (str): Name of the company.
-        company_type (str): Type of company (e.g., "SaaS Platform").
-        company_description (str): Brief description of what the company provides.
-        prepared_by (str): Name and affiliation of the report preparer.
-        output_path (str, optional): File path to save the PDF. If None, returns a bytes object.
+    The resulting PDF includes:
+    - A cover page (from the HTML template).
+    - A dynamic Table of Contents referencing each 'section'.
+    - Section content with pagination logic.
+    - Additional fields (founder_name, company_name, etc.) are replaced in the content.
 
-    Returns:
-        Union[bytes, str]: If output_path is given, returns file path. Otherwise, returns a bytes object.
+    If 'output_path' is provided, the PDF is written to that file path.
+    Otherwise, the function returns a bytes object containing the PDF data.
     """
-    # Read HTML template and styles
+    # 1) Read the main HTML template and the CSS
     template_html = read_file(TEMPLATE_HTML_PATH)
     css_content = read_file(STYLESHEET_PATH)
 
-    # Define content height limits and initialize page tracking
-    max_content_height_per_page = 1000  # Arbitrary units for page content capacity
-    section_start_page = 3  # First content starts at page 3
+    # 2) We define some pagination parameters for approximate page sizing
+    max_content_height_per_page = 1000
+    section_start_page = 3  # e.g., first content is on page 3
     current_page = section_start_page
     current_page_content_height = 0
 
-    # Preprocess sections to extract subsections if not provided
+    # 3) Preprocess each 'section' to handle subsections and pagination
     for i, section in enumerate(tier2_sections):
-        # Extract clean section title
+        # Clean the top-level title
         section["clean_title"] = clean_title(section["title"])
-        
-        # Extract subsections if not provided
+        # Extract subsections if not already done
         if "subsections" not in section or not section["subsections"]:
             section["subsections"] = extract_subsections(section["content"])
-        
-        # Assign IDs to subsections for linking
+        # Assign IDs to each subsection for linking
         for j, subsection in enumerate(section["subsections"]):
             if "id" not in subsection:
                 subsection["id"] = f"section-{i+1}-subsection-{j+1}"
-            
-            # Clean subsection titles
             subsection["title"] = clean_title(subsection["title"])
-        
-        # Estimate content height for pagination
+
+        # Estimate the 'height' of this section, then decide pagination breaks
         content_height = estimate_content_height(section["content"], len(section["subsections"]))
-        
-        # Force new page for each section and update page tracking
-        if i > 0:  # First section starts on page 3
+
+        # Force a new page for each main section
+        if i > 0:  # skip for the very first section if you want it on the same page
             current_page += 1
             current_page_content_height = 0
-        
-        # Set the page number for this section
+
+        # Assign the 'page_number' to this section
         section["page_number"] = current_page
-        
-        # Update current page content height
         current_page_content_height += content_height
-        
-        # Check if we need another page break within this section (for very long sections)
+
+        # If the content is very large, it might need multiple pages
         if current_page_content_height > max_content_height_per_page:
             additional_pages = int(current_page_content_height / max_content_height_per_page)
             current_page += additional_pages
             current_page_content_height = current_page_content_height % max_content_height_per_page
 
-    # Generate table of contents
+    # 4) Build the Table of Contents as HTML
     toc_html = '<div class="toc">\n<h2>Table of Contents:</h2>\n'
-    
-    # Main section entries
     for i, section in enumerate(tier2_sections, start=1):
         section_id = f"section-{i}"
-        
-        toc_html += f'<div class="toc-item">\n'
-        toc_html += f'<span><a href="#{section_id}">Section {i}: {section["clean_title"]}</a></span>\n'
-        toc_html += f'<span class="toc-leader"></span>\n'
-        # Removed page number from TOC
-        toc_html += f'</div>\n'
-        
-        # Add subsections if available
+        toc_html += (
+            f'<div class="toc-item">\n'
+            f'<span><a href="#{section_id}">Section {i}: {section["clean_title"]}</a></span>\n'
+            f'<span class="toc-leader"></span>\n'
+            f'</div>\n'
+        )
+        # Subsections if available
         if "subsections" in section and section["subsections"]:
             for subsection in section["subsections"]:
                 sub_title = clean_title(subsection["title"])
-                toc_html += f'<div class="toc-item" style="padding-left: 20px;">\n'
-                toc_html += f'<span><a href="#{subsection["id"]}">{sub_title}</a></span>\n'
-                toc_html += f'<span class="toc-leader"></span>\n'
-                # Removed page number from TOC
-                toc_html += f'</div>\n'
-                
+                toc_html += (
+                    f'<div class="toc-item" style="padding-left: 20px;">\n'
+                    f'<span><a href="#{subsection["id"]}">{sub_title}</a></span>\n'
+                    f'<span class="toc-leader"></span>\n'
+                    f'</div>\n'
+                )
     toc_html += '</div>'
-    
-    # Convert sections to HTML with page breaks
+
+    # 5) Convert each section's content to HTML and assemble it
     sections_html = ""
     for i, section in enumerate(tier2_sections, start=1):
         section_id = f"section-{i}"
-        
-        section_html = f'<div class="page">\n'
-        section_html += f'<div class="page-background"></div>\n'
-        section_html += f'<div class="page-content">\n'
+
+        # Start new page container
+        section_html = '<div class="page">\n'
+        section_html += '<div class="page-background"></div>\n'
+        section_html += '<div class="page-content">\n'
         section_html += f'<h2 id="{section_id}">Section {i}: {section["clean_title"]}</h2>\n'
-        
-        # Convert markdown content to HTML with section number for table styling
-        # Pass the section title to prevent duplication in the content
+
+        # Convert the markdown to HTML
         content_html = convert_markdown_to_html(
-            section["content"], 
-            i, 
+            section["content"],
+            i,
             section["clean_title"]
         )
-        
-        # Add ID attributes to subsection headings
+
+        # Insert subsection IDs so they can be anchored
         for j, subsection in enumerate(section["subsections"]):
             subsection_id = subsection["id"]
             subsection_title = clean_title(subsection["title"])
@@ -300,23 +270,22 @@ def generate_pdf(
             heading_pattern = f'<h3>(\\d+\\)\\s*)?{subsection_title_pattern}</h3>'
             replacement = f'<h3 id="{subsection_id}">\\1{subsection_title}</h3>'
             content_html = re.sub(heading_pattern, replacement, content_html)
-        
-        # Replace placeholders in the content
+
+        # Replace placeholders in the final content with the user-supplied data
+        content_html = content_html.replace("{founder_name}", founder_name)
         content_html = content_html.replace("{company_name}", company_name)
         content_html = content_html.replace("{company_type}", company_type)
         content_html = content_html.replace("{company_description}", company_description)
-        content_html = content_html.replace("{founder_name}", founder_name)
-        
+
         section_html += content_html
-        section_html += f'</div>\n'
+        section_html += '</div>\n'
         section_html += f'<div class="page-number">{section["page_number"]}</div>\n'
-        section_html += f'</div>\n'
+        section_html += '</div>\n'
+
         sections_html += section_html
-    
-    # Prepare dynamic content replacements
+
+    # 6) Fill in the template with dynamic fields (cover page, date, prepared_by, etc.)
     date_str = datetime.now().strftime("%b %d, %Y")
-    
-    # Populate the HTML template with dynamic values
     filled_html = template_html.format(
         report_id=report_id,
         report_title=report_title,
@@ -331,44 +300,48 @@ def generate_pdf(
         assets_dir=ASSETS_DIR
     )
 
-    # Ensure the reports directory exists
+    # 7) Ensure an output directory for the PDF
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    
-    # Save HTML for debugging if needed
+
+    # Save the raw HTML for debugging, if desired
     debug_html_path = os.path.join(OUTPUT_DIR, "debug_output.html")
     with open(debug_html_path, "w", encoding="utf-8") as html_file:
         html_file.write(filled_html)
 
-    # Generate PDF using WeasyPrint
-    pdf_bytes = HTML(string=filled_html, base_url=BASE_DIR).write_pdf(stylesheets=[CSS(string=css_content)])
+    # 8) Generate the PDF using WeasyPrint
+    pdf_bytes = HTML(string=filled_html, base_url=BASE_DIR).write_pdf(
+        stylesheets=[CSS(string=css_content)]
+    )
 
+    # 9) Return or save the PDF
     if output_path:
         with open(output_path, "wb") as pdf_file:
             pdf_file.write(pdf_bytes)
-        return output_path  # Return file path like FPDF version
+        return output_path
     else:
-        return pdf_bytes  # Return bytes object if no output path given
+        return pdf_bytes
 
 # -----------------------------------------------------------------------------
-# Main Execution
+# Main Execution (simple testing)
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
-    # Example input values
+    # Example usage
     report_id = 1
     report_title = "Investment Readiness Report"
     founder_name = "John Smith"
     company_name = "TechSolutions Inc."
     company_type = "SaaS Platform"
-    company_description = "AI-powered customer service automation tools"
-    prepared_by = "Brendan Smith, GetFresh Ventures"
-    
-    # Define sections from external module
-    from sample_sections import investment_report_sections
-    
-    # Generate PDF (Returns file path)
+    company_description = "AI-powered solutions for enterprise automation"
+    prepared_by = "Diligence Team, RHO"
+
+    # Suppose you have a list of 'tier2_sections' from your orchestrator
+    # For demonstration, we'll reference a local sample file or hard-coded sections
+    from sample_sections import investment_report_sections  # Example reference
+
+    # Now generate a PDF in the 'reports' folder
     pdf_file_path = generate_pdf(
-        report_id=report_id, 
-        report_title=report_title, 
+        report_id=report_id,
+        report_title=report_title,
         tier2_sections=investment_report_sections,
         founder_name=founder_name,
         company_name=company_name,
@@ -377,5 +350,5 @@ if __name__ == "__main__":
         prepared_by=prepared_by,
         output_path=OUTPUT_PDF_PATH
     )
-    
-    print(f"PDF generated successfully: {pdf_file_path}")
+
+    print(f"PDF generated at: {pdf_file_path}")
