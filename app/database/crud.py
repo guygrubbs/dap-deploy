@@ -18,10 +18,11 @@ def create_report_entry(
     industry: Optional[str],
     funding_stage: Optional[str],
     pitch_deck_url: Optional[str],
+    prepared_by: Optional[str],  # ✅ Added
     parameters: Optional[Dict[str, Any]]
 ) -> Report:
     """
-    Create a new report record with new top-level fields, plus parameters.
+    Create a new report record with top-level fields and JSON parameters.
     """
     report = Report(
         title=title,
@@ -35,6 +36,7 @@ def create_report_entry(
         industry=industry,
         funding_stage=funding_stage,
         pitch_deck_url=pitch_deck_url,
+        prepared_by=prepared_by,  # ✅ Stored in DB
         status="pending",
         parameters=parameters or {}
     )
