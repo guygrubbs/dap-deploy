@@ -82,11 +82,11 @@ def notify_supabase(report_id: int, status: str, pdf_url: str, user_id: int = No
         "[NO-OP] Queuing Supabase notification in background thread for report_id=%s, status=%s, user_id=%s",
         report_id, status, user_id
     )
-    Thread(
-        target=_notify_supabase,
-        args=(report_id, status, pdf_url, user_id),
-        daemon=True
-    ).start()
+    #Thread(
+    #    target=_notify_supabase,
+    #    args=(report_id, status, pdf_url, user_id),
+    #    daemon=True
+    #).start()
 
 
 # ----------------------------------------------------------------------
@@ -146,8 +146,8 @@ def notify_supabase_final_report(report_id: int, final_report_data: Dict[str, An
         "[NO-OP] Queuing final report upsert to Supabase in a background thread for report_id=%s, user_id=%s",
         report_id, user_id
     )
-    Thread(
-        target=_notify_supabase_final_report,
-        args=(report_id, final_report_data, user_id),
-        daemon=True
-    ).start()
+    #Thread(
+    #    target=_notify_supabase_final_report,
+    #    args=(report_id, final_report_data, user_id),
+    #    daemon=True
+    #).start()
