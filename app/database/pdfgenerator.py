@@ -282,6 +282,7 @@ def generate_pdf(
         founder_name=founder_name,
         company_name=company_name,
         company_type=company_type,
+        prepared_by=prepared_by,
         date=date_str,
         toc=toc_html,
         content=sections_html,
