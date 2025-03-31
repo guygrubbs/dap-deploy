@@ -18,7 +18,7 @@ def create_report_entry(
     industry: Optional[str],
     funding_stage: Optional[str],
     pitch_deck_url: Optional[str],
-    prepared_by: Optional[str],  # ✅ Added
+    prepared_by: Optional[str],  # ✅ Accepts prepared_by
     parameters: Optional[Dict[str, Any]]
 ) -> Report:
     """
@@ -36,7 +36,7 @@ def create_report_entry(
         industry=industry,
         funding_stage=funding_stage,
         pitch_deck_url=pitch_deck_url,
-        prepared_by=prepared_by,  # ✅ Stored in DB
+        prepared_by=prepared_by,  # ✅ Stored in the DB
         status="pending",
         parameters=parameters or {}
     )

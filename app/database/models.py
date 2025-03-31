@@ -21,6 +21,9 @@ class Report(Base):
     funding_stage = Column(String, nullable=True)
     pitch_deck_url = Column(String, nullable=True)
 
+    # ✅ Add prepared_by so we can store the new field
+    prepared_by = Column(String, nullable=True)
+
     # JSON field for extra data or sections
     parameters = Column(JSONB, nullable=True)
 
