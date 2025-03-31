@@ -23,14 +23,14 @@ class BaseAIAgent:
         logger.info("Gathering research with prompt:\n%s", prompt)
 
         # Retrieve model name from environment or default to "gpt-4"
-        model_name = os.getenv("OPENAI_MODEL", "gpt-4o")
+        model_name = os.getenv("OPENAI_MODEL", "o1")
 
         try:
             response = openai.ChatCompletion.create(
                 model=model_name,
                 messages=[
                     {
-                        "role": "user",
+                        "role": "system",
                         "content": (
                             "You are a specialized research agent focused on gathering factual details, "
                             "identifying missing data, and providing an objective overview of the company's "
@@ -66,14 +66,14 @@ class BaseAIAgent:
         logger.info("Generating section with prompt:\n%s", prompt)
 
         # Retrieve model name from environment or default to "gpt-4"
-        model_name = os.getenv("OPENAI_MODEL", "gpt-4o")
+        model_name = os.getenv("OPENAI_MODEL", "o1")
 
         try:
             response = openai.ChatCompletion.create(
                 model=model_name,
                 messages=[
                     {
-                        "role": "user",
+                        "role": "system",
                         "content": "You are an expert report writer with deep industry knowledge. Respond only with the requested headings and content. Do not include disclaimers or source references."
                     },
                     {
