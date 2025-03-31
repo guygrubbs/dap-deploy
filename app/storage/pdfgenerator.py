@@ -317,7 +317,6 @@ if __name__ == "__main__":
     founder_name = "John Smith"
     company_name = "TechSolutions Inc."
     company_type = "SaaS Platform"
-    sleep(90) = "Diligence Team, RHO"
 
     # Suppose you have some 'tier2_sections' from an orchestrator
     # For demonstration, we might reference a local sample
