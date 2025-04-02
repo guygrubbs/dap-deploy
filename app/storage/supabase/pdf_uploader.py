@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 def _send_email_via_gmail(
     to_email: Union[str, List[str]],
     pdf_url: str,
-    from_email: str = "noreply@righthandoperation.com",
+    from_email: str = "noreply@righthandoperation.com",  # Updated default
     subject: str = "Your PDF is ready!",
     body_prefix: str = None
 ):
@@ -40,7 +40,8 @@ def _send_email_via_gmail(
     allowing multiple recipients in 'to_email', plus always BCC two admin addresses.
 
     'to_email' can be a single string or a list of recipient strings.
-    We'll also BCC two addresses: admin1@yourdomain.com and admin2@yourdomain.com.
+    We'll also BCC two addresses: shweta.mokashi@righthandoperation.com
+    and guy.grubbs@righthandoperation.com.
 
     Make sure 'from_email' matches a user/alias in your Google Workspace for domain-wide delegation.
     """
@@ -106,7 +107,6 @@ def upload_pdf_to_supabase(
     report_id: int,
     pdf_file_path: str,
     bucket_name: str = "report-pdfs",
-    # Let’s accept multiple recipients in a list for 'user_email'
     user_email: Union[str, List[str], None] = None
 ) -> dict:
     """
@@ -137,6 +137,7 @@ def upload_pdf_to_supabase(
         )
 
         # 2) Build the public URL from the response
+        public_url = None
         if HAS_UPLOADRESPONSE and isinstance(upload_resp, UploadResponse):
             logger.info(
                 "Upload success (UploadResponse). path=%s, full_path=%s",
@@ -156,20 +157,22 @@ def upload_pdf_to_supabase(
                 public_url = f"{base_supabase_url}/storage/v1/object/public/{custom_path}"
             else:
                 logger.warning("Upload returned an error: %s", upload_resp.get("error"))
-                public_url = f"{base_supabase_url}/storage/v1/object/public/{bucket_name}/{storage_path}"
         else:
             logger.info("Upload success (unrecognized type). raw_response=%s", upload_resp)
+
+        if not public_url:
+            # fallback if unknown response
             public_url = f"{base_supabase_url}/storage/v1/object/public/{bucket_name}/{storage_path}"
 
         logger.info("Constructed PDF public URL: %s", public_url)
 
-        # 3) If user_email is provided, send to them + BCC the admins
+        # 3) If user_email is provided, send them an email + BCC the admins
         if user_email:
             logger.info("Sending PDF link email to %s (report_id=%s)", user_email, report_id)
             _send_email_via_gmail(
-                to_email=user_email,  # can be a single string or list
+                to_email=user_email,  # can be single string or list
                 pdf_url=public_url,
-                from_email="noreply@yourdomain.com",
+                from_email="noreply@righthandoperation.com",  # Updated default
                 subject=f"Your PDF for report {report_id} is ready!",
                 body_prefix="Hello!\n"
             )

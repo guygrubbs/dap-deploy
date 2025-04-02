@@ -134,6 +134,7 @@ def generate_full_report(
     if not report_model:
         raise HTTPException(status_code=404, detail="Report not found")
 
+    # 2) Prepare orchestrator params
     request_params = {
         "report_query": f"Full investment readiness for report_id={report_id}",
         "company": "{}",
@@ -147,7 +148,7 @@ def generate_full_report(
         "pitch_deck_url": report_model.pitch_deck_url or ""
     }
 
-    # Merge leftover parameters
+    # Merge leftover parameters (includes 'email' in request_params['email'])
     if report_model.parameters and isinstance(report_model.parameters, dict):
         request_params.update(report_model.parameters)
 
@@ -209,16 +210,19 @@ def generate_full_report(
     except Exception as e:
         logger.error("Error generating PDF for report %s: %s", report_id, str(e))
 
-    # 9) Upload PDF to storage
+    # 9) Upload PDF & Email
     if pdf_data:
         try:
+            # Pass the user's email from parameters (if present)
+            user_email = request_params.get("email")  # e.g. request_params["email"]
             finalize_report_with_pdf(
                 report_id=report_id,
                 user_id=report_model.user_id if report_model.user_id else 0,
                 final_report_sections=sections_list,
                 pdf_data=pdf_data,
                 expiration_seconds=86400,
-                upload_to_supabase=True
+                upload_to_supabase=True,
+                user_email=user_email  # <--- important for email
             )
         except Exception as e:
             logger.error("Error uploading PDF: %s", str(e))

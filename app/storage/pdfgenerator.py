@@ -2,7 +2,7 @@ import os
 import markdown
 from weasyprint import HTML, CSS
 from datetime import datetime
-from typing import Union
+from typing import Union, Optional
 import base64
 import re
 

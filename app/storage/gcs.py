@@ -2,6 +2,8 @@ import os
 import io
 import logging
 from datetime import datetime, timedelta
+from typing import Optional, List
+
 from google.cloud import storage
 from google.cloud.exceptions import NotFound, Forbidden, GoogleCloudError
 
@@ -12,7 +14,6 @@ from app.notifications.supabase_notifier import notify_supabase_final_report
 from app.storage.supabase_uploader import upload_pdf_to_supabase
 
 logger = logging.getLogger(__name__)
-
 
 def upload_pdf(report_id: int, pdf_data: bytes) -> str:
     """
@@ -50,7 +51,6 @@ def upload_pdf(report_id: int, pdf_data: bytes) -> str:
         logger.error("Unexpected error while uploading PDF: %s", str(e), exc_info=True)
         raise
 
-
 def generate_signed_url(blob_name: str, expiration_seconds: int = 86400) -> str:
     """
     Generate a version 4 signed URL for a PDF in GCS,
@@ -86,7 +86,6 @@ def generate_signed_url(blob_name: str, expiration_seconds: int = 86400) -> str:
         logger.error("Unexpected error while generating signed URL: %s", str(e), exc_info=True)
         raise
 
-
 def finalize_report_with_pdf(
     report_id: int,
     user_id: int,
@@ -94,13 +93,15 @@ def finalize_report_with_pdf(
     pdf_data: bytes,
     expiration_seconds: int = 3600,
     upload_to_supabase: bool = True,
-    create_signed_url: bool = False
+    create_signed_url: bool = False,
+    user_email: Optional[str] = None  # <-- NEW PARAM
 ) -> None:
     """
     1) Uploads a PDF to GCS (in-memory),
     2) Optionally generates a signed URL from GCS,
     3) Uploads the same PDF to Supabase (using a local temp file),
     4) Notifies Supabase that the final report is ready.
+    If `user_email` is provided, it can be used to send an email with the PDF link.
     """
     try:
         # 1) Upload PDF to GCS
@@ -137,12 +138,11 @@ def finalize_report_with_pdf(
                 tmp_file.write(pdf_data)
 
             try:
-                # Now upload to Supabase using the temp file path
-                # (No 'table_name' param here!)
                 supabase_info = upload_pdf_to_supabase(
                     user_id=user_id,
                     report_id=report_id,
-                    pdf_file_path=temp_pdf_path
+                    pdf_file_path=temp_pdf_path,
+                    user_email=user_email  # <-- PASS USER'S EMAIL
                 )
             finally:
                 # Clean up the temp file
