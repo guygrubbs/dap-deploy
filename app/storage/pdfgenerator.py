@@ -166,6 +166,7 @@ def generate_pdf(
     founder_name: str = "Founder Name",
     company_name: str = "Founder Company",
     company_type: str = "Company Type",
+    prepared_by: Optional[str] = None,  # Now truly optional
     output_path: str = None
 ) -> Union[bytes, str]:
     """
@@ -275,12 +276,16 @@ def generate_pdf(
 
     # 6) Fill in the template with dynamic fields
     date_str = datetime.now().strftime("%b %d, %Y")
+    final_prepared_by = prepared_by or "Shweta Mokashi, Right Hand Operation"
+
     filled_html = template_html.format(
         report_id=report_id,
         report_title=report_title,
         founder_name=founder_name,
         company_name=company_name,
         company_type=company_type,
+        prepared_by=final_prepared_by,
+        date=date_str,
         toc=toc_html,
         content=sections_html,
         assets_dir=ASSETS_DIR
