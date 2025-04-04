@@ -5,7 +5,7 @@ import requests
 import uuid
 from pydantic import UUID4
 from fastapi import APIRouter, Depends, HTTPException, Path, status
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 
 from sqlalchemy.orm import Session
 
