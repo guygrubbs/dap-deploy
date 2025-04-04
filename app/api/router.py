@@ -2,7 +2,8 @@
 
 import logging
 import requests
-from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import UUID4
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 from typing import Optional, Dict, Any
 
 from sqlalchemy.orm import Session
@@ -116,13 +117,9 @@ def create_report(
 # REPORT GENERATION
 # -------------------------------------------------------------------------
 
-@router.post(
-    "/reports/{report_id}/generate",
-    summary="Generate the full AI-based report, create PDF, and upload",
-    response_model=ReportResponse
-)
+@router.post("/reports/{report_id}/generate", response_model=ReportResponse)
 def generate_full_report(
-    report_id: int,
+    report_id: UUID4 = Path(..., description="UUID of the report"),
     db: Session = Depends(get_db)
 ) -> ReportResponse:
     """
@@ -266,10 +263,10 @@ def generate_full_report(
 # -------------------------------------------------------------------------
 
 @router.get("/reports/{report_id}", response_model=ReportResponse)
-def get_report(report_id: int, db: Session = Depends(get_db)) -> ReportResponse:
-    """
-    Retrieves report details by ID, including status, generated sections, and PDF URL if available.
-    """
+def get_report(
+    report_id: UUID4,  # Expect a UUID in the path
+    db: Session = Depends(get_db)
+) -> ReportResponse:
     report_model = get_report_by_id(db, report_id)
     if not report_model:
         raise HTTPException(status_code=404, detail="Report not found")

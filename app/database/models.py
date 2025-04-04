@@ -1,18 +1,25 @@
 import datetime
-from sqlalchemy import Column, Integer, String, DateTime
-from sqlalchemy.dialects.postgresql import JSONB
+import uuid
+from sqlalchemy import Column, String, DateTime, text
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.database.database import Base
 
 class Report(Base):
     __tablename__ = "reports"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, index=True)
-    startup_id = Column(Integer, nullable=True)
+    # UUID primary key
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),  # If using pgcrypto or extension
+        index=True
+    )
+
+    user_id = Column(String, index=True)  # or Integer if your user_id is an integer
+    startup_id = Column(String, nullable=True)  # or int if you prefer
     report_type = Column(String, nullable=True)
     title = Column(String, nullable=False)
 
-    # New top-level fields
     founder_name = Column(String, nullable=True)
     founder_company = Column(String, nullable=True)
     company_name = Column(String, nullable=True)
@@ -21,7 +28,6 @@ class Report(Base):
     funding_stage = Column(String, nullable=True)
     pitch_deck_url = Column(String, nullable=True)
 
-    # JSON field for extra data or sections
     parameters = Column(JSONB, nullable=True)
 
     status = Column(String, default="pending", nullable=False)

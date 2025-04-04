@@ -1,7 +1,9 @@
 import json
+import uuid
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Union, Optional, Dict, Any
 from sqlalchemy.orm import Session
+from app.database.models import Report
 
 from app.database.models import Report
 
@@ -44,7 +46,7 @@ def create_report_entry(
     return report
 
 
-def get_report_by_id(db: Session, report_id: int) -> Optional[Report]:
+def get_report_by_id(db: Session, report_id: Union[str, uuid.UUID]) -> Optional[Report]:
     return db.query(Report).filter(Report.id == report_id).first()
 
 
