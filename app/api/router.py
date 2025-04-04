@@ -69,8 +69,6 @@ def create_report(
 ) -> ReportResponse:
     """
     Creates a new report generation request using the provided fields.
-    Some frontends might put 'sleep(90)' inside request.parameters 
-    instead of top-level. We'll accommodate that here.
     """
 
     try:
@@ -93,6 +91,8 @@ def create_report(
         progress = 0 if new_report.status.lower() != "completed" else 100
 
         return ReportResponse(
+            # If `Report.id` is truly a UUID, 
+            # schemas.py must have `id: UUID4` (or str).
             id=new_report.id,
             title=new_report.title,
             status=new_report.status,
