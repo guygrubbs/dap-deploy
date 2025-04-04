@@ -8,6 +8,7 @@ import os
 import logging
 import base64
 import json
+import uuid
 from email.mime.text import MIMEText
 from typing import Union, List
 
@@ -104,7 +105,7 @@ def _send_email_via_gmail(
 # ---------------------------------------------
 def upload_pdf_to_supabase(
     user_id: int,
-    report_id: int,
+    report_id: Union[str, uuid.UUID],
     pdf_file_path: str,
     bucket_name: str = "report-pdfs",
     user_email: Union[str, List[str], None] = None

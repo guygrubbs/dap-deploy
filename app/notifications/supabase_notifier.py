@@ -1,10 +1,11 @@
 import os
 import logging
 import time
+import uuid
 from datetime import datetime
 from threading import Thread
 from supabase import create_client, Client
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 
 def _notify_supabase(
-    report_id: int,
+    report_id: Union[str, uuid.UUID],
     status: str,
     pdf_url: str,
     user_id: Optional[int] = None,

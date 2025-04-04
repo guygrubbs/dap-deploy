@@ -1,8 +1,9 @@
 import os
 import io
 import logging
+import uuid
 from datetime import datetime, timedelta
-from typing import Optional, List
+from typing import Optional, List, Union
 
 from google.cloud import storage
 from google.cloud.exceptions import NotFound, Forbidden, GoogleCloudError
@@ -15,7 +16,7 @@ from app.storage.supabase_uploader import upload_pdf_to_supabase
 
 logger = logging.getLogger(__name__)
 
-def upload_pdf(report_id: int, pdf_data: bytes) -> str:
+def upload_pdf(report_id: Union[str, uuid.UUID], pdf_data: bytes) -> str:
     """
     Upload the generated PDF to Google Cloud Storage (GCS) in-memory
     (no temp file) and return the blob name.
@@ -87,7 +88,7 @@ def generate_signed_url(blob_name: str, expiration_seconds: int = 86400) -> str:
         raise
 
 def finalize_report_with_pdf(
-    report_id: int,
+    report_id: Union[str, uuid.UUID],
     user_id: int,
     final_report_sections: list,
     pdf_data: bytes,

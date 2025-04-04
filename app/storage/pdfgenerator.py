@@ -1,5 +1,6 @@
 import os
 import markdown
+import uuid
 from weasyprint import HTML, CSS
 from datetime import datetime
 from typing import Union, Optional
@@ -160,7 +161,7 @@ def estimate_content_height(content, subsections_count):
     return base_height + table_height + subsection_height + complex_element_height
 
 def generate_pdf(
-    report_id: int,
+    report_id: Union[str, uuid.UUID],
     report_title: str,
     tier2_sections: list,
     founder_name: str = "Founder Name",

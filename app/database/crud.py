@@ -50,7 +50,7 @@ def get_report_by_id(db: Session, report_id: Union[str, uuid.UUID]) -> Optional[
     return db.query(Report).filter(Report.id == report_id).first()
 
 
-def update_report_status(db: Session, report_id: int, new_status: str) -> None:
+def update_report_status(db: Session, report_id: Union[str, uuid.UUID], new_status: str) -> None:
     report = get_report_by_id(db, report_id)
     if report:
         report.status = new_status
@@ -59,7 +59,7 @@ def update_report_status(db: Session, report_id: int, new_status: str) -> None:
         db.commit()
 
 
-def update_report_sections(db: Session, report_id: int, sections_dict: Dict[str, str]) -> None:
+def update_report_sections(db: Session, report_id: Union[str, uuid.UUID], sections_dict: Dict[str, str]) -> None:
     """
     Example: store AI-generated sections in the 'parameters' JSON 
     under a 'generated_sections' key.
@@ -72,7 +72,7 @@ def update_report_sections(db: Session, report_id: int, sections_dict: Dict[str,
         db.commit()
 
 
-def get_report_content(db: Session, report_id: int) -> Dict[str, Any]:
+def get_report_content(db: Session, report_id: Union[str, uuid.UUID]) -> Dict[str, Any]:
     """
     Return any structured content from DB (like sections).
     In this example, we look for 'generated_sections' in the parameters.

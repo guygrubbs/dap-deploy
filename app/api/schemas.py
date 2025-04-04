@@ -2,8 +2,8 @@ from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, UUID4
 
 class CreateReportRequest(BaseModel):
-    user_id: int
-    startup_id: Optional[int] = None
+    user_id: str
+    startup_id: Optional[str] = None
     founder_name: Optional[str] = None
     founder_company: Optional[str] = None
     company_name: Optional[str] = None
@@ -12,7 +12,7 @@ class CreateReportRequest(BaseModel):
     funding_stage: Optional[str] = None
     pitch_deck_url: Optional[str] = None
     report_type: Optional[str] = None
-    title: str
+    title: Optional[str] = 'Due Diligence Report'
     parameters: Optional[Dict[str, Any]] = None
 
 class ReportSection(BaseModel):
@@ -28,8 +28,8 @@ class ReportResponse(BaseModel):
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     progress: int
-    startup_id: Optional[int] = None
-    user_id: Optional[int] = None
+    startup_id: Optional[str] = None
+    user_id: Optional[str] = None
     report_type: Optional[str] = None
     parameters: Optional[Dict[str, Any]] = None
     sections: List[ReportSection]

@@ -2,6 +2,7 @@
 
 import logging
 import requests
+import uuid
 from pydantic import UUID4
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 from typing import Optional, Dict, Any
@@ -344,7 +345,7 @@ def get_report_content_endpoint(report_id: int, db: Session = Depends(get_db)) -
     )
 
 @router.get("/reports/{report_id}/status", response_model=ReportStatusResponse)
-def report_status(report_id: int, db: Session = Depends(get_db)) -> ReportStatusResponse:
+def report_status(report_id: Union[str, uuid.UUID], db: Session = Depends(get_db)) -> ReportStatusResponse:
     """
     Returns the current status and approximate progress of a report generation.
     """
