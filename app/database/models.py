@@ -19,6 +19,7 @@ class Report(Base):
     startup_id = Column(String, nullable=True)  # or int if you prefer
     report_type = Column(String, nullable=True)
     title = Column(String, nullable=False)
+    requestor_name = Column(String, nullable=False)
 
     founder_name = Column(String, nullable=True)
     founder_company = Column(String, nullable=True)
