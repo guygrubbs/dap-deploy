@@ -165,8 +165,8 @@ def generate_pdf(
     report_title: str,
     tier2_sections: list,
     founder_name: str = "Founder Name",
-    company_name: str = "Founder Company",
-    company_type: str = "Company Type",
+    founder_company: str = "Founder Company",
+    founder_type: str = "Founder Type",
     prepared_by: Optional[str] = None,  # Now truly optional
     output_path: str = None
 ) -> Union[bytes, str]:
@@ -177,7 +177,7 @@ def generate_pdf(
     - A cover page (from the HTML template).
     - A dynamic Table of Contents referencing each 'section'.
     - Section content with pagination logic.
-    - Additional fields (founder_name, company_name, etc.) are replaced in the content.
+    - Additional fields (founder_name, founder_company, etc.) are replaced in the content.
 
     If 'output_path' is provided, the PDF is written to that file path.
     Otherwise, the function returns a bytes object containing the PDF data.
@@ -265,8 +265,8 @@ def generate_pdf(
 
         # Replace placeholders with user-supplied data
         content_html = content_html.replace("{founder_name}", founder_name)
-        content_html = content_html.replace("{company_name}", company_name)
-        content_html = content_html.replace("{company_type}", company_type)
+        content_html = content_html.replace("{founder_company}", founder_company)
+        content_html = content_html.replace("{founder_type}", founder_type)
         # Removed references to {company_description}
 
         section_html += content_html
@@ -283,8 +283,8 @@ def generate_pdf(
         report_id=report_id,
         report_title=report_title,
         founder_name=founder_name,
-        company_name=company_name,
-        company_type=company_type,
+        founder_company=founder_company,
+        founder_type=founder_type,
         prepared_by=final_prepared_by,
         date=date_str,
         toc=toc_html,
@@ -321,8 +321,8 @@ if __name__ == "__main__":
     report_id = 1
     report_title = "Investment Readiness Report"
     founder_name = "John Smith"
-    company_name = "TechSolutions Inc."
-    company_type = "SaaS Platform"
+    founder_company = "TechSolutions Inc."
+    founder_type = "SaaS Platform"
 
     # Suppose you have some 'tier2_sections' from an orchestrator
     # For demonstration, we might reference a local sample
@@ -334,8 +334,8 @@ if __name__ == "__main__":
         report_title=report_title,
         tier2_sections=investment_report_sections,
         founder_name=founder_name,
-        company_name=company_name,
-        company_type=company_type,
+        founder_company=founder_company,
+        founder_type=founder_type,
         output_path=OUTPUT_PDF_PATH
     )
     print(f"PDF generated at: {pdf_file_path}")

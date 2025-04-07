@@ -7,9 +7,8 @@ logger = logging.getLogger(__name__)
 
 class BaseAIAgent:
     """
-    Base class for AI agents using the OpenAI GPT-4 API.
-    This class provides a method to generate a report section
-    based on a dynamic prompt template and context.
+    Base class for AI agents using the OpenAI GPT o1 API.
+    This class provides methods to generate report sections based on a dynamic prompt template and context.
     """
     def __init__(self, prompt_template: str):
         self.prompt_template = prompt_template
@@ -22,7 +21,7 @@ class BaseAIAgent:
         prompt = self.prompt_template.format(**context)
         logger.info("Gathering research with prompt:\n%s", prompt)
 
-        # Retrieve model name from environment or default to "gpt-4"
+        # Retrieve model name from environment or default to "o1"
         model_name = os.getenv("OPENAI_MODEL", "o1")
 
         try:
@@ -53,28 +52,21 @@ class BaseAIAgent:
     def generate_section(self, context: Dict[str, Any]) -> str:
         """
         Generates a report section using the provided context.
-
-        The method dynamically formats the prompt template with the given context,
-        ensuring that details like industry, company name, key metrics, etc.,
-        tailor the output. Then it calls the GPT API (default "gpt-4") to generate the section.
-
-        If you want to reference a custom fine-tuned model (e.g. "ft:gpt-3.5-turbo-1234abc"),
-        just set the environment variable OPENAI_MODEL to that string.
+        Dynamically formats the prompt template with the given context and calls the GPT API.
         """
-        # Dynamically generate the prompt based on input context
         prompt = self.prompt_template.format(**context)
         logger.info("Generating section with prompt:\n%s", prompt)
 
-        # Retrieve model name from environment or default to "gpt-4"
         model_name = os.getenv("OPENAI_MODEL", "o1")
-
         try:
             response = openai.ChatCompletion.create(
                 model=model_name,
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an expert report writer with deep industry knowledge. Respond only with the requested headings and content. Do not include disclaimers or source references."
+                        "content": (
+                            "You are an expert report writer with deep industry knowledge. Respond only with the requested headings and content. Do not include disclaimers or source references. If analysis information is missing for a section or table entry, report that it was not provided. This should be a weakness for the analysis of each section."
+                        )
                     },
                     {
                         "role": "user",
@@ -88,7 +80,6 @@ class BaseAIAgent:
         except Exception as e:
             logger.error("Error generating section: %s", str(e), exc_info=True)
             raise e
-
 
 class ResearcherAgent(BaseAIAgent):
     """
@@ -106,7 +97,7 @@ class ResearcherAgent(BaseAIAgent):
             "relevant information, focusing on clarity and data completeness. "
             "Please address each category below and note any missing or unclear details.\n\n"
 
-            "Company Name: {company_name}\n"
+            "Company Name: {founder_company}\n"
             "Additional Context Provided:\n"
             "{retrieved_context}\n\n"
 
@@ -169,78 +160,76 @@ class ExecutiveSummaryAgent(BaseAIAgent):
         * Short-Term (1–3 Months)
         * Medium-Term (3–6 Months)
         * Long-Term (6–12 Months)
-    
-    Now produces markdown aligned with the desired layout:
-    
-    ### **Section 1: Executive Summary & Investment Rationale** {{#section-1:-executive-summary-&-investment-rationale}
 
-    #### Overview {{#overview}
-    ...
-    #### Key Investment Considerations {{#key-investment-considerations}
-    ...
-    #### Investment Readiness Overview {{#investment-readiness-overview}
-    ...
-    #### Investment Risks & Considerations {{#investment-risks-&-considerations}
-    ...
-    #### Investment Recommendations & Next Steps {{#investment-recommendations-&-next-steps}
-    ...
-    ##### Short-Term (1-3 Months): {{#short-term-(1-3-months):}
-    ...
-    ##### Medium-Term (3-6 Months): {{#medium-term-(3-6-months):}
-    ...
-    ##### Long-Term (6-12 Months): {{#long-term-(6-12-months):}
-    ...
+    This agent uses color-coded maturity assessments (🟢, 🟡, 🔴) 
+    and will include any data from the 'retrieved_context' to ensure 
+    it provides accurate and context-driven summaries.
     """
     def __init__(self):
-        # This prompt instructs GPT to produce the Markdown structure matching your sample
         prompt_template = (
             "You are an expert at drafting the **Executive Summary & Investment Rationale** section "
-            "of an investment readiness report in Markdown format. Use **the exact headings, subheadings, "
-            "and anchor links** provided below. Where relevant, include color-coded maturity assessments "
-            "(🟢, 🟡, 🔴) and incorporate any details from the 'retrieved_context'.\n\n"
-
+            "of an investment readiness report in Markdown format. Use the exact headings, subheadings, "
+            "and anchor links provided below. Incorporate details from the 'retrieved_context' and assign "
+            "dynamic, data-driven color-coded maturity assessments (🟢, 🟡, 🔴) based on the context.\n\n"
+            
             "The company details are:\n"
             "- Founder Name: {founder_name}\n"
-            "- Company Name: {company}\n"
-            "- Company Type: {company_type}\n"
-            "- Company Provides: {company_description}\n\n"
-
+            "- Company Name: {founder_company}\n"
+            "- Company Type: {founder_type}\n"
+            "- Company Provides: [Provide a description of the company offering based on the retrieved context.]\n\n"
+            
             "Retrieved Context (Docs, Pitch Deck, or Research Output):\n"
             "{retrieved_context}\n\n"
-
+            
             "## Your Task\n"
             "Generate **Section 1** in the following markdown structure:\n\n"
+            
             "### **Section 1: Executive Summary & Investment Rationale** {{#section-1:-executive-summary-&-investment-rationale}}\n\n"
+            
             "#### Overview {{#overview}}\n"
             "1. Briefly describe the company (name, type, what it provides).\n"
             "2. Mention relevant revenue growth, customer traction, or market potential details.\n"
             "3. Indicate the scope of this assessment (finances, leadership, market fit, etc.).\n\n"
+            
             "#### Key Investment Considerations {{#key-investment-considerations}}\n"
-            "- Add bullet points for top considerations (e.g., scalability, revenue strength, differentiation, data gaps, etc.).\n\n"
+            "- List bullet points for top considerations (e.g., scalability, revenue strength, differentiation, data gaps, etc.), "
+            "dynamically derived from the context.\n\n"
+            
             "#### Investment Readiness Overview {{#investment-readiness-overview}}\n"
-            "Create a table showing relevant investment categories and an assessment (🟢, 🟡, or 🔴). For example:\n\n"
-            "| Investment Category | Assessment |\n"
-            "| :---- | :---- |\n"
-            "| Market Traction | 🟢 Strong |\n"
-            "| Revenue Growth Potential | 🟢 Strong |\n"
-            "| Financial Transparency | 🟡 Needs Refinement |\n"
-            "| Operational Scalability | 🟡 Needs Improvement |\n"
-            "| Leadership Depth | 🟡 Moderate Risk |\n"
-            "| Exit Potential | 🟢 Favorable Pathways |\n\n"
+            "Create a table showing investment categories with dynamically generated assessments based on the context. "
+            "Use the following format:\n\n"
+            
+            "| Investment Category        | Assessment        |\n"
+            "| :------------------------- | :---------------- |\n"
+            "| Market Traction            | [Dynamic Rating]  |\n"
+            "| Revenue Growth Potential   | [Dynamic Rating]  |\n"
+            "| Financial Transparency     | [Dynamic Rating]  |\n"
+            "| Operational Scalability    | [Dynamic Rating]  |\n"
+            "| Leadership Depth           | [Dynamic Rating]  |\n"
+            "| Exit Potential             | [Dynamic Rating]  |\n\n"
+            
+            "For each category, analyze the 'retrieved_context' to determine the appropriate rating: "
+            "🟢 for strong, 🟡 for moderate, or 🔴 for weak performance.\n\n"
+            
             "#### Investment Risks & Considerations {{#investment-risks-&-considerations}}\n"
-            "- Provide a bullet list of risks or concerns (financial, operational, market-based, etc.).\n\n"
+            "- Provide a bullet list of risks or concerns (financial, operational, market-based, etc.) based on the context.\n\n"
+            
             "#### Investment Recommendations & Next Steps {{#investment-recommendations-&-next-steps}}\n"
-            "- Provide general recommendations, then break them down by timeframe.\n\n"
+            "- Provide general recommendations and then break them down by timeframe.\n\n"
+            
             "##### Short-Term (1-3 Months): {{#short-term-(1-3-months):}}\n"
             "- List short-term action items.\n\n"
+            
             "##### Medium-Term (3-6 Months): {{#medium-term-(3-6-months):}}\n"
             "- List medium-term action items.\n\n"
+            
             "##### Long-Term (6-12 Months): {{#long-term-(6-12-months):}}\n"
             "- List long-term action items.\n\n"
+            
             "### Instructions\n"
-            "1. Write your final answer in valid **Markdown**.\n"
-            "2. Fill placeholders with relevant data from the context.\n"
-            "3. For any unknown or missing data, you may use placeholders or mark it as an area needing more info.\n"
+            "1. Write your final answer in valid Markdown.\n"
+            "2. Use the 'retrieved_context' to dynamically determine the ratings for each investment category.\n"
+            "3. Fill in placeholders with relevant data from the context, or mark areas needing further information.\n"
             "4. Maintain the headings, subheadings, and anchor tags exactly as shown.\n"
         )
         super().__init__(prompt_template)
@@ -306,7 +295,7 @@ class MarketAnalysisAgent(BaseAIAgent):
             "Incorporate relevant details from '{{retrieved_context}}' (e.g., industry trends, competition, "
             "market size) and mention color-coded assessments (🟢, 🟡, 🔴) where fitting.\n\n"
 
-            "Company: {company}\n"
+            "Company: {founder_company}\n"
             "\n"
             "Retrieved Context:\n"
             "{retrieved_context}\n\n"
@@ -404,7 +393,7 @@ class FinancialPerformanceAgent(BaseAIAgent):
             "in Markdown format. Use **the exact headings, subheadings, and anchor links** below. "
             "Incorporate any relevant details from '{{retrieved_context}}' and apply color-coded references (🟢, 🟡, 🔴) if needed.\n\n"
 
-            "Company: {company}\n"
+            "Company: {founder_company}\n"
             "Retrieved Context:\n"
             "{retrieved_context}\n\n"
 
@@ -513,7 +502,7 @@ class GoToMarketAgent(BaseAIAgent):
             "outlined below, incorporating relevant info from '{{retrieved_context}}' and applying "
             "color-coded references if appropriate.\n\n"
 
-            "Company: {company}\n"
+            "Company: {founder_company}\n"
             "Retrieved Context:\n"
             "{retrieved_context}\n\n"
 
@@ -624,7 +613,7 @@ class LeadershipTeamAgent(BaseAIAgent):
             "Use **the exact headings, subheadings, anchor links, and tables** provided below, "
             "incorporating details from '{{retrieved_context}}' and mentioning color-coded references if relevant.\n\n"
 
-            "Company: {company}\n"
+            "Company: {founder_company}\n"
             "Retrieved Context:\n"
             "{retrieved_context}\n\n"
 
@@ -742,7 +731,7 @@ class InvestorFitAgent(BaseAIAgent):
             "as shown in the template below. Incorporate relevant details from '{{retrieved_context}}' and use "
             "color-coded references (🟢, 🟡, 🔴) if needed.\n\n"
 
-            "Company: {company}\n"
+            "Company: {founder_company}\n"
             "Retrieved Context:\n"
             "{retrieved_context}\n\n"
 
@@ -863,7 +852,7 @@ class RecommendationsAgent(BaseAIAgent):
             "Use **the exact headings, subheadings, anchor links, and tables** shown in the sample below, "
             "incorporating data from '{{retrieved_context}}' and applying color-coded references (🟢, 🟡, 🔴) if relevant.\n\n"
             
-            "Company: {company}\n"
+            "Company: {founder_company}\n"
             "Retrieved Context:\n"
             "{retrieved_context}\n\n"
 

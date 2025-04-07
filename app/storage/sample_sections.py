@@ -14,7 +14,7 @@ investment_report_sections = [
         "content": """
 ## Overview
 
-This report evaluates [highlight]{company_name}[/highlight], a [highlight]{company_type}[/highlight], from the perspective of an
+This report evaluates [highlight]{company_name}[/highlight], a [highlight]{founder_type}[/highlight], from the perspective of an
 investor. [highlight]{company_name}[/highlight] provides [highlight]{company_description}[/highlight]. The company has
 demonstrated significant revenue growth, strong customer retention and market potential, positioning it
 as a viable candidate for strategic investment.

@@ -75,7 +75,7 @@ def _notify_supabase(
                 )
 
 
-def notify_supabase(report_id: int, status: str, pdf_url: str, user_id: int = None) -> None:
+def notify_supabase(report_id: Union[str, uuid.UUID], status: str, pdf_url: str, user_id: int = None) -> None:
     """
     Public function that spawns a background thread, but no longer does any actual DB writes.
     """
@@ -95,7 +95,7 @@ def notify_supabase(report_id: int, status: str, pdf_url: str, user_id: int = No
 # ----------------------------------------------------------------------
 
 def _notify_supabase_final_report(
-    report_id: int,
+    report_id: Union[str, uuid.UUID],
     final_report_data: Dict[str, Any],
     user_id: Optional[int] = None,
     max_retries: int = 2,

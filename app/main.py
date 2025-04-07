@@ -36,7 +36,7 @@ MAX_UPLOAD_SIZE_MB = os.getenv("MAX_UPLOAD_SIZE_MB", "25")
 REPORTS_BUCKET_NAME = os.getenv("REPORTS_BUCKET_NAME", "my-reports-bucket")
 STATIC_API_TOKEN = os.getenv("STATIC_API_TOKEN", "expected-static-token")
 
-app = FastAPI(title="GFV Investment Readiness Report API")
+app = FastAPI(title="RHO Investment Readiness Report API")
 
 # CORS: in production, restrict allowed_origins as needed
 app.add_middleware(

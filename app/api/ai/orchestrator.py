@@ -79,7 +79,7 @@ def generate_report(request_params: dict) -> dict:
     safe_context = {k: request_params.get(k) for k in request_params if k != "sensitive"}
     logger.info("Starting orchestration with context: %s", safe_context)
 
-    user_query = request_params.get("report_query", "Investment readiness analysis")
+    user_query = request_params.get("title", "Investment readiness analysis")
 
     # Optional: attempt vector-based retrieval if environment variables exist
     endpoint_resource_name = os.getenv("VERTEX_ENDPOINT_RESOURCE_NAME", "")
@@ -582,7 +582,7 @@ def generate_report(request_params: dict) -> dict:
     # 1) Use the ResearcherAgent to gather extra info
     researcher_agent = ResearcherAgent()
     researcher_input = {
-        "company_name": request_params.get("company", "Unknown Company"),
+        "founder_company": request_params.get("founder_company", "Unknown Company"),
         "industry": request_params.get("industry", "General Industry"),
         "retrieved_context": ephemeral_context
     }
@@ -653,8 +653,7 @@ def generate_report(request_params: dict) -> dict:
     summary_context["founder_name"] = request_params.get("founder_name", "Unknown Founder")
     summary_context["founder_company"] = request_params.get("founder_company", "Unknown Operation")
     summary_context["funding_stage"] = request_params.get("funding_stage", "Unknown Stage")
-    summary_context["company_type"] = request_params.get("company_type", "Unknown Type")
-    summary_context["company_description"] = request_params.get("company_description", "Unknown Offering")
+    summary_context["founder_type"] = request_params.get("founder_type", "Unknown Type")
 
     executive_summary_agent = ExecutiveSummaryAgent()
     executive_summary_investment_rationale = generate_with_retry(

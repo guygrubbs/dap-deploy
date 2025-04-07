@@ -22,8 +22,8 @@ class Report(Base):
 
     founder_name = Column(String, nullable=True)
     founder_company = Column(String, nullable=True)
+    founder_type = Column(String, nullable=True)
     company_name = Column(String, nullable=True)
-    company_type = Column(String, nullable=True)
     industry = Column(String, nullable=True)
     funding_stage = Column(String, nullable=True)
     pitch_deck_url = Column(String, nullable=True)

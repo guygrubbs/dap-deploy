@@ -4,10 +4,11 @@ from pydantic import BaseModel, UUID4
 class CreateReportRequest(BaseModel):
     user_id: str
     startup_id: Optional[str] = None
+    requestor_name: Optional[str] = None
     founder_name: Optional[str] = None
     founder_company: Optional[str] = None
+    founder_type: Optional[str] = None
     company_name: Optional[str] = None
-    company_type: Optional[str] = None
     industry: Optional[str] = None
     funding_stage: Optional[str] = None
     pitch_deck_url: Optional[str] = None
