@@ -1,9 +1,7 @@
 import datetime
-import uuid
 from sqlalchemy import Column, String, DateTime, text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.database.database import Base
-
 class Report(Base):
     __tablename__ = "reports"
 
@@ -15,8 +13,8 @@ class Report(Base):
         index=True
     )
 
-    user_id = Column(String, index=True)  # or Integer if your user_id is an integer
-    startup_id = Column(String, nullable=True)  # or int if you prefer
+    user_id = Column(UUID(as_uuid=True), index=True)  # or Integer if your user_id is an integer
+    startup_id = Column(UUID(as_uuid=True), nullable=True)  # or int if you prefer
     report_type = Column(String, nullable=True)
     title = Column(String, nullable=False)
     requestor_name = Column(String, nullable=False)

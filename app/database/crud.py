@@ -4,14 +4,15 @@ from datetime import datetime
 from typing import Union, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from app.database.models import Report
+from pydantic import UUID4
 
 from app.database.models import Report
 
 def create_report_entry(
     db: Session,
     title: str,
-    user_id: int,
-    startup_id: Optional[int],
+    user_id: UUID4,
+    startup_id: Optional[UUID4],
     report_type: Optional[str],
     requestor_name: Optional[str],
     founder_name: Optional[str],
