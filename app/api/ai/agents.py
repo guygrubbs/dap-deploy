@@ -65,7 +65,7 @@ class BaseAIAgent:
                     {
                         "role": "system",
                         "content": (
-                            "You are an expert report writer with deep industry knowledge. Respond only with the requested headings and content. Do not include disclaimers or source references. If analysis information is missing for a section or table entry, report that it was not provided. This should be a weakness for the analysis of each section."
+                            "You are an expert report writer with deep industry knowledge. Respond only with the requested headings and content. Do not include disclaimers or source references. If analysis information is missing for a section or table entry, report that it was not provided. This should be a weakness for the analysis of each section. Assume all ratings shown in prompts should be updated to rate the information in the retrieved context and not just use the ratings shown."
                         )
                     },
                     {
