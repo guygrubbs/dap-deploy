@@ -4,19 +4,21 @@ from datetime import datetime
 from typing import Union, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from app.database.models import Report
+from pydantic import UUID4
 
 from app.database.models import Report
 
 def create_report_entry(
     db: Session,
     title: str,
-    user_id: int,
-    startup_id: Optional[int],
+    user_id: UUID4,
+    startup_id: Optional[UUID4],
     report_type: Optional[str],
+    requestor_name: Optional[str],
     founder_name: Optional[str],
     founder_company: Optional[str],
+    founder_type: Optional[str],
     company_name: Optional[str],
-    company_type: Optional[str],
     industry: Optional[str],
     funding_stage: Optional[str],
     pitch_deck_url: Optional[str],
@@ -30,10 +32,11 @@ def create_report_entry(
         user_id=user_id,
         startup_id=startup_id,
         report_type=report_type,
+        requestor_name=requestor_name,
         founder_name=founder_name,
         founder_company=founder_company,
         company_name=company_name,
-        company_type=company_type,
+        founder_type=founder_type,
         industry=industry,
         funding_stage=funding_stage,
         pitch_deck_url=pitch_deck_url,

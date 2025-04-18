@@ -2,12 +2,13 @@ from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, UUID4
 
 class CreateReportRequest(BaseModel):
-    user_id: str
-    startup_id: Optional[str] = None
+    user_id: UUID4
+    startup_id: Optional[UUID4] = None
+    requestor_name: Optional[str] = None
     founder_name: Optional[str] = None
     founder_company: Optional[str] = None
+    founder_type: Optional[str] = None
     company_name: Optional[str] = None
-    company_type: Optional[str] = None
     industry: Optional[str] = None
     funding_stage: Optional[str] = None
     pitch_deck_url: Optional[str] = None
@@ -28,8 +29,8 @@ class ReportResponse(BaseModel):
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     progress: int
-    startup_id: Optional[str] = None
-    user_id: Optional[str] = None
+    startup_id: Optional[UUID4] = None
+    user_id: Optional[UUID4] = None
     report_type: Optional[str] = None
     parameters: Optional[Dict[str, Any]] = None
     sections: List[ReportSection]

@@ -79,10 +79,11 @@ def create_report(
             user_id=request.user_id,
             startup_id=request.startup_id,
             report_type=request.report_type,
+            requestor_name=request.requestor_name,
             founder_name=request.founder_name,
             founder_company=request.founder_company,
+            founder_type=request.founder_type,
             company_name=request.company_name,
-            company_type=request.company_type,
             industry=request.industry,
             funding_stage=request.funding_stage,
             pitch_deck_url=request.pitch_deck_url,
@@ -134,14 +135,14 @@ def generate_full_report(
 
     # 2) Prepare orchestrator params
     request_params = {
-        "report_query": f"Full investment readiness for report_id={report_id}",
-        "company": "{}",
-        "industry": "{}",
+        "title": report_model.title or "",
+        "requestor_name": report_model.requestor_name or "",
+        "company": report_model.company_name or "",
+        "industry": report_model.industry or "",
         "founder_name": report_model.founder_name or "",
         "founder_company": report_model.founder_company or "",
+        "founder_type": report_model.founder_type or "",
         "company_name": report_model.company_name or "",
-        "company_type": report_model.company_type or "",
-        "industry": report_model.industry or "",
         "funding_stage": report_model.funding_stage or "",
         "pitch_deck_url": report_model.pitch_deck_url or ""
     }
@@ -201,8 +202,8 @@ def generate_full_report(
             report_title=report_model.title or "GFV Investment Report",
             tier2_sections=sections_list,
             founder_name=report_model.founder_name or "",
-            company_name=report_model.company_name or "",
-            company_type=report_model.company_type or "",
+            founder_company=report_model.founder_company or "",
+            founder_type=report_model.founder_type or "",
             output_path=None
         )
     except Exception as e:

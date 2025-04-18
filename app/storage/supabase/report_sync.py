@@ -2,13 +2,15 @@
 import logging
 import uuid
 from typing import Union
+
+
 logger = logging.getLogger(__name__)
 
 def sync_report_to_supabase(
     report_id: Union[str, uuid.UUID],
     report_data: dict,
-    user_id: str = None,
-    startup_id: str = None
+    user_id: Union[str, uuid.UUID],
+    startup_id: Union[str, uuid.UUID]
 ) -> bool:
     """
     This function is now removed / no-op, since we no longer do system_settings 
