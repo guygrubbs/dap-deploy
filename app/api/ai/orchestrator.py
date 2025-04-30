@@ -633,8 +633,18 @@ def generate_report(request_params: dict) -> dict:
     )
     time.sleep(90)
 
+    # 3) Generate the Executive Summary (Section 1) referencing the previous sections
+    summary_context = request_params.copy()
+    summary_context["retrieved_context"] = (
+        f"SECTION 2: Market Opportunity\n{market_opportunity_competitive_landscape}\n\n"
+        f"SECTION 3: Financial Performance\n{financial_performance_investment_readiness}\n\n"
+        f"SECTION 4: Go-To-Market Strategy\n{go_to_market_strategy_customer_traction}\n\n"
+        f"SECTION 5: Leadership & Team\n{leadership_team}\n\n"
+        f"SECTION 6: Investor Fit\n{investor_fit_exit_strategy_funding}\n\n"
+    )
+
     final_recommendations_next_steps = generate_with_retry(
-        recommendations_agent, section_context, "Final Recommendations & Next Steps"
+        recommendations_agent, summary_context, "Final Recommendations & Next Steps"
     )
     time.sleep(90)
 

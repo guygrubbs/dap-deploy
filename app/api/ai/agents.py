@@ -83,65 +83,73 @@ class BaseAIAgent:
 
 class ResearcherAgent(BaseAIAgent):
     """
-    A single agent that consolidates essential research prompts
-    to gather high-level data about a company. The output is meant
-    to be used as context for subsequent section-generation agents.
-    
-    This agent is company-agnostic and focuses on collecting 
-    relevant details, key metrics, and identifying data gaps.
+    Consolidates essential research prompts to gather high-level data about a company.
+    Output is used as context for subsequent agents.  Updated to:
+      • Tailor research depth to company stage (early vs. late) and domain
+      • Expand competitive research with weaknesses / strategic moves
+      • Retrieve regulatory-compliance and scalability benchmarks
+      • Capture customer-retention trends
+      • Preserve strict Markdown output structure
     """
     def __init__(self):
-        # Consolidated prompt template—no specific section headings or color codes.
         prompt_template = (
-            "You are tasked with researching the following company and gathering "
-            "relevant information, focusing on clarity and data completeness. "
-            "Please address each category below and note any missing or unclear details.\n\n"
+            "You are a professional research analyst. Collect clear, factual information for the "
+            "company below. **Tailor your depth and tone to the company’s current stage** "
+            "(early-stage, growth, late-stage) and its industry domain.\n\n"
 
-            "Company Name: {founder_company}\n"
-            "Additional Context Provided:\n"
+            "**Company Name:** {founder_company}\n"
+            "**Stage:** {company_stage}  <!-- e.g. pre-MVP, early-stage, Series-A, growth -->\n"
+            "**Industry / Domain:** {industry_domain}\n\n"
+            "Additional founder-supplied context:\n"
             "{retrieved_context}\n\n"
 
-            "Research Objectives:\n"
-            "1) Market & Industry Overview:\n"
-            "   - Identify the company's market focus, key segments, and major industry trends.\n"
-            "   - Pinpoint known competitors and where this company stands relative to them.\n"
-            "   - Highlight any known pain points the company aims to solve and how they differ from existing solutions.\n"
-            "   - Note missing or unclear market details.\n\n"
+            "## Research Objectives\n"
+            "### 1) Market & Industry Overview\n"
+            "- Define the market focus, key segments, and current trends.\n"
+            "- Identify direct and indirect competitors **with each rival’s strengths *and* weaknesses / gaps / recent strategic moves**.\n"
+            "- Highlight pain points the company solves and differentiation vs. existing solutions.\n"
+            "- Note any unclear or missing market data.\n\n"
 
-            "2) Customer Traction & Revenue:\n"
-            "   - Summarize any publicly known traction (customer base, notable partnerships, revenue streams, or growth metrics).\n"
-            "   - Identify any major revenue drivers or channels.\n"
-            "   - Note missing data about customer satisfaction, sales metrics, or revenue reporting.\n\n"
+            "### 2) Customer Traction & Revenue\n"
+            "- Summarize traction metrics appropriate to **{company_stage}** "
+            "(e.g., pre-MVP → user interviews / wait-list sign-ups, Series-A → MRR, CAC, LTV).\n"
+            "- List revenue drivers or channels.  Flag unknowns (e.g., churn, CSAT) where data is absent.\n\n"
 
-            "3) Financial & Growth Indicators:\n"
-            "   - Gather any available funding details (rounds, investors, total raised, valuation) and overall financial stability.\n"
-            "   - Note key revenue trends or profitability metrics if disclosed.\n"
-            "   - Identify gaps in financial data that impede a full assessment.\n\n"
+            "### 3) Financial & Growth Indicators\n"
+            "- Capture funding rounds, investors, total raised, valuation, burn / runway if public.\n"
+            "- Provide profitability or growth metrics relative to stage.\n"
+            "- Note gaps impeding a full assessment.\n\n"
 
-            "4) Go-To-Market & Competitive Position:\n"
-            "   - Outline the company's approach to acquiring and retaining customers.\n"
-            "   - Highlight any noteworthy GTM strategies or channels.\n"
-            "   - Compare or contrast with competitor approaches if possible.\n"
-            "   - Note missing data on GTM effectiveness.\n\n"
+            "### 4) Go-To-Market & Competitive Position\n"
+            "- Outline acquisition + retention approaches.\n"
+            "- Compare tactics to competitor strategies identified above.\n"
+            "- Flag any missing GTM effectiveness data.\n\n"
 
-            "5) Leadership & Team:\n"
-            "   - Summarize the leadership team's background or expertise if available.\n"
-            "   - Indicate known team size, skill sets, or hiring trends.\n"
-            "   - Identify any leadership gaps or unclear organizational details.\n\n"
+            "### 5) Regulatory Compliance & Scalability Readiness\n"
+            "- List **industry-specific regulations** (e.g., SOC 2, HIPAA, GDPR) and certification benchmarks.\n"
+            "- Summarize scalability challenges typical for {industry_domain} startups "
+            "(infrastructure, people, cross-border compliance).\n\n"
 
-            "6) Investor Alignment & Risks:\n"
-            "   - Describe how the company aligns (or not) with typical investor interests (e.g., growth potential, market fit).\n"
-            "   - Note any major risks or red flags (e.g., data gaps, unproven market, regulatory concerns).\n\n"
+            "### 6) Customer Success & Retention Trends\n"
+            "- Provide industry benchmarks for retention or churn where available.\n"
+            "- Note early CS frameworks or onboarding best practices relevant to stage.\n\n"
 
-            "7) Recommendations or Next Steps (High-Level):\n"
-            "   - Based on the data gathered, suggest areas needing further validation or deeper diligence.\n"
-            "   - Highlight the most significant missing elements that should be clarified.\n\n"
+            "### 7) Leadership & Team Snapshot\n"
+            "- Summarize leadership experience, team size, hiring plans.\n"
+            "- Identify any capability gaps tied to growth objectives.\n\n"
 
-            "Instructions:\n"
-            "• Provide factual details wherever possible.\n"
-            "• Note clearly if certain data points (e.g., revenue, churn, or competitor analyses) are not publicly available.\n"
-            "• Avoid drafting a final report narrative. Instead, focus on presenting raw research findings and data gaps.\n"
-            "• Your output will be used as context in a later step.\n"
+            "### 8) Investor Alignment & Key Risks\n"
+            "- Explain how the opportunity fits typical investor theses.\n"
+            "- List major risks (market, tech, regulatory, talent) with brief notes.\n\n"
+
+            "### 9) Recommended Next Steps (Bullet List)\n"
+            "- Suggest the **highest-priority research or validation tasks** to close data gaps.\n\n"
+
+            "### Output Instructions\n"
+            "• Write in **Markdown** using the section headers above (do NOT add new anchors).\n"
+            "• Use bullet lists for clarity; keep each bullet concise.\n"
+            "• If data is unavailable, state “*Not publicly available*”.\n"
+            "• Do **not** draft a final narrative; provide raw findings only.\n"
         )
         super().__init__(prompt_template)
 
@@ -150,87 +158,76 @@ class ResearcherAgent(BaseAIAgent):
 # ---------------------------------------------------------------
 class ExecutiveSummaryAgent(BaseAIAgent):
     """
-    AI Agent for Section 1: Executive Summary & Investment Rationale
-    Subheadings:
-      - Overview
-      - Key Investment Considerations
-      - Investment Readiness Overview
-      - Investment Risks & Considerations
-      - Investment Recommendations & Next Steps
-        * Short-Term (1–3 Months)
-        * Medium-Term (3–6 Months)
-        * Long-Term (6–12 Months)
-
-    This agent uses color-coded maturity assessments (🟢, 🟡, 🔴) 
-    and will include any data from the 'retrieved_context' to ensure 
-    it provides accurate and context-driven summaries.
+    Section-1 agent updated to:
+      • Briefly touch on all five improvement themes (stage-fit tone, competitive
+        strategy, compliance/scalability, customer success, future expansion).
+      • Remove any hard-coded emoji; ratings or colour language must be derived
+        from context (or omitted if insufficient evidence).
+      • Provide tone instructions so early-stage ↔ late-stage wording differs.
+      • Preserve existing markdown headings / anchors.
     """
+
     def __init__(self):
         prompt_template = (
-            "You are an expert at drafting the **Executive Summary & Investment Rationale** section "
-            "of an investment readiness report in Markdown format. Use the exact headings, subheadings, "
-            "and anchor links provided below. Incorporate details from the 'retrieved_context' and assign "
-            "dynamic, data-driven color-coded maturity assessments (🟢, 🟡, 🔴) based on the context.\n\n"
-            
-            "The company details are:\n"
-            "- Founder Name: {founder_name}\n"
-            "- Company Name: {founder_company}\n"
-            "- Company Type: {founder_type}\n"
-            "- Company Provides: [Provide a description of the company offering based on the retrieved context.]\n\n"
-            
-            "Retrieved Context (Docs, Pitch Deck, or Research Output):\n"
-            "{retrieved_context}\n\n"
-            
+            "You are an executive-level report writer creating **Section 1: Executive Summary "
+            "& Investment Rationale** in Markdown.  "
+            "Use a tone that reflects the company’s maturity: **optimistic and visionary** if "
+            "early-stage, or **confident and data-backed** if growth/late-stage.  "
+            "Always remain succinct and professional.\n\n"
+
+            "**Founder:** {founder_name}\n"
+            "**Company:** {founder_company}  \n"
+            "**Stage:** {company_stage}  \n"
+            "**Industry / Domain:** {industry_domain}\n\n"
+            "Retrieved Context:\n{retrieved_context}\n\n"
+
             "## Your Task\n"
-            "Generate **Section 1** in the following markdown structure:\n\n"
-            
+            "Generate the summary below, ensuring you briefly address:\n"
+            "• Stage-matched framing (agility & learning vs. scale & efficiency)  \n"
+            "• Competitive differentiation strategy  \n"
+            "• Compliance & scalability awareness  \n"
+            "• Customer-success & retention focus  \n"
+            "• Vision for expansion beyond the first market\n\n"
+
             "### **Section 1: Executive Summary & Investment Rationale** {{#section-1:-executive-summary-&-investment-rationale}}\n\n"
-            
+
             "#### Overview {{#overview}}\n"
-            "1. Briefly describe the company (name, type, what it provides).\n"
-            "2. Mention relevant revenue growth, customer traction, or market potential details.\n"
-            "3. Indicate the scope of this assessment (finances, leadership, market fit, etc.).\n\n"
-            
+            "1. **Company Snapshot:** what the company provides and to whom.  \n"
+            "2. **Stage Context:** e.g., “As an early-stage startup, we focus on validation…” "
+            "or “As a growth-stage company, we emphasise scale…”.  \n"
+            "3. **Problem & Solution Fit:** concise statement of market need and the offering.\n\n"
+
             "#### Key Investment Considerations {{#key-investment-considerations}}\n"
-            "- List bullet points for top considerations (e.g., scalability, revenue strength, differentiation, data gaps, etc.), "
-            "dynamically derived from the context.\n\n"
-            
-            "#### Investment Readiness Overview {{#investment-readiness-overview}}\n"
-            "Create a table showing investment categories with dynamically generated assessments based on the context. "
-            "Use the following format:\n\n"
-            
-            "| Investment Category        | Assessment        |\n"
-            "| :------------------------- | :---------------- |\n"
-            "| Market Traction            | [Dynamic Rating]  |\n"
-            "| Revenue Growth Potential   | [Dynamic Rating]  |\n"
-            "| Financial Transparency     | [Dynamic Rating]  |\n"
-            "| Operational Scalability    | [Dynamic Rating]  |\n"
-            "| Leadership Depth           | [Dynamic Rating]  |\n"
-            "| Exit Potential             | [Dynamic Rating]  |\n\n"
-            
-            "For each category, analyze the 'retrieved_context' to determine the appropriate rating: "
-            "🟢 for strong, 🟡 for moderate, or 🔴 for weak performance.\n\n"
-            
+            "- Competitive edge and how we will **differentiate vs. rivals**.  \n"
+            "- Compliance / scalability readiness (e.g., SOC 2, GDPR, infra scale).  \n"
+            "- Customer-centric approach to drive **retention & lifetime value**.  \n"
+            "- Clear roadmap to **expand into new markets/segments** once traction is secured.  \n"
+            "- Any notable gaps or data needs investors should be aware of.\n\n"
+
+            "#### Investment Readiness Snapshot {{#investment-readiness-overview}}\n"
+            "| Category | Status* | Evidence (1 sentence) |\n"
+            "| -------- | ------- | --------------------- |\n"
+            "| Market Traction | {{derive from context}} | {{evidence}} |\n"
+            "| Revenue Potential | {{derive}} | {{evidence}} |\n"
+            "| Leadership Depth | {{derive}} | {{evidence}} |\n"
+            "| Operational Scalability | {{derive}} | {{evidence}} |\n"
+            "| Regulatory Compliance | {{derive}} | {{evidence}} |\n"
+            "*Use plain words such as Strong / Moderate / Weak; no static emoji.  "
+            "Base each status on retrieved evidence.\n\n"
+
             "#### Investment Risks & Considerations {{#investment-risks-&-considerations}}\n"
-            "- Provide a bullet list of risks or concerns (financial, operational, market-based, etc.) based on the context.\n\n"
-            
+            "- Summarise 2-3 key risks (market, compliance, tech, retention) with brief notes.\n\n"
+
             "#### Investment Recommendations & Next Steps {{#investment-recommendations-&-next-steps}}\n"
-            "- Provide general recommendations and then break them down by timeframe.\n\n"
-            
-            "##### Short-Term (1-3 Months): {{#short-term-(1-3-months):}}\n"
-            "- List short-term action items.\n\n"
-            
-            "##### Medium-Term (3-6 Months): {{#medium-term-(3-6-months):}}\n"
-            "- List medium-term action items.\n\n"
-            
-            "##### Long-Term (6-12 Months): {{#long-term-(6-12-months):}}\n"
-            "- List long-term action items.\n\n"
-            
+            "_Short-Term (1-3 M):_ …  \n"
+            "_Medium-Term (3-6 M):_ …  \n"
+            "_Long-Term (6-12 M):_ …\n\n"
+
             "### Instructions\n"
-            "1. Write your final answer in valid Markdown.\n"
-            "2. Use the 'retrieved_context' to dynamically determine the ratings for each investment category.\n"
-            "3. Fill in placeholders with relevant data from the context, or mark areas needing further information.\n"
-            "4. Maintain the headings, subheadings, and anchor tags exactly as shown.\n"
+            "• Output valid **Markdown** only.  \n"
+            "• Derive every status or claim from the provided context; if unknown, write "
+            "“*Not publicly available*”.  \n"
+            "• Keep all headings / anchors exactly as shown; do not add emoji in headings."
         )
         super().__init__(prompt_template)
 
@@ -242,95 +239,74 @@ class ExecutiveSummaryAgent(BaseAIAgent):
 class MarketAnalysisAgent(BaseAIAgent):
     """
     AI Agent for Section 2: Market Opportunity & Competitive Landscape
-    Subheadings:
-      - Market Overview
-      - Market Size & Growth Projections
-      - Competitive Positioning
-      - Competitive Landscape
-      - Key Market Takeaways
-      - Challenges & Expansion Opportunities
-        * Challenges
-        * Opportunities for Market Expansion
-      - Market Fit Assessment
-
-    Now produces Markdown matching the desired layout:
-    
-    ### **Section 2: Market Opportunity & Competitive Landscape** {{#section-2:-market-opportunity-&-competitive-landscape}
-
-    #### Market Overview {{#market-overview}
-
-    #### Market Size & Growth Projections: {{#market-size-&-growth-projections:}
-    - ...
-    - ...
-    - ...
-
-    #### Competitive Positioning {{#competitive-positioning}
-
-    ##### Competitive Landscape {{#competitive-landscape}
-    | Competitor | Market Focus | Key Strengths | Challenges |
-    | ----- | ----- | ----- | ----- |
-    |  |  |  |  |
-
-    #### Key Market Takeaways: {{#key-market-takeaways:}
-    - ...
-
-    ##### Challenges & Expansion Opportunities {{#challenges-&-expansion-opportunities}
-    ###### Challenges: {{#challenges:}
-    - ...
-    ###### Opportunities for Market Expansion: {{#opportunities-for-market-expansion:}
-    ✅ ...
-    ✅ ...
-    ✅ ...
-
-    #### Market Fit Assessment {{#market-fit-assessment}
-    | Market Factor | Assessment |
-    | ----- | ----- |
-    |  | 🟢 Strong |
-    |  | 🟡 Needs Expansion |
+    — updated to:
+      • Adapt tone and depth to the company’s stage (`early-stage`, `growth`, etc.)
+      • Add a “Competitive Action Items” subsection with 2-3 strategic responses
+      • Call out customer-retention dynamics whenever relevant
+      • Highlight compliance / market-entry constraints (e.g., SOC 2, GDPR)
+      • Preserve all existing markdown anchors and heading hierarchy
     """
     def __init__(self):
         prompt_template = (
-            "You are an expert at drafting **Section 2: Market Opportunity & Competitive Landscape** "
-            "in Markdown format. Use **the exact headings, subheadings, and anchor links** provided below. "
-            "Incorporate relevant details from '{{retrieved_context}}' (e.g., industry trends, competition, "
-            "market size) and mention color-coded assessments (🟢, 🟡, 🔴) where fitting.\n\n"
+            "You are an expert market analyst writing **Section 2: Market Opportunity & Competitive Landscape** "
+            "in Markdown.  Tailor your analysis to the startup’s **stage** and **audience**:\n"
+            "• If **{company_stage}** is early (pre-MVP / pre-revenue) → emphasize market potential, unmet needs, and validation hurdles.\n"
+            "• If later stage → focus on evidence, scaling metrics, and efficiency benchmarks.\n\n"
 
-            "Company: {founder_company}\n"
-            "\n"
-            "Retrieved Context:\n"
-            "{retrieved_context}\n\n"
+            "**Company:** {founder_company}\n"
+            "**Stage:** {company_stage}\n"
+            "**Industry / Domain:** {industry_domain}\n\n"
+            "Retrieved Context:\n{retrieved_context}\n\n"
 
             "## Your Task\n"
-            "Generate **Section 2** in the following markdown structure:\n\n"
+            "Generate **Section 2** in the exact markdown layout below.  "
+            "After competitor analysis, include **2-3 tactical recommendations** on how the company can out-maneuver rivals.  "
+            "Note any **customer-retention trends**, plus **regulatory or compliance constraints** that could impact market entry.\n\n"
+
             "### **Section 2: Market Opportunity & Competitive Landscape** {{#section-2:-market-opportunity-&-competitive-landscape}}\n\n"
+
             "#### Market Overview {{#market-overview}}\n"
-            "Provide a high-level description...\n\n"
-            "#### Market Size & Growth Projections: {{#market-size-&-growth-projections:}}\n"
+            "Provide a concise stage-appropriate overview of the market (problem, target users, key trends).\n\n"
+
+            "#### Market Size & Growth Projections {{#market-size-&-growth-projections:}}\n"
             "- **Total Addressable Market (TAM):**\n"
             "- **Annual Growth Rate:**\n"
-            "- **Adoption Trends:**\n\n"
+            "- **Adoption / Retention Trends:** _(mention if long-term customer relationships are critical in this market)_\n\n"
+
             "#### Competitive Positioning {{#competitive-positioning}}\n"
-            "Explain the company’s core advantages...\n\n"
+            "Summarize the company’s core advantages vs. competitors, factoring in {company_stage} context.\n\n"
+
             "##### Competitive Landscape {{#competitive-landscape}}\n"
-            "| Competitor | Market Focus | Key Strengths | Challenges |\n"
-            "| ----- | ----- | ----- | ----- |\n"
-            "|  |  |  |  |\n\n"
-            "#### Key Market Takeaways: {{#key-market-takeaways:}}\n"
-            "- Provide bullet points...\n\n"
+            "| Competitor | Market Focus | Key Strengths | Weaknesses / Gaps |\n"
+            "| ---------- | ------------ | ------------- | ----------------- |\n"
+            "|            |              |               |                   |\n\n"
+
+            "##### Competitive Action Items {{#competitive-action-items}}\n"
+            "- **Action 1:** _e.g., “Leverage lower pricing to undercut Competitor A’s enterprise premium.”_\n"
+            "- **Action 2:** _e.g., “Develop missing Feature X to neutralize Competitor B’s advantage.”_\n"
+            "- **Action 3:** _(optional)_\n\n"
+
+            "#### Key Market Takeaways {{#key-market-takeaways:}}\n"
+            "- Bullet summary of the most important insights (size, growth, competition, retention cues).\n\n"
+
             "##### Challenges & Expansion Opportunities {{#challenges-&-expansion-opportunities}}\n"
-            "###### Challenges: {{#challenges:}}\n"
-            "- List any known barriers...\n\n"
-            "###### Opportunities for Market Expansion: {{#opportunities-for-market-expansion:}}\n"
-            "✅ Outline potential growth...\n\n"
+            "###### Challenges {{#challenges:}}\n"
+            "- List regulatory hurdles, competitive barriers, retention risks, etc.\n\n"
+            "###### Opportunities for Market Expansion {{#opportunities-for-market-expansion:}}\n"
+            "✅ Describe adjacent verticals / geographies the startup could pursue after initial traction.\n\n"
+
             "#### Market Fit Assessment {{#market-fit-assessment}}\n"
             "| Market Factor | Assessment |\n"
-            "| ----- | ----- |\n"
-            "|  | 🟢 Strong |\n"
-            "|  | 🟡 Needs Expansion |\n\n"
+            "| ------------- | ---------- |\n"
+            "| Problem–Solution Fit | [🟢/🟡/🔴] |\n"
+            "| Competitive Intensity | [🟢/🟡/🔴] |\n"
+            "| Regulatory Complexity | [🟢/🟡/🔴] |\n"
+            "| Customer Retention Dynamics | [🟢/🟡/🔴] |\n\n"
+
             "### Instructions\n"
-            "1. Write your final answer in valid **Markdown**.\n"
-            "2. For any unknown or missing data, you may use placeholders.\n"
-            "3. Maintain the headings, subheadings, anchor tags exactly as shown.\n"
+            "1. Output **valid Markdown** only; keep every heading & anchor unchanged except where new anchors are specified above.\n"
+            "2. All color-coded ratings must reflect evidence from `retrieved_context` (do **not** leave static placeholders).\n"
+            "3. If data is missing, state “*Not publicly available*”.\n"
         )
         super().__init__(prompt_template)
 
@@ -441,89 +417,55 @@ class FinancialPerformanceAgent(BaseAIAgent):
 # ---------------------------------------------------------------
 class GoToMarketAgent(BaseAIAgent):
     """
-    AI Agent for Section 4: Go-To-Market (GTM) Strategy & Customer Traction
-
-    Desired Markdown Template:
-
-    ### **Section 4: Go-To-Market (GTM) Strategy & Customer Traction** {{#section-4:-go-to-market-(gtm)-strategy-&-customer-traction}
-
-    #### **Customer Acquisition Strategy** {{#customer-acquisition-strategy}
-    - Potential bullet points, table of channels, etc.
-
-    | Acquisition Channel | Performance | Challenges |
-    | ----- | ----- | ----- |
-    |  |  |  |
-    |  |  |  |
-
-    ✅ **Strengths:**
-    ⚠ **Challenges:**
-
-    #### **Customer Retention & Lifetime Value** {{#customer-retention-&-lifetime-value}
-    (Table example)
-
-    | Retention Metric | Founder Company Performance | Industry Benchmark |
-    | ----- | ----- | ----- |
-    | **Customer Retention Rate** |  |  |
-    | **Churn Rate** |  |  |
-    | **Referral-Based Growth** |  |  |
-
-    ✅ **Strengths:**
-    ⚠ **Challenges:**
-
-    #### **Challenges & Market Expansion Plan** {{#challenges-&-market-expansion-plan}
-    ⚠ **Customer Acquisition Cost (CAC) Optimization Needed**
-
-    - **Challenge:** ...
-    - **Solution:** ...
-
-    ⚠ **Revenue Concentration Risk**
-
-    - **Challenge:** ...
-    - **Solution:** ...
-
-    #### **Market Expansion Strategy** {{#market-expansion-strategy}
-    ✅ **Franchise Pilot Growth** –
-    ✅ **Supplier Network Growth** –
-    ✅ **AI-Driven Enhancements** –
-
-    #### **GTM Performance Assessment** {{#gtm-performance-assessment}
-    | Category | Performance | Assessment |
-    | ----- | ----- | ----- |
-    | **Lead Generation Efficiency** |  |  |
-    | **Customer Retention** |  |  |
-    | **Revenue Growth** |  |  |
-    | **Outbound Sales Effectiveness** |  |  |
-    | **Market Diversification** |  |  |
+    Section-4 agent — now stage-aware, retention-focused, and expansion-oriented.
+    Adds:
+      • Customer Retention Strategy subsection
+      • Explicit scaling plan beyond the first market
+      • Competitive-aware differentiation guidance
+      • Tone adaptation based on company_stage (early vs. growth/late)
     """
     def __init__(self):
         prompt_template = (
-            "You are an expert at drafting **Section 4: Go-To-Market (GTM) Strategy & Customer Traction** "
-            "in Markdown format. Use **the exact headings, subheadings, anchor links, and tables** "
-            "outlined below, incorporating relevant info from '{{retrieved_context}}' and applying "
-            "color-coded references if appropriate.\n\n"
+            "You are a go-to-market strategist drafting **Section 4: Go-To-Market (GTM) Strategy & Customer Traction** "
+            "in Markdown.  Adjust tone and depth to **{company_stage}**:\n"
+            "• *Early-stage* – emphasize agile experiments, budget awareness, learning cycles.\n"
+            "• *Growth / later stage* – emphasize proven channels, scale efficiency, aggressive expansion.\n\n"
 
-            "Company: {founder_company}\n"
-            "Retrieved Context:\n"
-            "{retrieved_context}\n\n"
+            "**Company:** {founder_company}\n"
+            "**Stage:** {company_stage}\n"
+            "**Industry / Domain:** {industry_domain}\n\n"
+            "Retrieved Context:\n{retrieved_context}\n\n"
 
             "## Your Task\n"
-            "Generate **Section 4** in the following markdown structure:\n\n"
+            "Follow the exact markdown layout below.  Be sure to:\n"
+            "1. **Include competitive differentiation** — reference how our GTM counters rivals’ strengths.\n"
+            "2. Add a **Customer Retention Strategy** subsection outlining onboarding, success, and loyalty tactics.\n"
+            "3. Provide an **Expansion Plan** for new markets/segments once initial traction is achieved.\n"
+            "4. Use 🟢🟡🔴 ratings only if evidence supports them; never hard-code.\n\n"
+
             "### **Section 4: Go-To-Market (GTM) Strategy & Customer Traction** {{#section-4:-go-to-market-(gtm)-strategy-&-customer-traction}}\n\n"
+
             "#### **Customer Acquisition Strategy** {{#customer-acquisition-strategy}}\n"
             "| Acquisition Channel | Performance | Challenges |\n"
-            "| ----- | ----- | ----- |\n"
-            "|  |  |  |\n"
-            "|  |  |  |\n\n"
+            "| ------------------- | ----------- | ---------- |\n"
+            "|                    |             |            |\n"
+            "|                    |             |            |\n\n"
             "✅ **Strengths:**\n"
-            "⚠ **Challenges:**\n\n"
+            "⚠ **Challenges:**\n"
+            "_Given competitor approaches, highlight how these channels differentiate us._\n\n"
+
             "#### **Customer Retention & Lifetime Value** {{#customer-retention-&-lifetime-value}}\n"
             "| Retention Metric | Founder Company Performance | Industry Benchmark |\n"
-            "| ----- | ----- | ----- |\n"
+            "| ---------------- | --------------------------- | ------------------ |\n"
             "| **Customer Retention Rate** |  |  |\n"
-            "| **Churn Rate** |  |  |\n"
-            "| **Referral-Based Growth** |  |  |\n\n"
-            "✅ **Strengths:**\n"
-            "⚠ **Challenges:**\n\n"
+            "| **Churn Rate**              |  |  |\n"
+            "| **Referral-Based Growth**   |  |  |\n\n"
+
+            "#### **Customer Retention Strategy** {{#customer-retention-strategy}}\n"
+            "- Onboarding program: step-by-step guidance to first value.\n"
+            "- Proactive success touch-points and QBRs.\n"
+            "- Loyalty / referral incentives and community building.\n\n"
+
             "#### **Challenges & Market Expansion Plan** {{#challenges-&-market-expansion-plan}}\n"
             "⚠ **Customer Acquisition Cost (CAC) Optimization Needed**\n"
             "* **Challenge:**\n"
@@ -531,22 +473,30 @@ class GoToMarketAgent(BaseAIAgent):
             "⚠ **Revenue Concentration Risk**\n"
             "* **Challenge:**\n"
             "* **Solution:**\n\n"
+
+            "#### **Expansion Plan – Scaling Beyond Initial Market** {{#expansion-plan}}\n"
+            "- **Next Markets / Segments:** list 1-2 logical geographies or verticals.\n"
+            "- **Prerequisites:** localization, compliance, partnerships, hiring.\n"
+            "- **Go-Live Timeline:** staged milestones post-traction.\n\n"
+
             "#### **Market Expansion Strategy** {{#market-expansion-strategy}}\n"
             "✅ **Franchise Pilot Growth** –\n"
             "✅ **Supplier Network Growth** –\n"
             "✅ **AI-Driven Enhancements** –\n\n"
+
             "#### **GTM Performance Assessment** {{#gtm-performance-assessment}}\n"
             "| Category | Performance | Assessment |\n"
-            "| ----- | ----- | ----- |\n"
+            "| -------- | ----------- | ---------- |\n"
             "| **Lead Generation Efficiency** |  |  |\n"
-            "| **Customer Retention** |  |  |\n"
-            "| **Revenue Growth** |  |  |\n"
-            "| **Outbound Sales Effectiveness** |  |  |\n"
-            "| **Market Diversification** |  |  |\n\n"
+            "| **Customer Retention**         |  |  |\n"
+            "| **Revenue Growth**             |  |  |\n"
+            "| **Outbound Sales Effectiveness**| |  |\n"
+            "| **Market Diversification**     |  |  |\n\n"
+
             "### Instructions\n"
-            "1. Write your final answer in valid **Markdown**.\n"
-            "2. For unknown data, placeholders are fine.\n"
-            "3. Keep headings, subheadings, anchor tags exactly as shown.\n"
+            "1. Output valid **Markdown** only; keep all heading anchors intact.\n"
+            "2. If data is missing, state “*Not publicly available*”.\n"
+            "3. Ensure tone reflects **{company_stage}** (experimental vs. scaled).\n"
         )
         super().__init__(prompt_template)
 
@@ -790,121 +740,89 @@ class InvestorFitAgent(BaseAIAgent):
 # ---------------------------------------------------------------
 class RecommendationsAgent(BaseAIAgent):
     """
-    AI Agent for Section 7: Final Recommendations & Next Steps
-
-    Desired Markdown structure (matching your provided template):
-
-    ### **Section 7: Final Recommendations & Next Steps** {{#section-7:-final-recommendations-&-next-steps}
-
-    #### **Key Strengths Supporting Investment Consideration** {{#key-strengths-supporting-investment-consideration}
-    ✅ **High Market Traction & Growth Metrics**
-    * 
-    ✅ **Scalable SaaS Business Model**
-    * 
-    ✅ **Potential for Strategic M&A Exit**
-    * 
-
-    #### **Key Investment Risks & Mitigation Strategies** {{#key-investment-risks-&-mitigation-strategies}
-    ⚠ **Over-Reliance on ...**
-    * **Risk:**  
-    * **Mitigation:**  
-    ⚠ **Limited Financial Transparency** 
-    * **Risk:**  
-    * **Mitigation:**  
-
-    #### **Prioritized Action Plan for Investment Readiness** {{#prioritized-action-plan-for-investment-readiness}
-    | Priority Level | Action Item | Impact | Feasibility |
-    | ----- | ----- | ----- | ----- |
-    | **Short-Term (1-3 Months)** |  |  |  |
-    | **Medium-Term (3-6 Months)** |  |  |  |
-    | **Long-Term (6-12 Months)** |  |  |  |
-
-    #### **Strategic Roadmap for Growth & Exit Planning** {{#strategic-roadmap-for-growth-&-exit-planning}
-    | Phase | Actionable Steps | Key Performance Indicators (KPIs) |
-    | ----- | ----- | ----- |
-    | **Short-Term (1-3 Months)** |  |  |
-    | **Medium-Term (3-6 Months)** |  |  |
-    | **Long-Term (6-12 Months)** |  |  |
-
-    #### **Investment Readiness & Market Positioning** {{#investment-readiness-&-market-positioning}
-    | Category | Assessment |
-    | ----- | ----- |
-    | **Investment Readiness** | 🟢 Strong Alignment |
-    | **Market Positioning & Competitive Strength** | 🟢 Strong Fit |
-    | **Funding Transparency & Investor Reporting** | 🟡 Needs Improvement |
-    | **Leadership & Operational Scalability** | 🟡 Moderate Risk |
-    | **Exit Viability & M&A Potential** | 🟢 Favorable Pathways |
-
-    ### **Final Investment Recommendation** {{#final-investment-recommendation}
-
-    ### **Next Steps for Investment Consideration** {{#next-steps-for-investment-consideration}
-    1. 
-    2. 
-    3. 
-    4. 
-
-    ### **Final Conclusion** {{#final-conclusion}
-    ...
+    Section-7 agent updated for dynamic risk ratings and expanded categories.
+    Key upgrades:
+      • Removes hard-coded emoji; model now assigns 🟢🟡🔴 based on evidence.
+      • Provides explicit scoring criteria inside the prompt.
+      • Expands rating table to include Regulatory Compliance, Scalability,
+        and Customer Retention Risk.
+      • Instructs model to cross-reference earlier research before rating.
+      • Keeps all anchor tags / headings unchanged.
     """
+
     def __init__(self):
         prompt_template = (
-            "You are an expert at drafting **Section 7: Final Recommendations & Next Steps** in Markdown format. "
-            "Use **the exact headings, subheadings, anchor links, and tables** shown in the sample below, "
-            "incorporating data from '{{retrieved_context}}' and applying color-coded references (🟢, 🟡, 🔴) if relevant.\n\n"
-            
-            "Company: {founder_company}\n"
-            "Retrieved Context:\n"
-            "{retrieved_context}\n\n"
+            "You are an expert analyst drafting **Section 7: Final Recommendations & Next Steps** "
+            "in Markdown.  Base your judgments on the full context below and use the dynamic "
+            "emoji scoring system:\n"
+            "• 🟢 Low Risk / Strong (well-managed, no major concerns)\n"
+            "• 🟡 Medium Risk / Moderate (some concerns, partially mitigated)\n"
+            "• 🔴 High Risk / Weak (serious unresolved issues)\n\n"
+            "Always justify each rating with 1-sentence evidence extracted from `retrieved_context`.  "
+            "Cross-check with prior research; never assign 🟢 by default.\n\n"
+
+            "**Company:** {founder_company}\n"
+            "**Stage:** {company_stage}\n\n"
+            "Retrieved Context:\n{retrieved_context}\n\n"
 
             "## Your Task\n"
-            "Generate **Section 7** in the following markdown structure:\n\n"
+            "Generate **Section 7** in the structure below.  "
+            "Replace all rating placeholders with the appropriate colored icon and a concise rationale.\n\n"
+
             "### **Section 7: Final Recommendations & Next Steps** {{#section-7:-final-recommendations-&-next-steps}}\n\n"
+
             "#### **Key Strengths Supporting Investment Consideration** {{#key-strengths-supporting-investment-consideration}}\n"
-            "✅ **High Market Traction & Growth Metrics**\n"
-            "* ...\n"
-            "✅ **Scalable SaaS Business Model**\n"
-            "* ...\n"
-            "✅ **Potential for Strategic M&A Exit**\n"
-            "* ...\n\n"
+            "✅ **High Market Traction & Growth Metrics** – …\n"
+            "✅ **Scalable {industry_domain} Business Model** – …\n"
+            "✅ **Potential for Strategic M&A Exit** – …\n\n"
+
             "#### **Key Investment Risks & Mitigation Strategies** {{#key-investment-risks-&-mitigation-strategies}}\n"
-            "⚠ **Over-Reliance on**\n"
-            "* **Risk:**\n"
-            "* **Mitigation:**\n\n"
-            "⚠ **Limited Financial Transparency**\n"
-            "* **Risk:**\n"
-            "* **Mitigation:**\n\n"
+            "- **Risk 1:** _Describe risk_  \n"
+            "  • **Mitigation:** _Proposed fix_\n"
+            "- **Risk 2:** _Describe risk_  \n"
+            "  • **Mitigation:** _Proposed fix_\n\n"
+
             "#### **Prioritized Action Plan for Investment Readiness** {{#prioritized-action-plan-for-investment-readiness}}\n"
             "| Priority Level | Action Item | Impact | Feasibility |\n"
-            "| ----- | ----- | ----- | ----- |\n"
-            "| **Short-Term (1-3 Months)** |  |  |  |\n"
-            "| **Medium-Term (3-6 Months)** |  |  |  |\n"
-            "| **Long-Term (6-12 Months)** |  |  |  |\n\n"
+            "| -------------- | ----------- | ------ | ----------- |\n"
+            "| **Short-Term (1-3 M)** |  |  |  |\n"
+            "| **Medium-Term (3-6 M)**|  |  |  |\n"
+            "| **Long-Term (6-12 M)** |  |  |  |\n\n"
+
             "#### **Strategic Roadmap for Growth & Exit Planning** {{#strategic-roadmap-for-growth-&-exit-planning}}\n"
             "| Phase | Actionable Steps | Key Performance Indicators (KPIs) |\n"
-            "| ----- | ----- | ----- |\n"
-            "| **Short-Term (1-3 Months)** |  |  |\n"
-            "| **Medium-Term (3-6 Months)** |  |  |\n"
-            "| **Long-Term (6-12 Months)** |  |  |\n\n"
+            "| ----- | --------------- | --------------------------------- |\n"
+            "| **Short-Term (1-3 M)** |  |  |\n"
+            "| **Medium-Term (3-6 M)**|  |  |\n"
+            "| **Long-Term (6-12 M)** |  |  |\n\n"
+
             "#### **Investment Readiness & Market Positioning** {{#investment-readiness-&-market-positioning}}\n"
-            "| Category | Assessment |\n"
-            "| ----- | ----- |\n"
-            "| **Investment Readiness** | 🟢 Strong Alignment |\n"
-            "| **Market Positioning & Competitive Strength** | 🟢 Strong Fit |\n"
-            "| **Funding Transparency & Investor Reporting** | 🟡 Needs Improvement |\n"
-            "| **Leadership & Operational Scalability** | 🟡 Moderate Risk |\n"
-            "| **Exit Viability & M&A Potential** | 🟢 Favorable Pathways |\n\n"
+            "| Category | Rating | Justification |\n"
+            "| -------- | ------ | ------------- |\n"
+            "| Investment Readiness | [🟢/🟡/🔴] | _Evidence-based note_ |\n"
+            "| Market Positioning & Competitive Strength | [🟢/🟡/🔴] | _Evidence_ |\n"
+            "| Regulatory Compliance | [🟢/🟡/🔴] | _Evidence_ |\n"
+            "| Scalability (Ops & Tech) | [🟢/🟡/🔴] | _Evidence_ |\n"
+            "| Customer Retention Risk | [🟢/🟡/🔴] | _Evidence_ |\n"
+            "| Funding Transparency & Reporting | [🟢/🟡/🔴] | _Evidence_ |\n"
+            "| Leadership Depth & Succession | [🟢/🟡/🔴] | _Evidence_ |\n"
+            "| Exit Viability / M&A Potential | [🟢/🟡/🔴] | _Evidence_ |\n\n"
+
             "### **Final Investment Recommendation** {{#final-investment-recommendation}}\n"
-            "A short paragraph...\n\n"
+            "Provide a brief recommendation statement aligned with the above ratings.\n\n"
+
             "### **Next Steps for Investment Consideration** {{#next-steps-for-investment-consideration}}\n"
-            "1. ...\n"
-            "2. ...\n"
-            "3. ...\n"
-            "4. ...\n\n"
+            "1. …\n"
+            "2. …\n"
+            "3. …\n"
+            "4. …\n\n"
+
             "### **Final Conclusion** {{#final-conclusion}}\n"
-            "Wrap up with a concluding statement.\n\n"
+            "Conclude with a forward-looking statement.\n\n"
+
             "### Instructions\n"
-            "1. Write your final answer in valid **Markdown**.\n"
-            "2. For unknown data, placeholders are fine.\n"
-            "3. Keep headings, subheadings, anchor tags exactly as shown.\n"
+            "1. Output valid **Markdown** only; keep every heading & anchor unchanged.\n"
+            "2. Use the emoji scoring system exactly; no static placeholders.\n"
+            "3. Each rating must include a short justification referencing context data.\n"
         )
         super().__init__(prompt_template)
