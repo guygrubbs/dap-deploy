@@ -98,7 +98,7 @@ class ResearcherAgent(BaseAIAgent):
             "(early-stage, growth, late-stage) and its industry domain.\n\n"
 
             "**Company Name:** {founder_company}\n"
-            "**Stage:** {company_stage}  <!-- e.g. pre-MVP, early-stage, Series-A, growth -->\n"
+            "**Stage:** {funding_stage}  <!-- e.g. pre-MVP, early-stage, Series-A, growth -->\n"
             "**Industry / Domain:** {industry_domain}\n\n"
             "Additional founder-supplied context:\n"
             "{retrieved_context}\n\n"
@@ -111,7 +111,7 @@ class ResearcherAgent(BaseAIAgent):
             "- Note any unclear or missing market data.\n\n"
 
             "### 2) Customer Traction & Revenue\n"
-            "- Summarize traction metrics appropriate to **{company_stage}** "
+            "- Summarize traction metrics appropriate to **{funding_stage}** "
             "(e.g., pre-MVP → user interviews / wait-list sign-ups, Series-A → MRR, CAC, LTV).\n"
             "- List revenue drivers or channels.  Flag unknowns (e.g., churn, CSAT) where data is absent.\n\n"
 
@@ -177,7 +177,7 @@ class ExecutiveSummaryAgent(BaseAIAgent):
 
             "**Founder:** {founder_name}\n"
             "**Company:** {founder_company}  \n"
-            "**Stage:** {company_stage}  \n"
+            "**Stage:** {funding_stage}  \n"
             "**Industry / Domain:** {industry_domain}\n\n"
             "Retrieved Context:\n{retrieved_context}\n\n"
 
@@ -250,11 +250,11 @@ class MarketAnalysisAgent(BaseAIAgent):
         prompt_template = (
             "You are an expert market analyst writing **Section 2: Market Opportunity & Competitive Landscape** "
             "in Markdown.  Tailor your analysis to the startup’s **stage** and **audience**:\n"
-            "• If **{company_stage}** is early (pre-MVP / pre-revenue) → emphasize market potential, unmet needs, and validation hurdles.\n"
+            "• If **{funding_stage}** is early (pre-MVP / pre-revenue) → emphasize market potential, unmet needs, and validation hurdles.\n"
             "• If later stage → focus on evidence, scaling metrics, and efficiency benchmarks.\n\n"
 
             "**Company:** {founder_company}\n"
-            "**Stage:** {company_stage}\n"
+            "**Stage:** {funding_stage}\n"
             "**Industry / Domain:** {industry_domain}\n\n"
             "Retrieved Context:\n{retrieved_context}\n\n"
 
@@ -274,7 +274,7 @@ class MarketAnalysisAgent(BaseAIAgent):
             "- **Adoption / Retention Trends:** _(mention if long-term customer relationships are critical in this market)_\n\n"
 
             "#### Competitive Positioning {{#competitive-positioning}}\n"
-            "Summarize the company’s core advantages vs. competitors, factoring in {company_stage} context.\n\n"
+            "Summarize the company’s core advantages vs. competitors, factoring in {funding_stage} context.\n\n"
 
             "##### Competitive Landscape {{#competitive-landscape}}\n"
             "| Competitor | Market Focus | Key Strengths | Weaknesses / Gaps |\n"
@@ -422,17 +422,17 @@ class GoToMarketAgent(BaseAIAgent):
       • Customer Retention Strategy subsection
       • Explicit scaling plan beyond the first market
       • Competitive-aware differentiation guidance
-      • Tone adaptation based on company_stage (early vs. growth/late)
+      • Tone adaptation based on funding_stage (early vs. growth/late)
     """
     def __init__(self):
         prompt_template = (
             "You are a go-to-market strategist drafting **Section 4: Go-To-Market (GTM) Strategy & Customer Traction** "
-            "in Markdown.  Adjust tone and depth to **{company_stage}**:\n"
+            "in Markdown.  Adjust tone and depth to **{funding_stage}**:\n"
             "• *Early-stage* – emphasize agile experiments, budget awareness, learning cycles.\n"
             "• *Growth / later stage* – emphasize proven channels, scale efficiency, aggressive expansion.\n\n"
 
             "**Company:** {founder_company}\n"
-            "**Stage:** {company_stage}\n"
+            "**Stage:** {funding_stage}\n"
             "**Industry / Domain:** {industry_domain}\n\n"
             "Retrieved Context:\n{retrieved_context}\n\n"
 
@@ -496,7 +496,7 @@ class GoToMarketAgent(BaseAIAgent):
             "### Instructions\n"
             "1. Output valid **Markdown** only; keep all heading anchors intact.\n"
             "2. If data is missing, state “*Not publicly available*”.\n"
-            "3. Ensure tone reflects **{company_stage}** (experimental vs. scaled).\n"
+            "3. Ensure tone reflects **{funding_stage}** (experimental vs. scaled).\n"
         )
         super().__init__(prompt_template)
 
@@ -762,7 +762,7 @@ class RecommendationsAgent(BaseAIAgent):
             "Cross-check with prior research; never assign 🟢 by default.\n\n"
 
             "**Company:** {founder_company}\n"
-            "**Stage:** {company_stage}\n\n"
+            "**Stage:** {funding_stage}\n\n"
             "Retrieved Context:\n{retrieved_context}\n\n"
 
             "## Your Task\n"
