@@ -584,6 +584,7 @@ def generate_report(request_params: dict) -> dict:
     researcher_input = {
         "founder_company": request_params.get("founder_company", "Unknown Company"),
         "industry": request_params.get("industry", "General Industry"),
+        "funding_stage":   request_params.get("funding_stage", "Unknown Stage"),
         "retrieved_context": ephemeral_context
     }
     try:
@@ -595,6 +596,7 @@ def generate_report(request_params: dict) -> dict:
 
     # Build a shared context for the next sections
     section_context = request_params.copy()
+    section_context["funding_stage"] = request_params.get("funding_stage", "Unknown Stage")
     section_context["retrieved_context"] = ephemeral_context
 
     # 2) Generate sections 2–7

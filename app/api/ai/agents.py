@@ -99,7 +99,7 @@ class ResearcherAgent(BaseAIAgent):
 
             "**Company Name:** {founder_company}\n"
             "**Stage:** {funding_stage}  <!-- e.g. pre-MVP, early-stage, Series-A, growth -->\n"
-            "**Industry / Domain:** {industry_domain}\n\n"
+            "**Industry / Domain:** {industry}\n\n"
             "Additional founder-supplied context:\n"
             "{retrieved_context}\n\n"
 
@@ -127,7 +127,7 @@ class ResearcherAgent(BaseAIAgent):
 
             "### 5) Regulatory Compliance & Scalability Readiness\n"
             "- List **industry-specific regulations** (e.g., SOC 2, HIPAA, GDPR) and certification benchmarks.\n"
-            "- Summarize scalability challenges typical for {industry_domain} startups "
+            "- Summarize scalability challenges typical for {industry} startups "
             "(infrastructure, people, cross-border compliance).\n\n"
 
             "### 6) Customer Success & Retention Trends\n"
@@ -178,7 +178,7 @@ class ExecutiveSummaryAgent(BaseAIAgent):
             "**Founder:** {founder_name}\n"
             "**Company:** {founder_company}  \n"
             "**Stage:** {funding_stage}  \n"
-            "**Industry / Domain:** {industry_domain}\n\n"
+            "**Industry / Domain:** {industry}\n\n"
             "Retrieved Context:\n{retrieved_context}\n\n"
 
             "## Your Task\n"
@@ -255,7 +255,7 @@ class MarketAnalysisAgent(BaseAIAgent):
 
             "**Company:** {founder_company}\n"
             "**Stage:** {funding_stage}\n"
-            "**Industry / Domain:** {industry_domain}\n\n"
+            "**Industry / Domain:** {industry}\n\n"
             "Retrieved Context:\n{retrieved_context}\n\n"
 
             "## Your Task\n"
@@ -433,7 +433,7 @@ class GoToMarketAgent(BaseAIAgent):
 
             "**Company:** {founder_company}\n"
             "**Stage:** {funding_stage}\n"
-            "**Industry / Domain:** {industry_domain}\n\n"
+            "**Industry / Domain:** {industry}\n\n"
             "Retrieved Context:\n{retrieved_context}\n\n"
 
             "## Your Task\n"
@@ -773,7 +773,7 @@ class RecommendationsAgent(BaseAIAgent):
 
             "#### **Key Strengths Supporting Investment Consideration** {{#key-strengths-supporting-investment-consideration}}\n"
             "✅ **High Market Traction & Growth Metrics** – …\n"
-            "✅ **Scalable {industry_domain} Business Model** – …\n"
+            "✅ **Scalable {industry} Business Model** – …\n"
             "✅ **Potential for Strategic M&A Exit** – …\n\n"
 
             "#### **Key Investment Risks & Mitigation Strategies** {{#key-investment-risks-&-mitigation-strategies}}\n"
