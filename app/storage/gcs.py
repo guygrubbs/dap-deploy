@@ -95,7 +95,8 @@ def finalize_report_with_pdf(
     expiration_seconds: int = 3600,
     upload_to_supabase: bool = True,
     create_signed_url: bool = False,
-    user_email: Optional[str] = None  # <-- NEW PARAM
+    user_email: Optional[str] = None,
+    requestor_name: str = "there"
 ) -> None:
     """
     1) Uploads a PDF to GCS (in-memory),
@@ -142,6 +143,7 @@ def finalize_report_with_pdf(
                 supabase_info = upload_pdf_to_supabase(
                     user_id=user_id,
                     report_id=report_id,
+                    name=requestor_name,
                     pdf_file_path=temp_pdf_path,
                     user_email=user_email  # <-- PASS USER'S EMAIL
                 )

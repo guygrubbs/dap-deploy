@@ -24,13 +24,24 @@ logger = logging.getLogger(__name__)
 def _send_email_via_gmail(
     to_email: Union[str, List[str]],
     pdf_url: str,
+    requestor_name: str = "there",                    
     from_email: str = "noreply@righthandoperation.com",
-    subject: str = "Your PDF is ready!",
-    body_prefix: str = None
+    subject: str = "Your Investor Report is Ready" # ← UPDATED DEFAULT
 ):
     """
-    Sends an HTML email via the Gmail API using domain-wide delegated service
-    account credentials, BCC-ing two admin addresses.
+    Sends an HTML email via the Gmail API using a service-account credential.
+
+    Template used:
+
+        Subject: Your Investor Report is Ready
+
+        Hi {{requestor_name}},
+        Your custom investor-readiness report is now available.
+        Download it here: <link>
+        Please allow a few seconds for the file to load…
+        Looking for deeper insights? … (upgrade CTA)
+        …
+        — The GetReady.vc Team
     """
     SERVICE_ACCOUNT_JSON = os.getenv("SERVICE_ACCOUNT_JSON", "")
     if not SERVICE_ACCOUNT_JSON.strip():
@@ -42,24 +53,25 @@ def _send_email_via_gmail(
     delegated_credentials = credentials.with_subject(from_email)
     service = build("gmail", "v1", credentials=delegated_credentials)
 
-    if isinstance(to_email, str):
-        to_list = [to_email]
-    else:
-        to_list = to_email
+    to_list = [to_email] if isinstance(to_email, str) else to_email
 
     admin_bcc_list = [
         "shweta.mokashi@righthandoperation.com",
         "guy.grubbs@righthandoperation.com"
     ]
 
-    lines = []
-    if body_prefix:
-        lines.append(f"<p>{body_prefix}</p>")
-    lines.append(
-        f"<p>Your PDF is ready! "
-        f'<a href="{pdf_url}" target="_blank">Open your PDF here</a>.</p>'
-    )
-    html_content = "\n".join(lines)
+    # -------- new HTML body ---------
+    html_content = f"""
+    <p>Hi {requestor_name},</p>
+    <p>Your custom investor-readiness report is now available.</p>
+    <p><a href="{pdf_url}" target="_blank">Download it here</a></p>
+    <p>Please allow a few seconds for the file to load. This report was generated and reviewed by our internal team to help you see how your pitch deck is perceived by investors.</p>
+    <p><strong>Looking for deeper insights?</strong><br>
+       Upgrade to our full report with investment metrics, risk flags, and VC targeting strategies tailored to your startup.</p>
+    <p>Have questions? Just reply to this email or contact us at <a href="mailto:grow@getfreshventures.com">grow@getfreshventures.com</a>.</p>
+    <p>— The GetReady.vc Team</p>
+    """
+
     message = MIMEText(html_content, "html")
     message["to"] = ",".join(to_list)
     message["from"] = from_email
@@ -80,6 +92,7 @@ def upload_pdf_to_supabase(
     user_id: int,
     report_id: Union[str, uuid.UUID],
     pdf_file_path: str,
+    name: str = "there",
     bucket_name: str = "report-pdfs",
     user_email: Union[str, List[str], None] = None
 ) -> dict:
@@ -153,6 +166,7 @@ def upload_pdf_to_supabase(
         _send_email_via_gmail(
             to_email=user_email,
             pdf_url=public_url,
+            requestor_name=name,
             from_email="noreply@righthandoperation.com",
             subject="Your PDF is ready!",
             body_prefix="Hello!"

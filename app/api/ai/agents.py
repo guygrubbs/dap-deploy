@@ -303,13 +303,15 @@ class MarketAnalysisAgent(BaseAIAgent):
             "| Competitive Intensity | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
             "| Regulatory Complexity | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
             "| Customer Retention Dynamics | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
-            "*Use plain words such as Strong / Moderate / Weak and a matching color emoji.  "
-            "Base each status on retrieved evidence.\n\n"
+            "\n\n"
 
             "### Instructions\n"
             "1. Output **valid Markdown** only; keep every heading & anchor unchanged except where new anchors are specified above.\n"
             "2. All color-coded ratings must reflect evidence from `retrieved_context` (do **not** leave static placeholders).\n"
             "3. If data is missing, state “*Not publicly available*”.\n"
+            "4. Replace [🟢/🟡/🔴] with the correct color to match the rating for the category.\n"
+            "5. Use plain words such as Strong / Moderate / Weak and a matching color emoji.\n"
+            "6. Base each status on retrieved evidence.\n"
         )
         super().__init__(prompt_template)
 
@@ -407,13 +409,14 @@ class FinancialPerformanceAgent(BaseAIAgent):
             "| **Funding Transparency** | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
             "| **Burn Rate & Cash Flow Stability** | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
             "| **Profitability & Sustainability** | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
-            "*Use plain words such as Strong / Moderate / Weak and a matching color emoji.  "
-            "Base each status on retrieved evidence.\n\n"
+            "\n\n"
             "### Instructions\n"
             "1. Write your final answer in valid **Markdown**.\n"
             "2. For unknown data, you may use placeholders.\n"
             "3. Keep headings, subheadings, anchor tags exactly as shown.\n"
             "4. Replace [🟢/🟡/🔴] with the correct color to match the rating for the category.\n"
+            "5. Use plain words such as Strong / Moderate / Weak and a matching color emoji.\n"
+            "6. Base each status on retrieved evidence.\n"
         )
         super().__init__(prompt_template)
 
@@ -499,13 +502,15 @@ class GoToMarketAgent(BaseAIAgent):
             "| **Revenue Growth**              | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
             "| **Outbound Sales Effectiveness**| [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
             "| **Market Diversification**      | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
-            "*Use plain words such as Strong / Moderate / Weak and a matching color emoji.  "
-            "Base each status on retrieved evidence.\n\n"
+            "\n\n"
 
             "### Instructions\n"
             "1. Output valid **Markdown** only; keep all heading anchors intact.\n"
             "2. If data is missing, state “*Not publicly available*”.\n"
             "3. Ensure tone reflects **{funding_stage}** (experimental vs. scaled).\n"
+            "4. Replace [🟢/🟡/🔴] with the correct color to match the rating for the category.\n"
+            "5. Use plain words such as Strong / Moderate / Weak and a matching color emoji.\n"
+            "6. Base each status on retrieved evidence.\n"
         )
         super().__init__(prompt_template)
 
@@ -617,12 +622,14 @@ class LeadershipTeamAgent(BaseAIAgent):
             "| **Technical Leadership Depth**             | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
             "| **Sales & Business Development Scalability**| [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
             "| **Team Stability & Succession Planning**    | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
-            "*Use plain words such as Strong / Moderate / Weak and a matching color emoji.  "
-            "Base each status on retrieved evidence.\n\n"
+            "\n\n"
             "### Instructions\n"
             "1. Write your final answer in valid **Markdown**.\n"
             "2. Use placeholders or note gaps for unknown data.\n"
             "3. Retain the exact headings, subheadings, anchor tags as shown.\n"
+            "4. Replace [🟢/🟡/🔴] with the correct color to match the rating for the category.\n"
+            "5. Use plain words such as Strong / Moderate / Weak and a matching color emoji.\n"
+            "6. Base each status on retrieved evidence.\n"
         )
         super().__init__(prompt_template)
 
@@ -740,12 +747,14 @@ class InvestorFitAgent(BaseAIAgent):
             "| **Investor Sentiment & Market Trends**     | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
             "| **Funding & Exit Strategy Clarity**        | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
             "| **Risk Profile for Investors**             | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
-            "*Use plain words such as Strong / Moderate / Weak and a matching color emoji.  "
-            "Base each status on retrieved evidence.\n\n"
+            "\n\n"
             "### Instructions\n"
             "1. Write your final answer in valid **Markdown**.\n"
             "2. Use placeholders or note gaps for missing data.\n"
             "3. Keep the headings, subheadings, anchor tags, and tables exactly as shown.\n"
+            "4. Replace [🟢/🟡/🔴] with the correct color to match the rating for the category.\n"
+            "5. Use plain words such as Strong / Moderate / Weak and a matching color emoji.\n"
+            "6. Base each status on retrieved evidence.\n"            
         )
         super().__init__(prompt_template)
 
@@ -822,8 +831,7 @@ class RecommendationsAgent(BaseAIAgent):
             "| Funding Transparency & Reporting              | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
             "| Leadership Depth & Succession                 | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
             "| Exit Viability / M&A Potential                | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
-            "*Use plain words such as Strong / Moderate / Weak and a matching color emoji.  "
-            "Base each status on retrieved evidence.\n\n"
+            "\n\n"
 
             "### **Final Investment Recommendation** {{#final-investment-recommendation}}\n"
             "Provide a brief recommendation statement aligned with the above ratings.\n\n"
@@ -841,5 +849,8 @@ class RecommendationsAgent(BaseAIAgent):
             "1. Output valid **Markdown** only; keep every heading & anchor unchanged.\n"
             "2. Use the emoji scoring system exactly; no static placeholders.\n"
             "3. Each rating must include a short justification referencing context data.\n"
+            "4. Replace [🟢/🟡/🔴] with the correct color to match the rating for the category.\n"
+            "5. Use plain words such as Strong / Moderate / Weak and a matching color emoji.\n"
+            "6. Base each status on retrieved evidence.\n"
         )
         super().__init__(prompt_template)
