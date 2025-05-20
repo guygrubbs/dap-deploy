@@ -168,8 +168,7 @@ def upload_pdf_to_supabase(
             pdf_url=public_url,
             requestor_name=name,
             from_email="noreply@righthandoperation.com",
-            subject="Your PDF is ready!",
-            body_prefix="Hello!"
+            subject="Your PDF is ready!"
         )
     else:
         logger.info("No user_email provided; skipping email send.")
