@@ -222,7 +222,7 @@ def generate_full_report(
                 expiration_seconds=86400,
                 upload_to_supabase=True,
                 user_email=user_email,
-                name=report_model.requestor_name
+                requestor_name=report_model.requestor_name
             )
         except Exception as e:
             logger.error("Error uploading PDF: %s", str(e))
