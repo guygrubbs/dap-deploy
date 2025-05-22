@@ -23,7 +23,7 @@ from app.matching_engine.retrieval_utils import (
 logger = logging.getLogger(__name__)
 
 
-def generate_with_retry(agent, context: dict, section_name: str, max_attempts: int = 3, delay: int = 2) -> str:
+def generate_with_retry(agent, context: dict, section_name: str, max_attempts: int = 3, delay: int = 60) -> str:
     """
     Attempt to generate a report section with retries if any transient errors occur.
     """
@@ -44,8 +44,8 @@ def generate_with_retry(agent, context: dict, section_name: str, max_attempts: i
                 exc_info=True
             )
             if attempt < max_attempts:
-                logger.info("Retrying '%s' section generation in %s seconds...", section_name, delay)
-                time.sleep(delay)
+                logger.info("Retrying '%s' section generation in %s seconds...", section_name, delay*attempt)
+                time.sleep(delay*attempt)
 
     logger.error("All %s attempts failed for '%s' section. Marking as failed.", max_attempts, section_name)
     return f"Error generating {section_name}."
@@ -608,32 +608,32 @@ def generate_report(request_params: dict) -> dict:
     recommendations_agent = RecommendationsAgent()
 
     # Optional delays
-    time.sleep(90)  # demonstration minimal delay
+    time.sleep(30)  # demonstration minimal delay
 
     market_opportunity_competitive_landscape = generate_with_retry(
         market_opportunity_agent, section_context, "Market Opportunity & Competitive Landscape"
     )
-    time.sleep(90)
+    time.sleep(30)
 
     financial_performance_investment_readiness = generate_with_retry(
         financial_performance_agent, section_context, "Financial Performance & Investment Readiness"
     )
-    time.sleep(90)
+    time.sleep(30)
 
     go_to_market_strategy_customer_traction = generate_with_retry(
         gtm_strategy_agent, section_context, "Go-To-Market (GTM) Strategy & Customer Traction"
     )
-    time.sleep(90)
+    time.sleep(30)
 
     leadership_team = generate_with_retry(
         leadership_team_agent, section_context, "Leadership & Team"
     )
-    time.sleep(90)
+    time.sleep(30)
 
     investor_fit_exit_strategy_funding = generate_with_retry(
         investor_fit_agent, section_context, "Investor Fit, Exit Strategy & Funding Narrative"
     )
-    time.sleep(90)
+    time.sleep(30)
 
     # 3) Generate the Executive Summary (Section 1) referencing the previous sections
     summary_context = request_params.copy()
@@ -648,7 +648,7 @@ def generate_report(request_params: dict) -> dict:
     final_recommendations_next_steps = generate_with_retry(
         recommendations_agent, summary_context, "Final Recommendations & Next Steps"
     )
-    time.sleep(90)
+    time.sleep(30)
 
     # 3) Generate the Executive Summary (Section 1) referencing the previous sections
     summary_context = request_params.copy()
