@@ -62,7 +62,7 @@ def _send_email_via_gmail(
 
     # -------- new HTML body ---------
     html_content = f"""
-    <p>Hi {requestor_name},</p>
+    <p>Hi there,</p>
     <p>Your custom investor-readiness report is now available.</p>
     <p><a href="{pdf_url}" target="_blank">Download it here</a></p>
     <p>Please allow a few seconds for the file to load. This report was generated and reviewed by our internal team to help you see how your pitch deck is perceived by investors.</p>
