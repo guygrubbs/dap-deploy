@@ -277,12 +277,12 @@ class MarketAnalysisAgent(BaseAIAgent):
             "#### Competitive Positioning {{#competitive-positioning}}\n"
             "Summarize the company’s core advantages vs. competitors, factoring in {funding_stage} context.\n\n"
 
-            "##### Competitive Landscape {{#competitive-landscape}}\n"
+            "#### Competitive Landscape {{#competitive-landscape}}\n"
             "| Competitor | Market Focus | Key Strengths | Weaknesses / Gaps |\n"
             "| ---------- | ------------ | ------------- | ----------------- |\n"
             "|            |              |               |                   |\n\n"
 
-            "##### Competitive Action Items {{#competitive-action-items}}\n"
+            "#### Competitive Action Items {{#competitive-action-items}}\n"
             "- **Action 1:** _e.g., “Leverage lower pricing to undercut Competitor A’s enterprise premium.”_\n"
             "- **Action 2:** _e.g., “Develop missing Feature X to neutralize Competitor B’s advantage.”_\n"
             "- **Action 3:** _(optional)_\n\n"
@@ -290,10 +290,9 @@ class MarketAnalysisAgent(BaseAIAgent):
             "#### Key Market Takeaways {{#key-market-takeaways:}}\n"
             "- Bullet summary of the most important insights (size, growth, competition, retention cues).\n\n"
 
-            "##### Challenges & Expansion Opportunities {{#challenges-&-expansion-opportunities}}\n"
-            "###### Challenges {{#challenges:}}\n"
+            "#### Challenges {{#challenges:}}\n"
             "- List regulatory hurdles, competitive barriers, retention risks, etc.\n\n"
-            "###### Opportunities for Market Expansion {{#opportunities-for-market-expansion:}}\n"
+            "#### Opportunities for Market Expansion {{#opportunities-for-market-expansion:}}\n"
             "✅ Describe adjacent verticals / geographies the startup could pursue after initial traction.\n\n"
 
             "#### Market Fit Assessment {{#market-fit-assessment}}\n"
