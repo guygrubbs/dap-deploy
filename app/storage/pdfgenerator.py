@@ -167,7 +167,7 @@ def generate_pdf(
     founder_name: str = "Founder Name",
     founder_company: str = "Founder Company",
     founder_type: str = "Founder Type",
-    prepared_by: Optional[str] = None,  # Now truly optional
+    prepared_by: Optional[str] = "Shweta Mokashi, Right Hand Operation",
     output_path: str = None
 ) -> Union[bytes, str]:
     """
@@ -175,10 +175,13 @@ def generate_pdf(
 
     The resulting PDF includes:
     - A cover page (from the HTML template).
-    - A dynamic Table of Contents referencing each 'section'.
-    - Section content with pagination logic.
-    - Additional fields (founder_name, founder_company, etc.) are replaced in the content.
+    - A dynamic Table of Contents referencing each section (with internal links).
+    - Section content is converted from Markdown to HTML and assembled with appropriate page breaks.
+    - Additional fields (founder_name, company_name, etc.) are substituted into the template and content.
 
+    WeasyPrint is used for rendering the PDF, so ensure the HTML/CSS use supported features (e.g., CSS for styling, anchor links for TOC). 
+    If any required feature isn't supported by WeasyPrint (e.g., certain CSS layouts), consider a simpler alternative or workaround in the template/CSS.
+    
     If 'output_path' is provided, the PDF is written to that file path.
     Otherwise, the function returns a bytes object containing the PDF data.
     """
@@ -192,7 +195,7 @@ def generate_pdf(
     current_page = section_start_page
     current_page_content_height = 0
 
-    # 3) Preprocess each 'section' to handle subsections, pagination
+    # 3) Preprocess each section to handle subsections and estimate pagination
     for i, section in enumerate(tier2_sections):
         section["clean_title"] = clean_title(section["title"])
         if "subsections" not in section or not section["subsections"]:
@@ -205,7 +208,7 @@ def generate_pdf(
 
         content_height = estimate_content_height(section["content"], len(section["subsections"]))
 
-        # Force a new page for each main section (except maybe the first)
+        # Force a new page for each main section (except the first, which may start on page 3)
         if i > 0:
             current_page += 1
             current_page_content_height = 0
@@ -237,8 +240,9 @@ def generate_pdf(
                     f'</div>\n'
                 )
     toc_html += '</div>'
+    # Note: The anchors (href="#...") above will be included as clickable links in the PDF by WeasyPrint.
 
-    # 5) Convert each section's content to HTML and assemble
+    # 5) Convert each section's content to HTML and assemble into pages
     sections_html = ""
     for i, section in enumerate(tier2_sections, start=1):
         section_id = f"section-{i}"
@@ -248,13 +252,14 @@ def generate_pdf(
         section_html += '<div class="page-content">\n'
         section_html += f'<h2 id="{section_id}">Section {i}: {section["clean_title"]}</h2>\n'
 
+        # Convert markdown content to HTML (with section-specific styling)
         content_html = convert_markdown_to_html(
             section["content"],
             i,
             section["clean_title"]
         )
 
-        # Insert IDs for subsections
+        # Insert IDs into subsection headings (<h3>) for linking
         for j, subsection in enumerate(section["subsections"]):
             subsection_id = subsection["id"]
             subsection_title = clean_title(subsection["title"])
@@ -263,11 +268,13 @@ def generate_pdf(
             replacement = f'<h3 id="{subsection_id}">\\1{subsection_title}</h3>'
             content_html = re.sub(heading_pattern, replacement, content_html)
 
-        # Replace placeholders with user-supplied data
+        # Replace placeholders in the content (support both new and legacy keys)
         content_html = content_html.replace("{founder_name}", founder_name)
         content_html = content_html.replace("{founder_company}", founder_company)
+        content_html = content_html.replace("{company_name}", founder_company)
         content_html = content_html.replace("{founder_type}", founder_type)
-        # Removed references to {company_description}
+        content_html = content_html.replace("{company_type}", founder_type)
+        # {company_description} is not used in the new template (removed)
 
         section_html += content_html
         section_html += '</div>\n'
@@ -275,7 +282,7 @@ def generate_pdf(
         section_html += '</div>\n'
         sections_html += section_html
 
-    # 6) Fill in the template with dynamic fields
+    # 6) Fill in the template with dynamic values
     date_str = datetime.now().strftime("%b %d, %Y")
     final_prepared_by = prepared_by or "Brendan Smith, Get Fresh Ventures"
 
@@ -284,6 +291,7 @@ def generate_pdf(
         report_title=report_title,
         founder_name=founder_name,
         founder_company=founder_company,
+        company_name=founder_company,  # map founder_company to {company_name} in template
         founder_type=founder_type,
         prepared_by=final_prepared_by,
         date=date_str,
@@ -292,10 +300,10 @@ def generate_pdf(
         assets_dir=ASSETS_DIR
     )
 
-    # 7) Ensure an output directory
+    # 7) Ensure the output directory exists
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    # Optionally save debug HTML
+    # Optionally save the filled HTML for debugging
     debug_html_path = os.path.join(OUTPUT_DIR, "debug_output.html")
     with open(debug_html_path, "w", encoding="utf-8") as html_file:
         html_file.write(filled_html)
@@ -304,8 +312,9 @@ def generate_pdf(
     pdf_bytes = HTML(string=filled_html, base_url=BASE_DIR).write_pdf(
         stylesheets=[CSS(string=css_content)]
     )
+    # base_url=BASE_DIR ensures relative asset paths (e.g., images in 'assets/') and internal links are resolved
 
-    # 9) Return or save
+    # 9) Return the PDF bytes or save to file
     if output_path:
         with open(output_path, "wb") as pdf_file:
             pdf_file.write(pdf_bytes)
@@ -324,8 +333,8 @@ if __name__ == "__main__":
     founder_company = "TechSolutions Inc."
     founder_type = "SaaS Platform"
 
-    # Suppose you have some 'tier2_sections' from an orchestrator
-    # For demonstration, we might reference a local sample
+    # Suppose you have some 'tier2_sections' from an orchestrator (e.g., AI output)
+    # For demonstration, use a sample sections list if available
     from sample_sections import investment_report_sections  # Example reference
 
     # Generate a PDF
