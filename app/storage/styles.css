@@ -4,7 +4,7 @@
   @bottom-right {
       content: counter(page);
       font-family: 'Arial', sans-serif;
-      font-size: 10pt;
+      font-size: 11pt;
   }
 }
 
@@ -217,17 +217,21 @@ table {
   width: 100%;
   border-collapse: collapse;
   margin: 0.5cm 0;
+  page-break-inside: avoid;  /* Older CSS name for avoiding page breaks inside */
+  break-inside: avoid;       /* Standard CSS3 name, ensures no column/page breaks inside */
 }
 
 th, td {
   border: 1px solid #cbd5e0;
   padding: 8px 12px;
   text-align: left;
+  page-break-inside: avoid;
 }
 
 /* Table header style */
 th {
   font-weight: bold;
+  page-break-inside: avoid;
 }
 
 /* Section-specific table header colors */

@@ -66,10 +66,8 @@ def _send_email_via_gmail(
     <p>Your custom investor-readiness report is now available.</p>
     <p><a href="{pdf_url}" target="_blank">Download it here</a></p>
     <p>Please allow a few seconds for the file to load. This report was generated and reviewed by our internal team to help you see how your pitch deck is perceived by investors.</p>
-    <p><strong>Looking for deeper insights?</strong><br>
-       Upgrade to our full report with investment metrics, risk flags, and VC targeting strategies tailored to your startup.</p>
-    <p>Have questions? Just reply to this email or contact us at <a href="mailto:grow@getfreshventures.com">grow@getfreshventures.com</a>.</p>
-    <p>— The GetReady.vc Team</p>
+    <p>Have questions? Just reply to this email or contact us at <a href="mailto:info@righthandoperation.com">info@righthandoperation.com</a>.</p>
+    <p>— The Right Hand Operation Team</p>
     """
 
     message = MIMEText(html_content, "html")
