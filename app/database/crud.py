@@ -1,86 +1,133 @@
-import json
+"""
+CRUD helpers for the analysis-request pipeline.
+
+All writes now target `analysis_requests`—the table that exists in
+Supabase—so we never touch the old `reports` table (and thus avoid the
+foreign-key constraint that caused 500 errors).
+"""
+
 import uuid
 from datetime import datetime
-from typing import Union, Optional, Dict, Any
-from sqlalchemy.orm import Session
-from app.database.models import Report
+from typing import Any, Dict, Optional, Union
+
 from pydantic import UUID4
+from sqlalchemy.orm import Session
 
-from app.database.models import Report
+from app.database.models import AnalysisRequest
 
-def create_report_entry(
+
+# ────────────────────────────────────────────────────────────────────────────────
+# CREATE
+# ────────────────────────────────────────────────────────────────────────────────
+def create_analysis_request_entry(
     db: Session,
-    title: str,
+    *,
     user_id: UUID4,
-    startup_id: Optional[UUID4],
-    report_type: Optional[str],
-    requestor_name: Optional[str],
-    founder_name: Optional[str],
-    founder_company: Optional[str],
-    founder_type: Optional[str],
-    company_name: Optional[str],
-    industry: Optional[str],
-    funding_stage: Optional[str],
-    pitch_deck_url: Optional[str],
-    parameters: Optional[Dict[str, Any]]
-) -> Report:
+    requestor_name: str,
+    email: str,
+    founder_company: str,
+    founder_name: Optional[str] = None,
+    industry: Optional[str] = None,
+    funding_stage: Optional[str] = None,
+    company_type: Optional[str] = None,
+    pitch_deck_url: Optional[str] = None,
+    additional_info: Optional[str] = None,
+    parameters: Optional[Dict[str, Any]] = None,
+) -> AnalysisRequest:
     """
-    Create a new report record with top-level fields and JSON parameters.
+    Insert a new row into `analysis_requests`.
+
+    `company_name` is hard-coded to "Right Hand Operation".
+    `additional_info` is stored as:
+
+        "Founder Company: <founder_company>\\n<additional_info>"
     """
-    report = Report(
-        title=title,
+    full_additional = f"Founder Company: {founder_company}\n{additional_info or ''}"
+
+    req = AnalysisRequest(
         user_id=user_id,
-        startup_id=startup_id,
-        report_type=report_type,
+        company_name="Right Hand Operation",
         requestor_name=requestor_name,
+        email=email,
         founder_name=founder_name,
-        founder_company=founder_company,
-        company_name=company_name,
-        founder_type=founder_type,
         industry=industry,
         funding_stage=funding_stage,
+        company_type=company_type,
         pitch_deck_url=pitch_deck_url,
+        additional_info=full_additional,
         status="pending",
-        parameters=parameters or {}
+        parameters=parameters or {},
     )
-    db.add(report)
+
+    db.add(req)
     db.commit()
-    db.refresh(report)
-    return report
+    db.refresh(req)
+    return req
 
 
-def get_report_by_id(db: Session, report_id: Union[str, uuid.UUID]) -> Optional[Report]:
-    return db.query(Report).filter(Report.id == report_id).first()
+# ────────────────────────────────────────────────────────────────────────────────
+# READ
+# ────────────────────────────────────────────────────────────────────────────────
+def get_analysis_request_by_id(
+    db: Session, request_id: Union[str, uuid.UUID]
+) -> Optional[AnalysisRequest]:
+    """Return the analysis-request row or None."""
+    return db.query(AnalysisRequest).filter(AnalysisRequest.id == request_id).first()
 
 
-def update_report_status(db: Session, report_id: Union[str, uuid.UUID], new_status: str) -> None:
-    report = get_report_by_id(db, report_id)
-    if report:
-        report.status = new_status
-        if new_status.lower() == "completed":
-            report.completed_at = datetime.utcnow()
-        db.commit()
-
-
-def update_report_sections(db: Session, report_id: Union[str, uuid.UUID], sections_dict: Dict[str, str]) -> None:
+# ────────────────────────────────────────────────────────────────────────────────
+# UPDATE – status
+# ────────────────────────────────────────────────────────────────────────────────
+def update_analysis_request_status(
+    db: Session, request_id: Union[str, uuid.UUID], new_status: str
+) -> None:
     """
-    Example: store AI-generated sections in the 'parameters' JSON 
-    under a 'generated_sections' key.
+    Change `status` ('pending' → 'processing' → 'completed'/'failed') and
+    update the timestamp.  If status == 'completed', also set `updated_at`.
     """
-    report = get_report_by_id(db, report_id)
-    if report:
-        if not report.parameters:
-            report.parameters = {}
-        report.parameters["generated_sections"] = sections_dict
-        db.commit()
+    req = get_analysis_request_by_id(db, request_id)
+    if not req:
+        return
+
+    req.status = new_status
+    req.updated_at = datetime.utcnow()
+
+    db.commit()
 
 
-def get_report_content(db: Session, report_id: Union[str, uuid.UUID]) -> Dict[str, Any]:
+# ────────────────────────────────────────────────────────────────────────────────
+# UPDATE – generated sections (optional helper)
+# ────────────────────────────────────────────────────────────────────────────────
+def save_generated_sections(
+    db: Session, request_id: Union[str, uuid.UUID], sections: Dict[str, str]
+) -> None:
     """
-    Return any structured content from DB (like sections).
-    In this example, we look for 'generated_sections' in the parameters.
+    Persist AI-generated sections into `parameters.generated_sections`.
     """
-    report = get_report_by_id(db, report_id)
-    if not report:
+    req = get_analysis_request_by_id(db, request_id)
+    if not req:
+        return
+
+    if req.parameters is None:
+        req.parameters = {}
+
+    req.parameters["generated_sections"] = sections
+    req.updated_at = datetime.utcnow()
+    db.commit()
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# READ – generated sections (optional helper)
+# ────────────────────────────────────────────────────────────────────────────────
+def get_generated_sections(
+    db: Session, request_id: Union[str, uuid.UUID]
+) -> Dict[str, Any]:
+    """
+    Convenience getter for whatever was previously saved by
+    `save_generated_sections`.
+    """
+    req = get_analysis_request_by_id(db, request_id)
+    if not req or not req.parameters:
         return {}
-    return report.parameters.get("generated_sections", {})
+
+    return req.parameters.get("generated_sections", {})

@@ -1,47 +1,80 @@
-from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, UUID4
+from __future__ import annotations
 
-class CreateReportRequest(BaseModel):
+from datetime import datetime
+from typing import Optional, Dict, Any, List
+
+from pydantic import BaseModel, EmailStr, Field, UUID4   # UUID4 -> validates v4 only :contentReference[oaicite:1]{index=1}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  INBOUND  (create-request payload)
+# ──────────────────────────────────────────────────────────────────────────────
+class AnalysisRequestIn(BaseModel):
+    """
+    Payload expected by POST /api/reports.
+    Only the fields that map to `analysis_requests` are retained.
+    """
     user_id: UUID4
-    startup_id: Optional[UUID4] = None
-    requestor_name: Optional[str] = None
+    requestor_name: str
+    email: EmailStr
+    founder_company: str                     # required so we can prepend in `additional_info`
     founder_name: Optional[str] = None
-    founder_company: Optional[str] = None
-    founder_type: Optional[str] = None
-    company_name: Optional[str] = None
     industry: Optional[str] = None
     funding_stage: Optional[str] = None
+    company_type: Optional[str] = None
     pitch_deck_url: Optional[str] = None
-    report_type: Optional[str] = None
-    title: Optional[str] = 'Due Diligence Report'
+    additional_info: Optional[str] = None   # free-text from the form
+    parameters: Optional[Dict[str, Any]] = None  # stays for misc meta (safe in JSONB)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  OUTBOUND  (single row echo-back)
+# ──────────────────────────────────────────────────────────────────────────────
+class AnalysisRequestOut(BaseModel):
+    """
+    Row returned after insert (initially status == 'pending').
+    Mirrors `analysis_requests` columns + convenience fields.
+    """
+    id: UUID4
+    user_id: UUID4
+    company_name: str = "Right Hand Operation"
+    requestor_name: str
+    email: EmailStr
+    founder_name: Optional[str] = None
+    industry: Optional[str] = None
+    funding_stage: Optional[str] = None
+    company_type: Optional[str] = None
+    pitch_deck_url: Optional[str] = None
+    additional_info: Optional[str] = None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    external_request_id: Optional[str] = None
     parameters: Optional[Dict[str, Any]] = None
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  OPTIONAL  – structured report body once the PDF is generated
+# ──────────────────────────────────────────────────────────────────────────────
 class ReportSection(BaseModel):
-    id: str
+    """Recursive tree for section rendering in the UI."""
+    id: str = Field(..., description="slug or heading anchor")
     title: str
     content: str
     sub_sections: List["ReportSection"] = []
 
-class ReportResponse(BaseModel):
-    id: UUID4  # ← Use UUID4 instead of int
-    title: str
-    status: str
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
-    progress: int
-    startup_id: Optional[UUID4] = None
-    user_id: Optional[UUID4] = None
-    report_type: Optional[str] = None
-    parameters: Optional[Dict[str, Any]] = None
-    sections: List[ReportSection]
-    signed_pdf_download_url: Optional[str] = None
 
 class ReportContentResponse(BaseModel):
-    url: Optional[str] = None
+    """
+    Returned by GET /api/reports/{id}/content (after generation).
+    """
     status: str
+    url: Optional[str] = None          # public PDF url (deal_reports.pdf_url)
     sections: List[ReportSection]
 
+
 class ReportStatusResponse(BaseModel):
+    """Light-weight polling endpoint."""
+    report_id: UUID4
     status: str
-    progress: int
-    report_id: UUID4  # ← If your route param is also a UUID
+    progress: int = 0                  # optional % filled by edge function
