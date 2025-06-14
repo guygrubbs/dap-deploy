@@ -1,40 +1,13 @@
-from __future__ import annotations
-
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 
-from pydantic import BaseModel, EmailStr, Field, UUID4   # UUID4 -> validates v4 only :contentReference[oaicite:1]{index=1}
+from pydantic import BaseModel, EmailStr, Field, UUID4
 
+# INBOUND schema (AnalysisRequestIn) is removed, as the backend no longer accepts 
+# direct creation of analysis requests via API.
 
-# ──────────────────────────────────────────────────────────────────────────────
-#  INBOUND  (create-request payload)
-# ──────────────────────────────────────────────────────────────────────────────
-class AnalysisRequestIn(BaseModel):
-    """
-    Payload expected by POST /api/reports.
-    Only the fields that map to `analysis_requests` are retained.
-    """
-    user_id: UUID4
-    requestor_name: str
-    email: EmailStr
-    founder_company: str                     # required so we can prepend in `additional_info`
-    founder_name: Optional[str] = None
-    industry: Optional[str] = None
-    funding_stage: Optional[str] = None
-    company_type: Optional[str] = None
-    pitch_deck_url: Optional[str] = None
-    additional_info: Optional[str] = None   # free-text from the form
-    parameters: Optional[Dict[str, Any]] = None  # stays for misc meta (safe in JSONB)
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-#  OUTBOUND  (single row echo-back)
-# ──────────────────────────────────────────────────────────────────────────────
+# OUTBOUND schema – reflects a row in analysis_requests table
 class AnalysisRequestOut(BaseModel):
-    """
-    Row returned after insert (initially status == 'pending').
-    Mirrors `analysis_requests` columns + convenience fields.
-    """
     id: UUID4
     user_id: UUID4
     company_name: str = "Right Hand Operation"
@@ -52,29 +25,21 @@ class AnalysisRequestOut(BaseModel):
     external_request_id: Optional[str] = None
     parameters: Optional[Dict[str, Any]] = None
 
-
-# ──────────────────────────────────────────────────────────────────────────────
-#  OPTIONAL  – structured report body once the PDF is generated
-# ──────────────────────────────────────────────────────────────────────────────
+# Report content section models (unchanged) ...
 class ReportSection(BaseModel):
-    """Recursive tree for section rendering in the UI."""
     id: str = Field(..., description="slug or heading anchor")
     title: str
     content: str
     sub_sections: List["ReportSection"] = []
 
-
 class ReportContentResponse(BaseModel):
-    """
-    Returned by GET /api/reports/{id}/content (after generation).
-    """
+    """Returned by GET /api/reports/{id}/content after generation."""
     status: str
-    url: Optional[str] = None          # public PDF url (deal_reports.pdf_url)
+    url: Optional[str] = None           # public PDF URL (from deal_reports or parameters):contentReference[oaicite:14]{index=14}
     sections: List[ReportSection]
 
-
 class ReportStatusResponse(BaseModel):
-    """Light-weight polling endpoint."""
+    """Light-weight status check for a report generation."""
     report_id: UUID4
     status: str
-    progress: int = 0                  # optional % filled by edge function
+    progress: int = 0

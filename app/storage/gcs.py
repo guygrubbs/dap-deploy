@@ -97,25 +97,26 @@ def finalize_report_with_pdf(
     create_signed_url: bool = False,
     user_email: Optional[str] = None,
     requestor_name: str = "there"
-) -> None:
+) -> dict:
     """
     1) Uploads a PDF to GCS (in-memory),
     2) Optionally generates a signed URL from GCS,
     3) Uploads the same PDF to Supabase (using a local temp file),
     4) Notifies Supabase that the final report is ready.
+
     If `user_email` is provided, it can be used to send an email with the PDF link.
     """
     try:
         # 1) Upload PDF to GCS
         blob_name = upload_pdf(report_id, pdf_data)
 
-        # 2) Generate the signed URL (optional)
+        # 2) (Optional) Generate a signed URL for the GCS file
         if create_signed_url:
             signed_url = generate_signed_url(blob_name, expiration_seconds=expiration_seconds)
         else:
             signed_url = "N/A"
 
-        # 3) Build the final data object
+        # 3) Prepare final report data payload (for notifications or future use)
         final_report_data = {
             "report_id": report_id,
             "status": "completed",
@@ -123,49 +124,35 @@ def finalize_report_with_pdf(
             "sections": final_report_sections
         }
 
-        # 4) If desired, also upload to Supabase
+        # 4) Upload PDF to Supabase storage (if enabled)
         supabase_info = {}
         if upload_to_supabase:
             logger.info("Uploading PDF to Supabase for user_id=%s report_id=%s", user_id, report_id)
-
-            # Use a fixed temporary file name in the same folder as gcs.py
             temp_pdf_path = os.path.join(os.path.dirname(__file__), "temp_supabase_report.pdf")
-
-            # Remove old temp file if present
             if os.path.exists(temp_pdf_path):
                 os.remove(temp_pdf_path)
-
-            # Write new PDF to the temp file
             with open(temp_pdf_path, "wb") as tmp_file:
                 tmp_file.write(pdf_data)
-
             try:
                 supabase_info = upload_pdf_to_supabase(
                     user_id=user_id,
                     report_id=report_id,
                     name=requestor_name,
                     pdf_file_path=temp_pdf_path,
-                    user_email=user_email  # <-- PASS USER'S EMAIL
+                    user_email=user_email
                 )
             finally:
-                # Clean up the temp file
                 if os.path.exists(temp_pdf_path):
                     os.remove(temp_pdf_path)
-
             final_report_data["supabase_storage_path"] = supabase_info.get("storage_path")
             final_report_data["supabase_public_url"] = supabase_info.get("public_url")
 
-        # 5) Notify Supabase that the final report is ready
+        # 5) Trigger Supabase notification (no-op for DB, but could email user)
         notify_supabase_final_report(report_id, final_report_data, user_id)
-        logger.info(
-            "PDF upload complete and Supabase final report notification triggered for report %s",
-            report_id
-        )
+        logger.info("PDF upload complete and Supabase notification triggered for report %s", report_id)
+
+        return supabase_info  # NEW: Return storage info (especially public_url) to caller
 
     except Exception as e:
-        logger.error(
-            "Failed to finalize report %s with PDF for user_id %s: %s",
-            report_id, user_id, str(e),
-            exc_info=True
-        )
+        logger.error("Failed to finalize report %s with PDF: %s", report_id, str(e), exc_info=True)
         raise

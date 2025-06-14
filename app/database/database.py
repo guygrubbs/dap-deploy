@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from typing import Generator
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 # --------------------------------------------------------------------------- #
 # Environment
@@ -60,7 +60,7 @@ Base = declarative_base()  # other modules import this for model definitions.  :
 # Dependency helpers
 # --------------------------------------------------------------------------- #
 @contextmanager
-def db_session() -> Generator[SessionLocal, None, None]:
+def db_session() -> Generator[Session, None, None]:
     """
     Context-manager version::
 
