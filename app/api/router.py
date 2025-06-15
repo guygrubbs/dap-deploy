@@ -28,7 +28,7 @@ from app.database.crud import (
     get_generated_sections,
 )
 from app.database.database import db_session
-from app.api.ai.orchestrator import generate_report
+from app.api.ai.orchestrator import generate_report, generate_structured_summary
 from app.storage.pdfgenerator import generate_pdf
 from app.storage.gcs import finalize_report_with_pdf
 from app.notifications.supabase_notifier import supabase    # NEW: Supabase client for DB inserts
@@ -111,6 +111,8 @@ def generate_full_report(
         # 3. Generate report sections using AI orchestrator
         ai_sections: Dict[str, str] = generate_report(params)
 
+        structured_summaries = generate_structured_summary(ai_sections, params)
+
         # 4. Save generated sections into the request record (parameters.generated_sections)
         save_generated_sections(db, request_id, ai_sections)
 
@@ -135,8 +137,12 @@ def generate_full_report(
             founder_name=req.founder_name or "",
             founder_company=founder_co,
             founder_type=req.company_type or "",
-            output_path=None,
+            output_path="",
         )
+        # Ensure pdf_bytes is bytes type for finalize_report_with_pdf
+        if isinstance(pdf_bytes, str):
+            raise ValueError("Expected bytes from generate_pdf but got str")
+        pdf_bytes = bytes(pdf_bytes) if not isinstance(pdf_bytes, bytes) else pdf_bytes
 
         # 6. Upload PDF to storage and send notification email (returns public URL info)
         supabase_info = finalize_report_with_pdf(
@@ -177,62 +183,24 @@ def generate_full_report(
         except Exception as e:
             logger.error("Error saving deal report record: %s", e, exc_info=True)
         try:
-            # Insert into deal_report_summaries with structured JSON content
+            # Insert into deal_report_summaries with OpenAI-generated structured JSON content
             structured_summary = {
                 "deal_id": deal_id,
                 "company_name": founder_co or "Unknown Company",
-                "executive_summary": json.dumps({
-                    "context_purpose": f"This Executive Summary provides a comprehensive assessment of {founder_co}.",
-                    "investment_attractiveness": {
-                        "level": "moderate",
-                        "description": "Assessment pending completion of external analysis"
-                    },
-                    "key_metrics": [],
-                    "strengths": ["Analysis in progress"],
-                    "challenges": ["Analysis in progress"]
-                }),
-                "strategic_recommendations": json.dumps({
-                    "recommendations": [
-                        {
-                            "priority": "high",
-                            "timeframe": "0-3 Months",
-                            "items": ["Analysis in progress"]
-                        }
-                    ]
-                }),
-                "market_analysis": json.dumps({
-                    "executive_summary": "Market analysis in progress",
-                    "trends": [],
-                    "opportunity": {"description": "Analysis pending", "value": "TBD"},
-                    "challenges": {"description": "Analysis pending", "status": "🟡 In Progress"}
-                }),
-                "financial_overview": json.dumps({
-                    "metrics": [],
-                    "risks": ["Analysis in progress"],
-                    "recommendations": ["Analysis in progress"]
-                }),
-                "competitive_landscape": json.dumps({
-                    "positioning": "Analysis in progress",
-                    "competitors": [],
-                    "advantages": []
-                }),
-                "action_plan": json.dumps({
-                    "timeframes": [],
-                    "final_call_to_action": {
-                        "title": "Analysis in Progress",
-                        "sections": []
-                    }
-                }),
-                "investment_readiness": json.dumps({
-                    "title": "Investment Readiness Assessment",
-                    "categories": []
-                }),
-                "key_metrics": {"external_report_id": str(req.id), "api_status": "submitted"},
-                "financial_projections": {"status": "pending", "external_report_id": str(req.id)}
+                "executive_summary": json.dumps(structured_summaries.get("executive_summary", {})),
+                "strategic_recommendations": json.dumps(structured_summaries.get("strategic_recommendations", {})),
+                "market_analysis": json.dumps(structured_summaries.get("market_analysis", {})),
+                "financial_overview": json.dumps(structured_summaries.get("financial_overview", {})),
+                "competitive_landscape": json.dumps(structured_summaries.get("competitive_landscape", {})),
+                "action_plan": json.dumps(structured_summaries.get("action_plan", {})),
+                "investment_readiness": json.dumps(structured_summaries.get("investment_readiness", {})),
+                "key_metrics": {"external_report_id": str(req.id), "api_status": "completed"},
+                "financial_projections": {"status": "completed", "external_report_id": str(req.id)}
             }
             supabase.table("deal_report_summaries").insert(structured_summary).execute()
+            logger.info("Successfully inserted OpenAI-generated structured summary for deal_id: %s", deal_id)
         except Exception as e:
-            logger.error("Error saving report summary placeholder: %s", e, exc_info=True)
+            logger.error("Error saving OpenAI-generated report summary: %s", e, exc_info=True)
 
         # At this point, the analysis request is completed and the PDF URL is stored:contentReference[oaicite:5]{index=5}.
         # The front-end can retrieve the PDF via GET /api/reports/{id}/content or directly from deal_reports.

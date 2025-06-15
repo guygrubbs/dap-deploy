@@ -12,7 +12,8 @@ from app.api.ai.agents import (
     GoToMarketAgent,                 # Section 4: Go-To-Market (GTM) Strategy & Customer Traction
     LeadershipTeamAgent,             # Section 5: Leadership & Team
     InvestorFitAgent,                # Section 6: Investor Fit, Exit Strategy & Funding Narrative
-    RecommendationsAgent             # Section 7: Final Recommendations & Next Steps
+    RecommendationsAgent,            # Section 7: Final Recommendations & Next Steps
+    SummaryGenerationAgent           # NEW: Convert report content to structured JSON
 )
 
 from app.matching_engine.retrieval_utils import (
@@ -695,3 +696,52 @@ def generate_report(request_params: dict) -> dict:
 
     logger.info("Report generation complete. Section statuses: %s", status_summary)
     return full_report
+
+
+def generate_structured_summary(report_sections: dict, request_params: dict) -> dict:
+    """
+    Converts generated report sections into structured JSON format for frontend consumption.
+    
+    Args:
+        report_sections: Dictionary of generated report sections from generate_report()
+        request_params: Original request parameters for context
+        
+    Returns:
+        dict: Structured JSON data for each summary section
+    """
+    logger.info("Starting structured summary generation")
+    
+    report_content = ""
+    for section_name, content in report_sections.items():
+        report_content += f"\n\n## {section_name.replace('_', ' ').title()}\n{content}"
+    
+    summary_context = request_params.copy()
+    summary_context["report_content"] = report_content
+    
+    summary_agent = SummaryGenerationAgent()
+    try:
+        json_response = generate_with_retry(
+            summary_agent, 
+            summary_context, 
+            "Structured JSON Summary"
+        )
+        
+        import json
+        structured_data = json.loads(json_response)
+        logger.info("Successfully generated structured summary JSON")
+        return structured_data
+        
+    except json.JSONDecodeError as e:
+        logger.error("Failed to parse JSON from summary agent: %s", e)
+        return {
+            "executive_summary": {},
+            "strategic_recommendations": {},
+            "market_analysis": {},
+            "financial_overview": {},
+            "competitive_landscape": {},
+            "action_plan": {},
+            "investment_readiness": {}
+        }
+    except Exception as e:
+        logger.error("Error generating structured summary: %s", e, exc_info=True)
+        raise e

@@ -853,3 +853,121 @@ class RecommendationsAgent(BaseAIAgent):
             "6. Base each status on retrieved evidence.\n"
         )
         super().__init__(prompt_template)
+
+
+# ---------------------------------------------------------------
+# ---------------------------------------------------------------
+class SummaryGenerationAgent(BaseAIAgent):
+    """
+    AI Agent for generating structured JSON summaries from report content.
+    Takes the generated markdown report sections and converts them into
+    the structured JSON format expected by the frontend.
+    """
+    def __init__(self):
+        prompt_template = (
+            "You are an expert data analyst tasked with converting investment report content "
+            "into structured JSON format for frontend consumption. You must extract key information "
+            "from the provided report sections and format it according to the exact JSON schema specified.\n\n"
+            
+            "**Company:** {founder_company}\n"
+            "**Founder:** {founder_name}\n"
+            "**Industry:** {industry}\n"
+            "**Stage:** {funding_stage}\n\n"
+            
+            "**Generated Report Sections:**\n{report_content}\n\n"
+            
+            "## Your Task\n"
+            "Convert the above report content into structured JSON for each of these sections:\n"
+            "1. executive_summary\n"
+            "2. strategic_recommendations\n" 
+            "3. market_analysis\n"
+            "4. financial_overview\n"
+            "5. competitive_landscape\n"
+            "6. action_plan\n"
+            "7. investment_readiness\n\n"
+            
+            "## JSON Schema Requirements\n"
+            "Return ONLY a valid JSON object with this exact structure:\n"
+            "```json\n"
+            "{\n"
+            '  "executive_summary": {\n'
+            '    "context_purpose": "Brief description of the assessment",\n'
+            '    "investment_attractiveness": {\n'
+            '      "level": "high|moderate|low",\n'
+            '      "description": "Explanation of investment potential"\n'
+            '    },\n'
+            '    "key_metrics": ["metric1", "metric2"],\n'
+            '    "strengths": ["strength1", "strength2"],\n'
+            '    "challenges": ["challenge1", "challenge2"]\n'
+            '  },\n'
+            '  "strategic_recommendations": {\n'
+            '    "recommendations": [\n'
+            '      {\n'
+            '        "priority": "high|medium|low",\n'
+            '        "timeframe": "0-3 Months|3-6 Months|6-12 Months",\n'
+            '        "items": ["action1", "action2"]\n'
+            '      }\n'
+            '    ]\n'
+            '  },\n'
+            '  "market_analysis": {\n'
+            '    "executive_summary": "Market overview",\n'
+            '    "trends": ["trend1", "trend2"],\n'
+            '    "opportunity": {"description": "Market opportunity", "value": "Market size"},\n'
+            '    "challenges": {"description": "Market challenges", "status": "🟢|🟡|🔴 Status"}\n'
+            '  },\n'
+            '  "financial_overview": {\n'
+            '    "metrics": ["metric1", "metric2"],\n'
+            '    "risks": ["risk1", "risk2"],\n'
+            '    "recommendations": ["rec1", "rec2"]\n'
+            '  },\n'
+            '  "competitive_landscape": {\n'
+            '    "positioning": "Competitive position description",\n'
+            '    "competitors": [\n'
+            '      {\n'
+            '        "name": "Competitor Name",\n'
+            '        "strengths": ["strength1"],\n'
+            '        "weaknesses": ["weakness1"]\n'
+            '      }\n'
+            '    ],\n'
+            '    "advantages": ["advantage1", "advantage2"]\n'
+            '  },\n'
+            '  "action_plan": {\n'
+            '    "timeframes": [\n'
+            '      {\n'
+            '        "period": "Short-term (1-3 months)",\n'
+            '        "color": "red|yellow|green",\n'
+            '        "icon_type": "target|clock|trending",\n'
+            '        "actions": ["action1", "action2"]\n'
+            '      }\n'
+            '    ],\n'
+            '    "final_call_to_action": {\n'
+            '      "title": "Next Steps Title",\n'
+            '      "sections": [\n'
+            '        {\n'
+            '          "title": "Section Title",\n'
+            '          "description": "Section description"\n'
+            '        }\n'
+            '      ]\n'
+            '    }\n'
+            '  },\n'
+            '  "investment_readiness": {\n'
+            '    "title": "Investment Readiness Assessment",\n'
+            '    "categories": [\n'
+            '      {\n'
+            '        "category": "Category Name",\n'
+            '        "status": "Strong|Moderate|Weak",\n'
+            '        "statusLevel": "high|moderate|low",\n'
+            '        "evidence": "Supporting evidence"\n'
+            '      }\n'
+            '    ]\n'
+            '  }\n'
+            "}\n"
+            "```\n\n"
+            
+            "## Instructions\n"
+            "- Extract actual data from the report content, don't use placeholder text\n"
+            "- Use appropriate status levels and colors based on the analysis\n"
+            "- Return ONLY the JSON object, no additional text or formatting\n"
+            "- Ensure all required fields are present with meaningful content\n"
+        )
+        super().__init__(prompt_template)
