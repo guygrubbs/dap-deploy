@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import uuid
 import time                            # NEW: for deal_id timestamp
+import json                            # NEW: for JSON serialization
 from datetime import datetime
 from typing import Dict, Any, List
 
@@ -12,21 +13,22 @@ from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 # ─────────── app imports ──────────────────────────────────────────────────────
-# REMOVED: AnalysisRequestIn import (no longer used, as front-end inserts directly)
-from schemas import (
+from app.api.schemas import (
+    AnalysisRequestIn,
     AnalysisRequestOut,
     ReportContentResponse,
     ReportSection,
     ReportStatusResponse,
 )
 from app.database.crud import (
+    create_analysis_request_entry,
     get_analysis_request_by_id,
     update_analysis_request_status,
     save_generated_sections,    
     get_generated_sections,
 )
 from app.database.database import db_session
-from app.api.ai.orchestrator import generate_report
+from app.api.ai.orchestrator import generate_report, generate_structured_summary
 from app.storage.pdfgenerator import generate_pdf
 from app.storage.gcs import finalize_report_with_pdf
 from app.notifications.supabase_notifier import supabase    # NEW: Supabase client for DB inserts
@@ -43,10 +45,19 @@ def get_db():
         yield db
 
 # ──────────────────────────────────────────────────────────────────────────────
-#  1)  [REMOVED] CREATE (initial insert now handled by front-end via Supabase)
 # ──────────────────────────────────────────────────────────────────────────────
-# The POST /api/reports endpoint has been removed, since the front-end directly
-# inserts a 'pending' analysis_request row into the database (Supabase):contentReference[oaicite:0]{index=0}.
+@router.post("/reports", response_model=AnalysisRequestOut)
+def create_analysis_request(
+    request_data: AnalysisRequestIn,
+    db: Session = Depends(get_db),
+) -> AnalysisRequestOut:
+    """Create a new analysis request record."""
+    request_dict = request_data.dict()
+    request_dict["status"] = "pending"
+    
+    new_request = create_analysis_request_entry(db, request_dict)
+    
+    return AnalysisRequestOut(**new_request.__dict__)
 
 # ──────────────────────────────────────────────────────────────────────────────
 #  2)  GENERATE FULL REPORT  (status: pending -> processing -> completed/failed)
@@ -100,6 +111,8 @@ def generate_full_report(
         # 3. Generate report sections using AI orchestrator
         ai_sections: Dict[str, str] = generate_report(params)
 
+        structured_summaries = generate_structured_summary(ai_sections, params)
+
         # 4. Save generated sections into the request record (parameters.generated_sections)
         save_generated_sections(db, request_id, ai_sections)
 
@@ -124,8 +137,12 @@ def generate_full_report(
             founder_name=req.founder_name or "",
             founder_company=founder_co,
             founder_type=req.company_type or "",
-            output_path=None,
+            output_path="",
         )
+        # Ensure pdf_bytes is bytes type for finalize_report_with_pdf
+        if isinstance(pdf_bytes, str):
+            raise ValueError("Expected bytes from generate_pdf but got str")
+        pdf_bytes = bytes(pdf_bytes) if not isinstance(pdf_bytes, bytes) else pdf_bytes
 
         # 6. Upload PDF to storage and send notification email (returns public URL info)
         supabase_info = finalize_report_with_pdf(
@@ -166,22 +183,24 @@ def generate_full_report(
         except Exception as e:
             logger.error("Error saving deal report record: %s", e, exc_info=True)
         try:
-            # Insert into deal_report_summaries with placeholder content:contentReference[oaicite:3]{index=3}:contentReference[oaicite:4]{index=4}
-            supabase.table("deal_report_summaries").insert({
+            # Insert into deal_report_summaries with OpenAI-generated structured JSON content
+            structured_summary = {
                 "deal_id": deal_id,
                 "company_name": founder_co or "Unknown Company",
-                "executive_summary": f"Analysis report submitted to external API with ID: {req.id}. Report generation is in progress.",
-                "strategic_recommendations": "Report generation in progress via external API",
-                "market_analysis": "Analysis pending via external API service",
-                "financial_overview": "Financial analysis pending",
-                "competitive_landscape": "Competitive analysis pending",
-                "action_plan": "Action plan to be generated",
-                "investment_readiness": "pending",
-                "key_metrics": {"external_report_id": str(req.id), "api_status": "submitted"},
-                "financial_projections": {"status": "pending", "external_report_id": str(req.id)}
-            }).execute()
+                "executive_summary": json.dumps(structured_summaries.get("executive_summary", {})),
+                "strategic_recommendations": json.dumps(structured_summaries.get("strategic_recommendations", {})),
+                "market_analysis": json.dumps(structured_summaries.get("market_analysis", {})),
+                "financial_overview": json.dumps(structured_summaries.get("financial_overview", {})),
+                "competitive_landscape": json.dumps(structured_summaries.get("competitive_landscape", {})),
+                "action_plan": json.dumps(structured_summaries.get("action_plan", {})),
+                "investment_readiness": json.dumps(structured_summaries.get("investment_readiness", {})),
+                "key_metrics": {"external_report_id": str(req.id), "api_status": "completed"},
+                "financial_projections": {"status": "completed", "external_report_id": str(req.id)}
+            }
+            supabase.table("deal_report_summaries").insert(structured_summary).execute()
+            logger.info("Successfully inserted OpenAI-generated structured summary for deal_id: %s", deal_id)
         except Exception as e:
-            logger.error("Error saving report summary placeholder: %s", e, exc_info=True)
+            logger.error("Error saving OpenAI-generated report summary: %s", e, exc_info=True)
 
         # At this point, the analysis request is completed and the PDF URL is stored:contentReference[oaicite:5]{index=5}.
         # The front-end can retrieve the PDF via GET /api/reports/{id}/content or directly from deal_reports.
@@ -240,3 +259,42 @@ def report_status(
     # crude progress heuristic
     progress = 100 if req.status == "completed" else 50
     return ReportStatusResponse(report_id=req.id, status=req.status, progress=progress)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+@router.post("/webhook/report-completion")
+def handle_report_completion(
+    webhook_data: dict,
+    db: Session = Depends(get_db),
+):
+    """Handle webhook callback from external API when report is completed."""
+    try:
+        report_id = webhook_data.get("reportId")
+        pdf_url = webhook_data.get("pdfUrl")
+        summary_data = webhook_data.get("summaryData", {})
+        
+        if not report_id:
+            raise HTTPException(status_code=400, detail="Missing reportId in webhook data")
+        
+        supabase.table("deal_reports").update({
+            "pdf_url": pdf_url
+        }).eq("deal_id", report_id).execute()
+        
+        structured_data = {
+            "executive_summary": json.dumps(summary_data.get("executive_summary", {})),
+            "strategic_recommendations": json.dumps(summary_data.get("strategic_recommendations", {})),
+            "market_analysis": json.dumps(summary_data.get("market_analysis", {})),
+            "financial_overview": json.dumps(summary_data.get("financial_overview", {})),
+            "competitive_landscape": json.dumps(summary_data.get("competitive_landscape", {})),
+            "action_plan": json.dumps(summary_data.get("action_plan", {})),
+            "investment_readiness": json.dumps(summary_data.get("investment_readiness", {})),
+        }
+        
+        supabase.table("deal_report_summaries").update(structured_data).eq("deal_id", report_id).execute()
+        
+        logger.info("Successfully updated report data for report_id: %s", report_id)
+        return {"status": "success", "message": "Report updated successfully"}
+        
+    except Exception as e:
+        logger.error("Error handling webhook completion: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to process webhook")

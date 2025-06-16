@@ -122,6 +122,6 @@ if __name__ == "__main__":
     # Initialize OpenAI key from env
     openai.api_key = os.getenv("OPENAI_API_KEY")
     if not openai.api_key:
-        raise ValueError("OPENAI_API_KEY not set. Please export or assign it before running.")
+        raise ValueError("OPENAI_API_KEY environment variable not set. Please export it before running.")
 
     process_pitch_deck(args.file_name, args.index)

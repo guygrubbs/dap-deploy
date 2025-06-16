@@ -206,7 +206,7 @@ def upload_jsonl_to_openai(jsonl_path: str, purpose: str = "fine-tune") -> str:
     :param purpose: Purpose for the file (usually 'fine-tune')
     :return: The OpenAI file ID
     """
-    openai.api_key = os.getenv("OPENAI_API_KEY", "")
+    openai.api_key = os.getenv("OPENAI_API_KEY")
     if not openai.api_key:
         raise ValueError("OPENAI_API_KEY environment variable not set. Cannot upload to OpenAI.")
 

@@ -138,9 +138,9 @@ if __name__ == "__main__":
         # ...
     })
 
-    openai.api_key = os.getenv("OPENAI_API_KEY", None)
+    openai.api_key = os.getenv("OPENAI_API_KEY")
     if not openai.api_key:
-        raise ValueError("Set OPENAI_API_KEY in env to generate query embeddings.")
+        raise ValueError("OPENAI_API_KEY environment variable not set. Please export it before running.")
 
     # Perform retrieval
     matched_results = retrieve_relevant_chunks(
