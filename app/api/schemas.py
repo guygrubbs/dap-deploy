@@ -6,7 +6,6 @@ from pydantic import BaseModel, EmailStr, Field, UUID4
 # INBOUND schema - restored for API endpoint
 class AnalysisRequestIn(BaseModel):
     user_id: UUID4
-    title: str
     founder_name: str
     company_name: Optional[str] = "Right Hand Operation"
     requestor_name: Optional[str] = ""
