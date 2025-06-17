@@ -96,8 +96,6 @@ def generate_full_report(
         # 3. Generate report sections using AI orchestrator
         ai_sections: Dict[str, str] = generate_report(params)
 
-        structured_summaries = generate_structured_summary(ai_sections, params)
-
         # 4. Save generated sections into the request record (parameters.generated_sections)
         save_generated_sections(db, request_id, ai_sections)
 
@@ -142,7 +140,9 @@ def generate_full_report(
         )
         # finalize_report_with_pdf is now modified to return a dict with storage info (public_url, etc.)
 
-        # 7. Mark request as completed and record external ID & PDF link in the database
+        structured_summaries = generate_structured_summary(ai_sections, params)
+
+        # 8. Mark request as completed and record external ID & PDF link in the database
         updated_req = get_analysis_request_by_id(db, request_id)
         if not updated_req:
             # In theory, updated_req should exist; this check is just a safety.
@@ -155,7 +155,7 @@ def generate_full_report(
         updated_req.updated_at = datetime.utcnow()
         db.commit()  # commit all the above changes
 
-        # 8. Create a new internal deal entry and a summary placeholder
+        # 9. Create a new internal deal entry and a summary placeholder
         deal_id = f"deal_{int(time.time())}_{uuid.uuid4().hex[:8]}"  # unique deal identifier
         try:
             # Insert into deal_reports (PDF link initially included, since we have it now)
