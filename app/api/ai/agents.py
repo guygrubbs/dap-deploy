@@ -864,6 +864,80 @@ class SummaryGenerationAgent(BaseAIAgent):
     the structured JSON format expected by the frontend.
     """
     def __init__(self):
+        json_schema = '''{
+  "executive_summary": {
+    "context_purpose": "Brief description of the assessment",
+    "investment_attractiveness": {
+      "level": "high|moderate|low",
+      "description": "Explanation of investment potential"
+    },
+    "key_metrics": ["metric1", "metric2"],
+    "strengths": ["strength1", "strength2"],
+    "challenges": ["challenge1", "challenge2"]
+  },
+  "strategic_recommendations": {
+    "recommendations": [
+      {
+        "priority": "high|medium|low",
+        "timeframe": "0-3 Months|3-6 Months|6-12 Months",
+        "items": ["action1", "action2"]
+      }
+    ]
+  },
+  "market_analysis": {
+    "executive_summary": "Market overview",
+    "trends": ["trend1", "trend2"],
+    "opportunity": {"description": "Market opportunity", "value": "Market size"},
+    "challenges": {"description": "Market challenges", "status": "🟢|🟡|🔴 Status"}
+  },
+  "financial_overview": {
+    "metrics": ["metric1", "metric2"],
+    "risks": ["risk1", "risk2"],
+    "recommendations": ["rec1", "rec2"]
+  },
+  "competitive_landscape": {
+    "positioning": "Competitive position description",
+    "competitors": [
+      {
+        "name": "Competitor Name",
+        "strengths": ["strength1"],
+        "weaknesses": ["weakness1"]
+      }
+    ],
+    "advantages": ["advantage1", "advantage2"]
+  },
+  "action_plan": {
+    "timeframes": [
+      {
+        "period": "Short-term (1-3 months)",
+        "color": "red|yellow|green",
+        "icon_type": "target|clock|trending",
+        "actions": ["action1", "action2"]
+      }
+    ],
+    "final_call_to_action": {
+      "title": "Next Steps Title",
+      "sections": [
+        {
+          "title": "Section Title",
+          "description": "Section description"
+        }
+      ]
+    }
+  },
+  "investment_readiness": {
+    "title": "Investment Readiness Assessment",
+    "categories": [
+      {
+        "category": "Category Name",
+        "status": "Strong|Moderate|Weak",
+        "statusLevel": "high|moderate|low",
+        "evidence": "Supporting evidence"
+      }
+    ]
+  }
+}'''
+        
         prompt_template = (
             "You are an expert data analyst tasked with converting investment report content "
             "into structured JSON format for frontend consumption. You must extract key information "
@@ -889,79 +963,7 @@ class SummaryGenerationAgent(BaseAIAgent):
             "## JSON Schema Requirements\n"
             "Return ONLY a valid JSON object with this exact structure:\n"
             "```json\n"
-            "{\n"
-            '  "executive_summary": {\n'
-            '    "context_purpose": "Brief description of the assessment",\n'
-            '    "investment_attractiveness": {\n'
-            '      "level": "high|moderate|low",\n'
-            '      "description": "Explanation of investment potential"\n'
-            '    },\n'
-            '    "key_metrics": ["metric1", "metric2"],\n'
-            '    "strengths": ["strength1", "strength2"],\n'
-            '    "challenges": ["challenge1", "challenge2"]\n'
-            '  },\n'
-            '  "strategic_recommendations": {\n'
-            '    "recommendations": [\n'
-            '      {\n'
-            '        "priority": "high|medium|low",\n'
-            '        "timeframe": "0-3 Months|3-6 Months|6-12 Months",\n'
-            '        "items": ["action1", "action2"]\n'
-            '      }\n'
-            '    ]\n'
-            '  },\n'
-            '  "market_analysis": {\n'
-            '    "executive_summary": "Market overview",\n'
-            '    "trends": ["trend1", "trend2"],\n'
-            '    "opportunity": {"description": "Market opportunity", "value": "Market size"},\n'
-            '    "challenges": {"description": "Market challenges", "status": "🟢|🟡|🔴 Status"}\n'
-            '  },\n'
-            '  "financial_overview": {\n'
-            '    "metrics": ["metric1", "metric2"],\n'
-            '    "risks": ["risk1", "risk2"],\n'
-            '    "recommendations": ["rec1", "rec2"]\n'
-            '  },\n'
-            '  "competitive_landscape": {\n'
-            '    "positioning": "Competitive position description",\n'
-            '    "competitors": [\n'
-            '      {\n'
-            '        "name": "Competitor Name",\n'
-            '        "strengths": ["strength1"],\n'
-            '        "weaknesses": ["weakness1"]\n'
-            '      }\n'
-            '    ],\n'
-            '    "advantages": ["advantage1", "advantage2"]\n'
-            '  },\n'
-            '  "action_plan": {\n'
-            '    "timeframes": [\n'
-            '      {\n'
-            '        "period": "Short-term (1-3 months)",\n'
-            '        "color": "red|yellow|green",\n'
-            '        "icon_type": "target|clock|trending",\n'
-            '        "actions": ["action1", "action2"]\n'
-            '      }\n'
-            '    ],\n'
-            '    "final_call_to_action": {\n'
-            '      "title": "Next Steps Title",\n'
-            '      "sections": [\n'
-            '        {\n'
-            '          "title": "Section Title",\n'
-            '          "description": "Section description"\n'
-            '        }\n'
-            '      ]\n'
-            '    }\n'
-            '  },\n'
-            '  "investment_readiness": {\n'
-            '    "title": "Investment Readiness Assessment",\n'
-            '    "categories": [\n'
-            '      {\n'
-            '        "category": "Category Name",\n'
-            '        "status": "Strong|Moderate|Weak",\n'
-            '        "statusLevel": "high|moderate|low",\n'
-            '        "evidence": "Supporting evidence"\n'
-            '      }\n'
-            '    ]\n'
-            '  }\n'
-            "}\n"
+            f"{json_schema}\n"
             "```\n\n"
             
             "## Instructions\n"
