@@ -15,6 +15,13 @@ class AnalysisRequestIn(BaseModel):
     company_type: Optional[str] = None
     additional_info: Optional[str] = None
     pitch_deck_url: Optional[str] = None
+    startup_id: Optional[str] = None
+    report_type: Optional[str] = "tier-1"
+    title: Optional[str] = None
+    founder_company: Optional[str] = None
+    founder_type: Optional[str] = None
+    parameters: Optional[Dict[str, Any]] = None
+    status: Optional[str] = "pending"
 
 # OUTBOUND schema – reflects a row in analysis_requests table
 class AnalysisRequestOut(BaseModel):
@@ -33,6 +40,8 @@ class AnalysisRequestOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     external_request_id: Optional[str] = None
+    webhook_url: Optional[str] = None
+    webhook_secret: Optional[str] = None
     parameters: Optional[Dict[str, Any]] = None
 
 # Report content section models (unchanged) ...

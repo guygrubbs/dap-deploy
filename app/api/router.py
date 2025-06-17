@@ -14,14 +14,12 @@ from sqlalchemy.orm import Session
 
 # ─────────── app imports ──────────────────────────────────────────────────────
 from app.api.schemas import (
-    AnalysisRequestIn,
     AnalysisRequestOut,
     ReportContentResponse,
     ReportSection,
     ReportStatusResponse,
 )
 from app.database.crud import (
-    create_analysis_request_entry,
     get_analysis_request_by_id,
     update_analysis_request_status,
     save_generated_sections,    
@@ -31,7 +29,7 @@ from app.database.database import db_session
 from app.api.ai.orchestrator import generate_report, generate_structured_summary
 from app.storage.pdfgenerator import generate_pdf
 from app.storage.gcs import finalize_report_with_pdf
-from app.notifications.supabase_notifier import supabase    # NEW: Supabase client for DB inserts
+# from app.notifications.supabase_notifier import supabase    # NEW: Supabase client for DB inserts
 from app.matching_engine.pdf_to_openai_jsonl import (          # unchanged
     extract_text_with_ocr,
 )
@@ -44,20 +42,7 @@ def get_db():
     with db_session() as db:
         yield db
 
-# ──────────────────────────────────────────────────────────────────────────────
-# ──────────────────────────────────────────────────────────────────────────────
-@router.post("/reports", response_model=AnalysisRequestOut)
-def create_analysis_request(
-    request_data: AnalysisRequestIn,
-    db: Session = Depends(get_db),
-) -> AnalysisRequestOut:
-    """Create a new analysis request record."""
-    request_dict = request_data.dict()
-    request_dict["status"] = "pending"
-    
-    new_request = create_analysis_request_entry(db, request_dict)
-    
-    return AnalysisRequestOut(**new_request.__dict__)
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 #  2)  GENERATE FULL REPORT  (status: pending -> processing -> completed/failed)
@@ -174,12 +159,13 @@ def generate_full_report(
         deal_id = f"deal_{int(time.time())}_{uuid.uuid4().hex[:8]}"  # unique deal identifier
         try:
             # Insert into deal_reports (PDF link initially included, since we have it now)
-            supabase.table("deal_reports").insert({
-                "deal_id": deal_id,
-                "company_name": founder_co or "Unknown Company",
-                "pdf_url": supabase_info.get("public_url") or None,
-                "pdf_file_path": supabase_info.get("storage_path") or None
-            }).execute()
+            # supabase.table("deal_reports").insert({
+            #     "deal_id": deal_id,
+            #     "company_name": founder_co or "Unknown Company",
+            #     "pdf_url": supabase_info.get("public_url") or None,
+            #     "pdf_file_path": supabase_info.get("storage_path") or None
+            # }).execute()
+            pass
         except Exception as e:
             logger.error("Error saving deal report record: %s", e, exc_info=True)
         try:
@@ -197,8 +183,8 @@ def generate_full_report(
                 "key_metrics": {"external_report_id": str(req.id), "api_status": "completed"},
                 "financial_projections": {"status": "completed", "external_report_id": str(req.id)}
             }
-            supabase.table("deal_report_summaries").insert(structured_summary).execute()
-            logger.info("Successfully inserted OpenAI-generated structured summary for deal_id: %s", deal_id)
+            # supabase.table("deal_report_summaries").insert(structured_summary).execute()
+            logger.info("Successfully would insert OpenAI-generated structured summary for deal_id: %s", deal_id)
         except Exception as e:
             logger.error("Error saving OpenAI-generated report summary: %s", e, exc_info=True)
 
@@ -276,9 +262,9 @@ def handle_report_completion(
         if not report_id:
             raise HTTPException(status_code=400, detail="Missing reportId in webhook data")
         
-        supabase.table("deal_reports").update({
-            "pdf_url": pdf_url
-        }).eq("deal_id", report_id).execute()
+        # supabase.table("deal_reports").update({
+        #     "pdf_url": pdf_url
+        # }).eq("deal_id", report_id).execute()
         
         structured_data = {
             "executive_summary": json.dumps(summary_data.get("executive_summary", {})),
@@ -290,7 +276,7 @@ def handle_report_completion(
             "investment_readiness": json.dumps(summary_data.get("investment_readiness", {})),
         }
         
-        supabase.table("deal_report_summaries").update(structured_data).eq("deal_id", report_id).execute()
+        # supabase.table("deal_report_summaries").update(structured_data).eq("deal_id", report_id).execute()
         
         logger.info("Successfully updated report data for report_id: %s", report_id)
         return {"status": "success", "message": "Report updated successfully"}

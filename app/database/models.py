@@ -1,5 +1,5 @@
 import datetime
-from sqlalchemy import Column, String, DateTime, text
+from sqlalchemy import Column, String, DateTime, text, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.database.database import Base
 
@@ -49,6 +49,9 @@ class AnalysisRequest(Base):
     # External workflow / API tracking ID
     external_request_id = Column(String)
 
+    webhook_url = Column(String)
+    webhook_secret = Column(String)
+
     # Auto-timestamps
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
     updated_at = Column(
@@ -63,3 +66,51 @@ class AnalysisRequest(Base):
 
     def __repr__(self):
         return f"<AnalysisRequest id={self.id} user_id={self.user_id} status={self.status}>"
+
+
+class ApiReport(Base):
+    """
+    Tracks external API calls and their status for analysis requests.
+    Links to the analysis_requests table via request_id.
+    Stores report generation progress, content, and PDF URLs.
+    """
+    __tablename__ = "api_reports"
+
+    # Primary key
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+        index=True,
+    )
+
+    request_id = Column(
+        UUID(as_uuid=True), 
+        ForeignKey("analysis_requests.id"),
+        nullable=False, 
+        index=True
+    )
+
+    # External API tracking ID
+    external_report_id = Column(String)
+
+    # Processing status: pending → processing → completed / failed
+    status = Column(String, nullable=False, default="pending")
+
+    content = Column(JSONB)
+
+    pdf_url = Column(String)
+
+    error_message = Column(String)
+
+    # Auto-timestamps
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime,
+        default=datetime.datetime.utcnow,
+        onupdate=datetime.datetime.utcnow,
+        nullable=False,
+    )
+
+    def __repr__(self):
+        return f"<ApiReport id={self.id} request_id={self.request_id} status={self.status}>"

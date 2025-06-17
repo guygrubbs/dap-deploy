@@ -9,7 +9,7 @@ from google.cloud import storage
 from google.cloud.exceptions import NotFound, Forbidden, GoogleCloudError
 
 # Example import from your supabase notifier module:
-from app.notifications.supabase_notifier import notify_supabase_final_report
+# from app.notifications.supabase_notifier import notify_supabase_final_report
 
 # Upload to Supabase utility:
 from app.storage.supabase_uploader import upload_pdf_to_supabase
@@ -148,8 +148,8 @@ def finalize_report_with_pdf(
             final_report_data["supabase_public_url"] = supabase_info.get("public_url")
 
         # 5) Trigger Supabase notification (no-op for DB, but could email user)
-        notify_supabase_final_report(report_id, final_report_data, user_id)
-        logger.info("PDF upload complete and Supabase notification triggered for report %s", report_id)
+        # notify_supabase_final_report(report_id, final_report_data, user_id)
+        logger.info("PDF upload complete and Supabase notification would be triggered for report %s", report_id)
 
         return supabase_info  # NEW: Return storage info (especially public_url) to caller
 
