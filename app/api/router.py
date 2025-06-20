@@ -1,3 +1,24 @@
+"""
+router.py
+=========
+
+Endpoints for creating deal reports and persisting JSON summaries.
+
+Workflow
+--------
+1. Receive request to `/reports`.
+2. Trigger agent pipeline → produce full report *sections* (plain text).
+3. Generate PDF (`pdfgenerator`) and push it to Supabase storage.
+4. Call `generate_report_summaries` to obtain nine structured JSON objects.
+5. Insert:
+   a. A new row in `deal_reports` (PDF metadata).
+   b. A matching row in `deal_report_summaries` (JSON columns).
+
+Assumes:
+- Supabase client initialised in `app/api/db.py`.
+- AI section generation handled by `generate_report` (existing).
+"""
+
 from __future__ import annotations
 
 import logging
@@ -9,7 +30,7 @@ from typing import Dict, Any, List
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException, Path, status
-from pydantic import UUID4
+from pydantic import UUID4, BaseModel
 from sqlalchemy.orm import Session
 
 # ─────────── app imports ──────────────────────────────────────────────────────
@@ -30,6 +51,7 @@ from app.api.ai.orchestrator import generate_report, generate_structured_summary
 from app.storage.pdfgenerator import generate_pdf
 from app.storage.gcs import finalize_report_with_pdf
 from app.notifications.supabase_notifier import supabase    # NEW: Supabase client for DB inserts
+from app.api.ai.orchestrator import generate_report_summaries
 from app.matching_engine.pdf_to_openai_jsonl import (          # unchanged
     extract_text_with_ocr,
 )
@@ -42,7 +64,18 @@ def get_db():
     with db_session() as db:
         yield db
 
+class CreateReportRequest(BaseModel):
+    founder_name: str
+    founder_email: str
+    company_name: str
+    pitch_deck_url: str | None = None
+    is_public_sample: bool = False
 
+
+class CreateReportResponse(BaseModel):
+    deal_id: str
+    pdf_url: str
+    summary_inserted: bool
 
 # ──────────────────────────────────────────────────────────────────────────────
 #  2)  GENERATE FULL REPORT  (status: pending -> processing -> completed/failed)
@@ -140,8 +173,6 @@ def generate_full_report(
         )
         # finalize_report_with_pdf is now modified to return a dict with storage info (public_url, etc.)
 
-        structured_summaries = generate_structured_summary(ai_sections, params)
-
         # 8. Mark request as completed and record external ID & PDF link in the database
         updated_req = get_analysis_request_by_id(db, request_id)
         if not updated_req:
@@ -154,6 +185,9 @@ def generate_full_report(
         updated_req.parameters["pdf_url"] = supabase_info.get("public_url") or ""
         updated_req.updated_at = datetime.utcnow()
         db.commit()  # commit all the above changes
+
+        # 7. Generate structured summaries
+        summaries_payload: Dict[str, Any] = generate_report_summaries(ai_sections)
 
         # 9. Create a new internal deal entry and a summary placeholder
         deal_id = str(request_id)  # Use the analysis request ID directly
@@ -169,20 +203,15 @@ def generate_full_report(
             logger.error("Error saving deal report record: %s", e, exc_info=True)
         try:
             # Insert into deal_report_summaries with OpenAI-generated structured JSON content
-            structured_summary = {
-                "deal_id": deal_id,
-                "company_name": founder_co or "Unknown Company",
-                "executive_summary": json.dumps(structured_summaries.get("executive_summary", {})),
-                "strategic_recommendations": json.dumps(structured_summaries.get("strategic_recommendations", {})),
-                "market_analysis": json.dumps(structured_summaries.get("market_analysis", {})),
-                "financial_overview": json.dumps(structured_summaries.get("financial_overview", {})),
-                "competitive_landscape": json.dumps(structured_summaries.get("competitive_landscape", {})),
-                "action_plan": json.dumps(structured_summaries.get("action_plan", {})),
-                "investment_readiness": json.dumps(structured_summaries.get("investment_readiness", {})),
-                "key_metrics": {"external_report_id": str(req.id), "api_status": "completed"},
-                "financial_projections": {"status": "completed", "external_report_id": str(req.id)}
-            }
-            supabase.table("deal_report_summaries").insert(structured_summary).execute()
+            supabase.table("deal_report_summaries").insert(
+                {
+                    "deal_id": deal_id,
+                    "company_name": req.company_name,
+                    "request_id": None,                # no async job ID in sync flow
+                    "is_public_sample": req.is_public_sample,
+                    **summaries_payload,
+                }
+            ).execute()
             logger.info("Successfully inserted OpenAI-generated structured summary for deal_id: %s", deal_id)
         except Exception as e:
             logger.error("Error saving OpenAI-generated report summary: %s", e, exc_info=True)
