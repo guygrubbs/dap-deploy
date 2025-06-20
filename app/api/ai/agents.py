@@ -8,7 +8,7 @@ from typing import Dict, Any, ClassVar
 logger = logging.getLogger(__name__)
 
 try:
-    from sanitize_html import sanitize_html
+    import sanitize_html
 except ModuleNotFoundError:
     import re
     def sanitize_html(text: str) -> str:

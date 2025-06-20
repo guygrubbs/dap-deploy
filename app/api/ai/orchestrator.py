@@ -6,7 +6,13 @@ import time
 import os
 from typing import Any, Dict
 
-from sanitize_html import sanitize_html  # backend wrapper around FE's sanitizeHtml
+try:
+    import sanitize_html
+except ModuleNotFoundError:
+    import re
+    def sanitize_html(text: str) -> str:
+        """Extremely naive HTML tag stripper (replace in production)."""
+        return re.sub(r"<[^>]+?>", "", text)
 
 from app.api.ai.agents import (
     ResearcherAgent,                 # Step 1: gather external context
