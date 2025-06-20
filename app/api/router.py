@@ -47,11 +47,10 @@ from app.database.crud import (
     get_generated_sections,
 )
 from app.database.database import db_session
-from app.api.ai.orchestrator import generate_report, generate_structured_summary
+from app.api.ai.orchestrator import generate_report, generate_report_summaries
 from app.storage.pdfgenerator import generate_pdf
 from app.storage.gcs import finalize_report_with_pdf
 from app.notifications.supabase_notifier import supabase    # NEW: Supabase client for DB inserts
-from app.api.ai.orchestrator import generate_report_summaries
 from app.matching_engine.pdf_to_openai_jsonl import (          # unchanged
     extract_text_with_ocr,
 )
