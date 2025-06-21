@@ -1,9 +1,86 @@
 import os
 import openai
 import logging
-from typing import Any, Dict
+import json
+from dataclasses import dataclass
+from typing import Dict, Any, ClassVar
 
 logger = logging.getLogger(__name__)
+
+try:
+    import sanitize_html
+except ModuleNotFoundError:
+    import re
+    def sanitize_html(text: str) -> str:
+        """Extremely naive HTML tag stripper (replace in production)."""
+        return re.sub(r"<[^>]+?>", "", text)
+
+def _openai_chat_completion(messages: list[dict[str, str]]) -> str:
+    """Centralised OpenAI call – keeps each agent tiny."""
+    model = os.getenv("OPENAI_MODEL", "o1")
+    resp = openai.ChatCompletion.create(model=model, messages=messages)
+    return resp["choices"][0]["message"]["content"].strip()
+
+# --------------------------------------------------------------------------- #
+# Base class
+# --------------------------------------------------------------------------- #
+
+@dataclass
+class BaseJSONAgent:
+    """Base class – concrete subclasses only need to fill `name`, `schema`, and optionally `guidance`."""
+    name: ClassVar[str] = "base"
+    schema: ClassVar[str] = "{}"   # override – JSON skeleton (string placeholders for values)
+    guidance: ClassVar[str] = ""   # optional field-level guidance and examples
+
+    system_prompt: ClassVar[str] = (
+        "You are an AI assistant that converts a long due-diligence report into "
+        "structured JSON objects for database storage. "
+        "Follow the schema and guidance exactly. Respond with **ONLY** the JSON object – no markdown, "
+        "headings or commentary."
+    )
+
+    def generate_json(self, report_text: str) -> str:
+        """Return the raw JSON string (NOT parsed) for this summary section."""
+        user_prompt = (
+            f"Using the following full report content, create the JSON for **{self.name}** "
+            f"that matches this schema:\n{self.schema}"
+        )
+        if self.guidance:
+            user_prompt += f"\n\nField Guidance & Example Values:\n{self.guidance}"
+        user_prompt += f"\n\nFull report:\n{report_text}"
+        messages = [
+            {"role": "system", "content": self.system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        try:
+            content = _openai_chat_completion(messages)
+            # Ensure it's valid JSON
+            _ = json.loads(content)
+            logger.info("%s JSON generated, %s characters.", self.name, len(content))
+            return content
+        except Exception as exc:
+            logger.error("Failed to generate JSON for %s: %s", self.name, exc, exc_info=True)
+            return ""
+
+    def generate_and_clean(self, report_text: str) -> Dict[str, Any]:
+        """Return a dict with all string fields sanitised (except JSONB numeric fields)."""
+        raw = self.generate_json(report_text)
+        if not raw:
+            return {}
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            return {}
+        def cleanse(val):
+            if isinstance(val, str):
+                return sanitize_html(val)
+            if isinstance(val, list):
+                return [cleanse(v) for v in val]
+            if isinstance(val, dict):
+                return {k: cleanse(v) for k, v in val.items()}
+            return val
+        return cleanse(data)
+    
 
 class BaseAIAgent:
     """
@@ -853,3 +930,235 @@ class RecommendationsAgent(BaseAIAgent):
             "6. Base each status on retrieved evidence.\n"
         )
         super().__init__(prompt_template)
+
+# --------------------------------------------------------------------------- #
+# Concrete agents with schemas and guidance
+# --------------------------------------------------------------------------- #
+
+class ExecutiveSummaryJSONAgent(BaseJSONAgent):
+    name = "Executive Summary"
+    schema = """{
+      "context_purpose": string,
+      "investment_attractiveness": { "level": string, "description": string },
+      "key_metrics": [ { "label": string, "value": string, "color": string }, ... ],
+      "strengths": [ string, ... ],
+      "challenges": [ string, ... ]
+    }"""
+    guidance = """- context_purpose: (string) Brief one-liner on the context and purpose of the deal/company.
+- investment_attractiveness.level: (string) Overall attractiveness level, e.g. "high", "moderate", or "low".
+- investment_attractiveness.description: (string) Short explanation of why the deal is attractive at that level.
+- key_metrics: (list of objects) Key metrics summary, each with:
+    - label: (string) Name of the metric (e.g. "Annual Revenue").
+    - value: (string) Value of the metric with units (e.g. "$1M", "50% growth").
+    - color: (string) Status color ("green"/"yellow"/"red" indicating good/ok/poor).
+- strengths: (list of strings) Bullet points of key strengths.
+- challenges: (list of strings) Bullet points of key challenges.
+"""
+
+class StrategicRecommendationsJSONAgent(BaseJSONAgent):
+    name = "Strategic Recommendations"
+    schema = """{
+      "recommendations": [
+        { "priority": string, "timeframe": string, "items": [ string, ... ] },
+        ...
+      ]
+    }"""
+    guidance = """- recommendations: (list of objects) Each strategic recommendation group with:
+    - priority: (string) Priority level, e.g. "High", "Medium", or "Low" importance.
+    - timeframe: (string) Target timeframe, e.g. "Short-term (1-3 months)", "Medium-term (3-6 months)", "Long-term (6-12 months)".
+    - items: (list of strings) Specific recommended actions for this priority/timeframe.
+"""
+
+class MarketAnalysisJSONAgent(BaseJSONAgent):
+    name = "Market Analysis"
+    schema = """{
+      "executive_summary": string,
+      "trends": [
+        {
+          "trend": string,
+          "insight": string,
+          "relevance": string,
+          "icon_type": string
+        },
+        ...
+      ],
+      "opportunity": { "description": string, "value": string, "label": string },
+      "challenges": { "description": string, "status": string }
+    }"""
+    guidance = """- executive_summary: (string) One-sentence summary of the market landscape or context.
+- trends: (list of objects) Key market trends affecting the deal:
+    - trend: (string) Trend name (e.g. "Regulation", "Technology").
+    - insight: (string) Insight or fact about this trend.
+    - relevance: (string) Why this trend is relevant to the deal.
+    - icon_type: (string) Icon identifier for the trend (e.g. "shield", "trending").
+- opportunity: (object) Major market opportunity related to this deal:
+    - description: (string) Description of the opportunity.
+    - value: (string) Numeric value or market size (include symbols if applicable, e.g. "$650B").
+    - label: (string) Label for the value (e.g. "Global Staffing TAM").
+- challenges: (object) Key market challenge or risk:
+    - description: (string) Description of the main challenge.
+    - status: (string) Status or flag for the challenge (could include an emoji, e.g. "🟡 Refinement Needed").
+"""
+
+class FinancialOverviewJSONAgent(BaseJSONAgent):
+    name = "Financial Overview"
+    schema = """{
+      "metrics": [
+        {
+          "metric": string,
+          "current": string,
+          "projected": string,
+          "benchmark": string,
+          "status": string
+        },
+        ...
+      ],
+      "risks": [ string, ... ],
+      "recommendations": [ string, ... ]
+    }"""
+    guidance = """- metrics: (list of objects) Financial performance metrics:
+    - metric: (string) Metric name (e.g. "Annual Revenue").
+    - current: (string) Current value (e.g. "$0" or "N/A").
+    - projected: (string) Projected future value (e.g. "$0.85M (Y1) → $200M (Y5)").
+    - benchmark: (string) Relevant benchmark or target (e.g. "$150-500k ARR within 12 months").
+    - status: (string) Status evaluation for this metric (e.g. "low", "moderate", "high").
+- risks: (list of strings) Key financial risks identified.
+- recommendations: (list of strings) Financial-related recommendations or next steps.
+"""
+
+class CompetitiveLandscapeJSONAgent(BaseJSONAgent):
+    name = "Competitive Landscape"
+    schema = """{
+      "positioning": string,
+      "competitors": [
+        {
+          "name": string,
+          "cost": string,
+          "timeline": string,
+          "strengths": [ string, ... ],
+          "weaknesses": [ string, ... ],
+          "icon_type": string
+        },
+        ...
+      ],
+      "advantages": [
+        { "title": string, "description": string },
+        ...
+      ]
+    }"""
+    guidance = """- positioning: (string) Summary of how the company is positioned vs. competitors (e.g. cost and time advantages).
+- competitors: (list of objects) Main competitor categories or products:
+    - name: (string) Competitor name/category (e.g. "Traditional Agencies").
+    - cost: (string) Typical cost for competitor (e.g. "$15k–$50k per hire").
+    - timeline: (string) Typical delivery timeline (e.g. "30–90 days").
+    - strengths: (list of strings) Competitor’s strengths.
+    - weaknesses: (list of strings) Competitor’s weaknesses.
+    - icon_type: (string) Icon identifier for competitor (e.g. "users", "zap").
+- advantages: (list of objects) Key competitive advantages of our company:
+    - title: (string) Title of the advantage (e.g. "Cost Leadership").
+    - description: (string) Explanation of that advantage.
+"""
+
+class ActionPlanJSONAgent(BaseJSONAgent):
+    name = "Action Plan"
+    schema = """{
+      "timeframes": [
+        {
+          "period": string,
+          "color": string,
+          "icon_type": string,
+          "actions": [ string, ... ]
+        },
+        ...
+      ],
+      "final_call_to_action": {
+        "title": string,
+        "sections": [
+          { "title": string, "description": string },
+          ...
+        ]
+      }
+    }"""
+    guidance = """- timeframes: (list of objects) Planned actions grouped by timeframe:
+    - period: (string) Label for the timeframe (e.g. "Short-term (1-3 months)").
+    - color: (string) Color code for urgency/priority (e.g. "red" for immediate, "yellow" for medium, "green" for long-term).
+    - icon_type: (string) Icon identifier for this timeframe (e.g. "target" for short-term, "clock" for medium-term).
+    - actions: (list of strings) Specific actions to be taken in that period.
+- final_call_to_action: (object) Final call-to-action section:
+    - title: (string) Title of this section (e.g. "Final Call-to-Action").
+    - sections: (list of objects) Subsections of the call-to-action:
+        - title: (string) Audience or group (e.g. "Investors:").
+        - description: (string) Message or directive for that audience.
+"""
+
+class InvestmentReadinessJSONAgent(BaseJSONAgent):
+    name = "Investment Readiness"
+    schema = """{
+      "overall_score": number,
+      "overall_rating": string,
+      "categories": [
+        { "name": string, "score": number, "status": string, "details": string },
+        ...
+      ],
+      "key_strengths": [ string, ... ],
+      "improvement_areas": [ string, ... ],
+      "recommendation": string
+    }"""
+    guidance = """- overall_score: (number) Overall readiness score (e.g. 0–100 scale).
+- overall_rating: (string) Rating corresponding to the overall_score (e.g. "low", "moderate", "high").
+- categories: (list of objects) Detailed scores by category:
+    - name: (string) Category name (e.g. "Market Opportunity").
+    - score: (number) Score for this category.
+    - status: (string) Status label for that score (e.g. "excellent", "moderate", "critical").
+    - details: (string) Explanation of the category’s score.
+- key_strengths: (list of strings) Key strengths identified in the due diligence.
+- improvement_areas: (list of strings) Key areas needing improvement.
+- recommendation: (string) Overall recommendation statement (e.g. "Refinement Needed – suitable for early-stage venture investors").
+"""
+
+class KeyMetricsJSONAgent(BaseJSONAgent):
+    """
+    Outputs structured numeric data; caller should store the parsed dict in a JSONB column.
+    """
+    name = "Key Metrics"
+    schema = """{
+      "revenue": { "current": number, "projected_y1": number, "projected_y5": number },
+      "growth_rate": { "cagr": number, "benchmark": number },
+      "cost_metrics": { "cost_per_hire": number, "traditional_cost": number, "savings_percentage": number }
+    }"""
+    guidance = """- revenue: (object) Revenue figures:
+    - current: (number) Current annual revenue (e.g. 0 if pre-revenue).
+    - projected_y1: (number) Projected revenue in Year 1 (in dollars, no formatting or symbols).
+    - projected_y5: (number) Projected revenue in Year 5.
+- growth_rate: (object) Growth rate metrics:
+    - cagr: (number) Compound annual growth rate (as a percentage value, e.g. 400 for 400%).
+    - benchmark: (number) Benchmark growth rate for comparison (also as percentage, e.g. 250 for 250%).
+- cost_metrics: (object) Cost savings metrics:
+    - cost_per_hire: (number) Cost per hire using the product (in dollars).
+    - traditional_cost: (number) Traditional cost per hire for comparison (in dollars).
+    - savings_percentage: (number) Percentage savings (e.g. 90 for 90% cost savings).
+"""
+
+class FinancialProjectionsJSONAgent(BaseJSONAgent):
+    name = "Financial Projections"
+    schema = """{
+      "revenue_forecast": [ { "year": number, "revenue": number }, ... ],
+      "funding_rounds": [
+        { "stage": string, "amount": number, "valuation_cap": number },
+        ...
+      ],
+      "unit_economics": {
+        "cac": number, "payback_months": number, "gross_margin": number
+      }
+    }"""
+    guidance = """- revenue_forecast: (list of objects) Projected revenue for upcoming years:
+    - year: (number) Year number in sequence (e.g. 1 for first year, 2 for second year).
+    - revenue: (number) Projected revenue for that year (numeric value, no currency symbol).
+- funding_rounds: (list of objects) Details of funding rounds:
+    - stage: (string) Stage name (e.g. "SAFE", "Seed").
+    - amount: (number) Amount raised in that round (numeric, in dollars).
+    - valuation_cap: (number) Valuation cap or post-money valuation for that round (numeric, in dollars).
+- unit_economics: (object) Key unit economics metrics:
+    - cac: (number) Customer Acquisition Cost (in dollars).
+    - payback_months: (number) Payback period in months for the CAC.
+    - gross_margin: (number) Gross margin percentage (e.g. 65 for 65%)."""

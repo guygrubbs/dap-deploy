@@ -3,8 +3,25 @@ from typing import Optional, Dict, Any, List
 
 from pydantic import BaseModel, EmailStr, Field, UUID4
 
-# INBOUND schema (AnalysisRequestIn) is removed, as the backend no longer accepts 
-# direct creation of analysis requests via API.
+# INBOUND schema - restored for API endpoint
+class AnalysisRequestIn(BaseModel):
+    user_id: UUID4
+    founder_name: str
+    company_name: Optional[str] = "Right Hand Operation"
+    requestor_name: Optional[str] = ""
+    email: Optional[EmailStr] = ""
+    industry: Optional[str] = None
+    funding_stage: Optional[str] = None
+    company_type: Optional[str] = None
+    additional_info: Optional[str] = None
+    pitch_deck_url: Optional[str] = None
+    startup_id: Optional[str] = None
+    report_type: Optional[str] = "tier-1"
+    title: Optional[str] = None
+    founder_company: Optional[str] = None
+    founder_type: Optional[str] = None
+    parameters: Optional[Dict[str, Any]] = None
+    status: Optional[str] = "pending"
 
 # OUTBOUND schema – reflects a row in analysis_requests table
 class AnalysisRequestOut(BaseModel):
@@ -23,6 +40,8 @@ class AnalysisRequestOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     external_request_id: Optional[str] = None
+    webhook_url: Optional[str] = None
+    webhook_secret: Optional[str] = None
     parameters: Optional[Dict[str, Any]] = None
 
 # Report content section models (unchanged) ...

@@ -1,19 +1,40 @@
+"""
+router.py
+=========
+
+Endpoints for creating deal reports and persisting JSON summaries.
+
+Workflow
+--------
+1. Receive request to `/reports`.
+2. Trigger agent pipeline → produce full report *sections* (plain text).
+3. Generate PDF (`pdfgenerator`) and push it to Supabase storage.
+4. Call `generate_report_summaries` to obtain nine structured JSON objects.
+5. Insert:
+   a. A new row in `deal_reports` (PDF metadata).
+   b. A matching row in `deal_report_summaries` (JSON columns).
+
+Assumes:
+- Supabase client initialised in `app/api/db.py`.
+- AI section generation handled by `generate_report` (existing).
+"""
+
 from __future__ import annotations
 
 import logging
 import uuid
 import time                            # NEW: for deal_id timestamp
+import json                            # NEW: for JSON serialization
 from datetime import datetime
 from typing import Dict, Any, List
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException, Path, status
-from pydantic import UUID4
+from pydantic import UUID4, BaseModel
 from sqlalchemy.orm import Session
 
 # ─────────── app imports ──────────────────────────────────────────────────────
-# REMOVED: AnalysisRequestIn import (no longer used, as front-end inserts directly)
-from schemas import (
+from app.api.schemas import (
     AnalysisRequestOut,
     ReportContentResponse,
     ReportSection,
@@ -26,7 +47,7 @@ from app.database.crud import (
     get_generated_sections,
 )
 from app.database.database import db_session
-from app.api.ai.orchestrator import generate_report
+from app.api.ai.orchestrator import generate_report, generate_report_summaries
 from app.storage.pdfgenerator import generate_pdf
 from app.storage.gcs import finalize_report_with_pdf
 from app.notifications.supabase_notifier import supabase    # NEW: Supabase client for DB inserts
@@ -42,11 +63,18 @@ def get_db():
     with db_session() as db:
         yield db
 
-# ──────────────────────────────────────────────────────────────────────────────
-#  1)  [REMOVED] CREATE (initial insert now handled by front-end via Supabase)
-# ──────────────────────────────────────────────────────────────────────────────
-# The POST /api/reports endpoint has been removed, since the front-end directly
-# inserts a 'pending' analysis_request row into the database (Supabase):contentReference[oaicite:0]{index=0}.
+class CreateReportRequest(BaseModel):
+    founder_name: str
+    founder_email: str
+    company_name: str
+    pitch_deck_url: str | None = None
+    is_public_sample: bool = False
+
+
+class CreateReportResponse(BaseModel):
+    deal_id: str
+    pdf_url: str
+    summary_inserted: bool
 
 # ──────────────────────────────────────────────────────────────────────────────
 #  2)  GENERATE FULL REPORT  (status: pending -> processing -> completed/failed)
@@ -124,8 +152,12 @@ def generate_full_report(
             founder_name=req.founder_name or "",
             founder_company=founder_co,
             founder_type=req.company_type or "",
-            output_path=None,
+            output_path="",
         )
+        # Ensure pdf_bytes is bytes type for finalize_report_with_pdf
+        if isinstance(pdf_bytes, str):
+            raise ValueError("Expected bytes from generate_pdf but got str")
+        pdf_bytes = bytes(pdf_bytes) if not isinstance(pdf_bytes, bytes) else pdf_bytes
 
         # 6. Upload PDF to storage and send notification email (returns public URL info)
         supabase_info = finalize_report_with_pdf(
@@ -140,7 +172,7 @@ def generate_full_report(
         )
         # finalize_report_with_pdf is now modified to return a dict with storage info (public_url, etc.)
 
-        # 7. Mark request as completed and record external ID & PDF link in the database
+        # 8. Mark request as completed and record external ID & PDF link in the database
         updated_req = get_analysis_request_by_id(db, request_id)
         if not updated_req:
             # In theory, updated_req should exist; this check is just a safety.
@@ -153,8 +185,11 @@ def generate_full_report(
         updated_req.updated_at = datetime.utcnow()
         db.commit()  # commit all the above changes
 
-        # 8. Create a new internal deal entry and a summary placeholder
-        deal_id = f"deal_{int(time.time())}_{uuid.uuid4().hex[:8]}"  # unique deal identifier
+        # 7. Generate structured summaries
+        summaries_payload: Dict[str, Any] = generate_report_summaries(ai_sections)
+
+        # 9. Create a new internal deal entry and a summary placeholder
+        deal_id = str(request_id)  # Use the analysis request ID directly
         try:
             # Insert into deal_reports (PDF link initially included, since we have it now)
             supabase.table("deal_reports").insert({
@@ -166,22 +201,19 @@ def generate_full_report(
         except Exception as e:
             logger.error("Error saving deal report record: %s", e, exc_info=True)
         try:
-            # Insert into deal_report_summaries with placeholder content:contentReference[oaicite:3]{index=3}:contentReference[oaicite:4]{index=4}
-            supabase.table("deal_report_summaries").insert({
-                "deal_id": deal_id,
-                "company_name": founder_co or "Unknown Company",
-                "executive_summary": f"Analysis report submitted to external API with ID: {req.id}. Report generation is in progress.",
-                "strategic_recommendations": "Report generation in progress via external API",
-                "market_analysis": "Analysis pending via external API service",
-                "financial_overview": "Financial analysis pending",
-                "competitive_landscape": "Competitive analysis pending",
-                "action_plan": "Action plan to be generated",
-                "investment_readiness": "pending",
-                "key_metrics": {"external_report_id": str(req.id), "api_status": "submitted"},
-                "financial_projections": {"status": "pending", "external_report_id": str(req.id)}
-            }).execute()
+            # Insert into deal_report_summaries with OpenAI-generated structured JSON content
+            supabase.table("deal_report_summaries").insert(
+                {
+                    "deal_id": deal_id,
+                    "company_name": req.company_name,
+                    "request_id": None,                # no async job ID in sync flow
+                    "is_public_sample": "False",
+                    **summaries_payload,
+                }
+            ).execute()
+            logger.info("Successfully inserted OpenAI-generated structured summary for deal_id: %s", deal_id)
         except Exception as e:
-            logger.error("Error saving report summary placeholder: %s", e, exc_info=True)
+            logger.error("Error saving OpenAI-generated report summary: %s", e, exc_info=True)
 
         # At this point, the analysis request is completed and the PDF URL is stored:contentReference[oaicite:5]{index=5}.
         # The front-end can retrieve the PDF via GET /api/reports/{id}/content or directly from deal_reports.
@@ -240,3 +272,42 @@ def report_status(
     # crude progress heuristic
     progress = 100 if req.status == "completed" else 50
     return ReportStatusResponse(report_id=req.id, status=req.status, progress=progress)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+@router.post("/webhook/report-completion")
+def handle_report_completion(
+    webhook_data: dict,
+    db: Session = Depends(get_db),
+):
+    """Handle webhook callback from external API when report is completed."""
+    try:
+        report_id = webhook_data.get("reportId")
+        pdf_url = webhook_data.get("pdfUrl")
+        summary_data = webhook_data.get("summaryData", {})
+        
+        if not report_id:
+            raise HTTPException(status_code=400, detail="Missing reportId in webhook data")
+        
+        supabase.table("deal_reports").update({
+            "pdf_url": pdf_url
+        }).eq("deal_id", report_id).execute()
+        
+        structured_data = {
+            "executive_summary": json.dumps(summary_data.get("executive_summary", {})),
+            "strategic_recommendations": json.dumps(summary_data.get("strategic_recommendations", {})),
+            "market_analysis": json.dumps(summary_data.get("market_analysis", {})),
+            "financial_overview": json.dumps(summary_data.get("financial_overview", {})),
+            "competitive_landscape": json.dumps(summary_data.get("competitive_landscape", {})),
+            "action_plan": json.dumps(summary_data.get("action_plan", {})),
+            "investment_readiness": json.dumps(summary_data.get("investment_readiness", {})),
+        }
+        
+        supabase.table("deal_report_summaries").update(structured_data).eq("deal_id", report_id).execute()
+        
+        logger.info("Successfully updated report data for report_id: %s", report_id)
+        return {"status": "success", "message": "Report updated successfully"}
+        
+    except Exception as e:
+        logger.error("Error handling webhook completion: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to process webhook")

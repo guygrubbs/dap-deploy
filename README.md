@@ -101,68 +101,242 @@ app/
 
 ## 4. How It Works
 
-### 4.1 Ephemeral PDF Usage
+### 4.1 OpenAI-Powered Report Generation
+
+The backend uses **OpenAI's ChatCompletion API** for two main purposes:
+
+#### 1. Initial Report Content Generation
+- **Model**: Configurable via `OPENAI_MODEL` environment variable (defaults to "o1")
+- **Orchestrator**: `app/api/ai/orchestrator.py` coordinates multiple AI agents
+- **Specialized Agents**: Each handles a specific report section:
+  - `ResearcherAgent` - Gathers external context and market data
+  - `ExecutiveSummaryAgent` - Creates executive summary and investment rationale
+  - `MarketAnalysisAgent` - Analyzes market opportunity and competitive landscape
+  - `FinancialPerformanceAgent` - Evaluates financial performance and investment readiness
+  - `GoToMarketAgent` - Assesses go-to-market strategy and customer traction
+  - `LeadershipTeamAgent` - Reviews leadership and team composition
+  - `InvestorFitAgent` - Determines investor fit and exit strategy
+  - `RecommendationsAgent` - Provides final recommendations and next steps
+
+#### 2. Summary Generation for Frontend
+- **JSON Structure Processing**: OpenAI API processes report contents to create structured summaries
+- **Frontend-Optimized Output**: Generates JSON data specifically formatted for React components
+- **Database Storage**: Structured summaries stored in `deal_report_summaries` table as JSON strings
+
+#### Report Generation Process
+1. **Database Monitoring**: Backend monitors `analysis_requests` table for pending entries
+2. **Context Gathering**: Combines pitch deck text, retrieved context, and company information
+3. **Multi-Agent Processing**: Each agent generates its specialized section using OpenAI API
+4. **Summary Generation**: OpenAI processes report contents to create structured JSON summaries
+5. **Database Updates**: Updates Supabase tables with generated content and summaries
+6. **Error Handling**: Retry logic with exponential backoff for API failures
+
+### 4.2 Ephemeral PDF Usage
 
 When generating a report, you can:
-1. Provide a `pitch_deck_url` in `report_model.parameters` or your request.  
-2. The `/reports/{report_id}/generate` endpoint sees the URL, downloads the PDF, extracts text with OCR fallback.  
-3. That text is appended to `request_params["pitch_deck_text"]`.  
-4. In `orchestrator.py`, we combine that text with any snippet-based retrieval context.  
-5. GPT sees the ephemeral PDF text in the prompt but does NOT store it long-term.
+1. Provide a `pitch_deck_url` in your analysis request
+2. The system downloads the PDF, extracts text with OCR fallback
+3. That text is included in the AI prompt context ephemeral (not stored permanently)
+4. OpenAI processes the pitch deck content along with other context
+5. The pitch deck data is only used for that single request - no permanent training
 
-**This means** the pitch-deck data is only used for that single request. No permanent fine-tuning or training.
+**Privacy**: Pitch deck data is processed ephemeral and not stored in OpenAI's training data.
 
-### 4.2 Fine-Tuning with PDF
+### 4.3 Structured Data Storage
 
-If you want to **fine-tune** your model on certain decks or standard docs:
-- Use the new route `/pitchdecks/{deck_file}/upload_to_openai` or the script `pdf_to_openai_jsonl.py`.
-- That logic downloads a PDF from Supabase, extracts text, splits it into .jsonl records, and optionally uploads to OpenAI with `purpose="fine-tune"`.
+Generated reports are stored in structured JSON format in the `deal_report_summaries` table:
+- Each report section is stored as serialized JSON
+- Frontend components parse JSON to render interactive report views
+- Data structure matches exactly what React components expect
+- Supports rich formatting, tables, charts, and interactive elements
 
-**Note**: This is separate from ephemeral usage. Fine-tuning is for universal knowledge you want the model to always retain.
+### 4.4 External API Integration
+
+The system integrates with an external report generation service:
+- **Outbound**: Sends analysis requests to external API for additional processing
+- **Webhook**: Receives completion notifications with structured report data
+- **Dual Processing**: Combines OpenAI-generated content with external API results
+- **Fallback**: Can operate independently if external service is unavailable
 
 ---
 
-## 5. Endpoints & Usage
+## 5. API Endpoints & Frontend Integration
 
-### 5.1 `/reports [POST]`
-Create a new report record in DB. Returns a `report_id`.
+### 5.1 Frontend Database Integration
+**Frontend creates analysis requests directly in Supabase** - No direct API endpoint needed.
 
-#### Request Body (`CreateReportRequest`)
+The frontend inserts records into the `analysis_requests` table:
+```sql
+INSERT INTO analysis_requests (
+  user_id, founder_name, company_name, email, status, 
+  industry, funding_stage, company_type, additional_info, pitch_deck_url
+) VALUES (
+  'uuid-string', 'John Doe', 'Example Startup Inc', 'jane@example.com', 'pending',
+  'Technology', 'Seed', 'SaaS', 'Additional context...', 'https://supabase-url/pitch-deck.pdf'
+);
+```
+
+### 5.2 Report Generation: `POST /api/reports/{report_id}/generate`
+Triggers the complete report generation workflow:
+
+1. **Updates Status**: Changes analysis request status from "pending" to "processing"
+2. **External API Call**: Sends request to external report generation service
+3. **Database Updates**: Creates placeholder records in `deal_reports` and `deal_report_summaries` tables
+4. **OpenAI Integration**: Uses multiple AI agents to generate report sections
+5. **Structured Data**: Inserts JSON-formatted report data for frontend consumption
+
+#### Response
 ```json
 {
-  "user_id": "123",
-  "startup_id": "456",
-  "report_type": "investment_readiness",
-  "title": "My Test Report",
-  "parameters": {
-    "pitch_deck_url": "https://your-supabase-or-public-url"
+  "message": "Report generation initiated",
+  "external_request_id": "ext-report-123",
+  "deal_id": "deal_1234567890_abc123"
+}
+```
+
+### 5.3 Report Completion Webhook: `POST /webhook/report-completion`
+Handles callbacks from the external API when report generation is complete.
+
+#### Expected Webhook Payload
+```json
+{
+  "reportId": "deal_1234567890_abc123",
+  "pdfUrl": "https://storage.googleapis.com/reports/final-report.pdf",
+  "summaryData": {
+    "executive_summary": {
+      "context_purpose": "Executive summary content...",
+      "investment_attractiveness": {
+        "level": "high",
+        "description": "Strong investment potential"
+      },
+      "key_metrics": ["Revenue: $1M", "Growth: 50%"],
+      "strengths": ["Strong team", "Market opportunity"],
+      "challenges": ["Competition", "Scaling"]
+    },
+    "strategic_recommendations": {
+      "recommendations": [
+        {
+          "priority": "high",
+          "timeframe": "0-3 Months",
+          "items": ["Action item 1", "Action item 2"]
+        }
+      ]
+    },
+    "market_analysis": { /* structured market data */ },
+    "financial_overview": { /* structured financial data */ },
+    "competitive_landscape": { /* structured competitive data */ },
+    "action_plan": { /* structured action plan data */ },
+    "investment_readiness": { /* structured readiness assessment */ }
   }
 }
 ```
-**Response**: A `ReportResponse` with ID, status, etc.
 
-### 5.2 `/reports/{report_id}/generate [POST]`
-1. Looks up `report_id`.
-2. Reads `report_model.parameters["pitch_deck_url"]` (if any).
-3. Downloads the PDF, extracts text ephemeral for GPT usage.
-4. Calls `generate_report(...)`.
-5. Stores the final sections in DB.
-6. Optionally builds a PDF, uploads to GCS, returns the final metadata.
+### 5.4 Report Status Monitoring: `GET /api/reports/{report_id}/status`
+Check the current status and progress of report generation.
 
-**Response**: Full `ReportResponse` with final sections and optional signed PDF URL.
+#### Response
+```json
+{
+  "report_id": "uuid-string",
+  "status": "processing|completed|failed",
+  "progress": 75
+}
+```
 
-### 5.3 `/pitchdecks/{deck_file}/upload_to_openai [POST]`
-- **Offline fine-tuning** approach: 
-  1. `deck_file` is the PDF name in a Supabase bucket.  
-  2. Downloads the PDF, extracts text, creates `.jsonl`.  
-  3. Optionally uploads `.jsonl` to OpenAI for training.  
+### 5.5 Report Content Retrieval: `GET /api/reports/{report_id}/content`
+Retrieve the generated report sections for frontend display.
 
-**Response**: `{"deck_file": ..., "openai_file_id": ...}` or error.
+#### Response (`ReportContentResponse`)
+```json
+{
+  "report_id": "uuid-string",
+  "sections": [
+    {
+      "section_name": "executive_summary",
+      "content": "Generated executive summary content..."
+    },
+    {
+      "section_name": "market_analysis",
+      "content": "Generated market analysis content..."
+    }
+  ]
+}
+```
 
-### 5.4 Other /reports GETs
-- `/reports/{report_id}` retrieves metadata.  
-- `/reports/{report_id}/content` returns the sections.  
-- `/reports/{report_id}/status` checks current progress.
+### 5.6 Report Metadata: `GET /api/reports/{report_id}`
+Retrieve basic report information and metadata.
+
+## 6. Frontend-Backend Integration Workflow
+
+### Actual Report Generation Sequence
+
+1. **Frontend Database Entry Creation**
+   ```javascript
+   // Frontend creates analysis request directly in Supabase
+   const { data: newRequest, error } = await supabase
+     .from('analysis_requests')
+     .insert({
+       user_id: userId,
+       founder_name: founderName,
+       company_name: companyName,
+       email: email,
+       status: 'pending',
+       // ... other fields
+     })
+     .select()
+     .single();
+   
+   // Trigger backend processing via edge function
+   const { data, error } = await supabase.functions.invoke('generate-analysis-report', {
+     body: { analysisRequestId: newRequest.id }
+   });
+   ```
+
+2. **Backend Monitoring and Processing**
+   ```javascript
+   // Backend monitors analysis_requests table and processes pending requests
+   // GET /api/reports/{report_id}/generate endpoint:
+   // 1. Retrieves analysis request from Supabase
+   // 2. Updates status to 'processing'
+   // 3. Calls external API for additional processing
+   // 4. Uses OpenAI agents to generate report sections
+   // 5. Updates Supabase with generated content
+   ```
+
+3. **OpenAI Summary Generation**
+   ```javascript
+   // Backend uses OpenAI API to generate structured summaries
+   // 1. Feeds report contents to OpenAI ChatCompletion API
+   // 2. Uses specialized prompts to create JSON-structured summaries
+   // 3. Stores results in deal_report_summaries table as JSON strings
+   // 4. Updates analysis_requests status to 'completed'
+   ```
+
+4. **Frontend Data Consumption**
+   ```javascript
+   // Frontend loads completed report data from Supabase
+   const { data: summary } = await supabase
+     .from('deal_report_summaries')
+     .select('*')
+     .eq('deal_id', dealId)
+     .maybeSingle();
+   
+   // Parse JSON sections for React components
+   const reportData = {
+     executiveSummary: JSON.parse(summary.executive_summary),
+     strategicRecommendations: JSON.parse(summary.strategic_recommendations),
+     marketAnalysis: JSON.parse(summary.market_analysis),
+     financialOverview: JSON.parse(summary.financial_overview),
+     competitiveLandscape: JSON.parse(summary.competitive_landscape),
+     actionPlan: JSON.parse(summary.action_plan),
+     investmentReadiness: JSON.parse(summary.investment_readiness)
+   };
+   ```
+
+### 5.7 Legacy Endpoints (Still Available)
+
+- **Fine-tuning**: `POST /pitchdecks/{deck_file}/upload_to_openai` - For offline fine-tuning approach
+- **Direct Report Creation**: Legacy report creation (if needed for backward compatibility)
 
 ---
 

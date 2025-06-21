@@ -46,31 +46,27 @@ def _notify_supabase(
     while attempts < max_retries:
         attempts += 1
         try:
-            # -- REMOVED: Upsert call to Supabase --
+            supabase.table("api_reports").upsert(data).execute()
             logger.info(
-                "[NO-OP] Would have notified Supabase of minimal data: %s",
-                data
-            )
-            logger.info(
-                "[NO-OP] 'Supabase notification' succeeded on attempt %d/%d for report_id: %s",
+                "Supabase notification succeeded on attempt %d/%d for report_id: %s",
                 attempts, max_retries, report_id
             )
             break
         except Exception as e:
             logger.error(
-                "[NO-OP] 'Supabase notification' attempt %d/%d failed for report_id %s: %s",
+                "Supabase notification attempt %d/%d failed for report_id %s: %s",
                 attempts, max_retries, report_id, str(e),
                 exc_info=True
             )
             if attempts < max_retries:
                 logger.info(
-                    "[NO-OP] Retrying 'Supabase notification' in %s seconds for report_id: %s",
+                    "Retrying Supabase notification in %s seconds for report_id: %s",
                     retry_delay, report_id
                 )
                 time.sleep(retry_delay)
             else:
                 logger.error(
-                    "[NO-OP] All retry attempts failed for report_id %s. No further retries will be made.",
+                    "All retry attempts failed for report_id %s. No further retries will be made.",
                     report_id
                 )
 
@@ -80,14 +76,14 @@ def notify_supabase(report_id: Union[str, uuid.UUID], status: str, pdf_url: str,
     Public function that spawns a background thread, but no longer does any actual DB writes.
     """
     logger.debug(
-        "[NO-OP] Queuing Supabase notification in background thread for report_id=%s, status=%s, user_id=%s",
+        "Queuing Supabase notification in background thread for report_id=%s, status=%s, user_id=%s",
         report_id, status, user_id
     )
-    #Thread(
-    #    target=_notify_supabase,
-    #    args=(report_id, status, pdf_url, user_id),
-    #    daemon=True
-    #).start()
+    Thread(
+        target=_notify_supabase,
+        args=(report_id, status, pdf_url, user_id),
+        daemon=True
+    ).start()
 
 
 # ----------------------------------------------------------------------
@@ -109,31 +105,31 @@ def _notify_supabase_final_report(
     while attempts < max_retries:
         attempts += 1
         try:
-            # -- REMOVED: Upsert code for 'report_data' in the 'reports' table --
+            supabase.table("reports").upsert({
+                "report_id": report_id,
+                "report_data": final_report_data,
+                "updated_at": datetime.utcnow().isoformat()
+            }).execute()
             logger.info(
-                "[NO-OP] Would have posted final_report_data to Supabase for report_id=%s: %s",
-                report_id, final_report_data
-            )
-            logger.info(
-                "[NO-OP] 'Supabase final report update' succeeded on attempt %d/%d for report_id: %s",
+                "Supabase final report update succeeded on attempt %d/%d for report_id: %s",
                 attempts, max_retries, report_id
             )
             break
         except Exception as e:
             logger.error(
-                "[NO-OP] 'Supabase final report update' attempt %d/%d failed for report_id %s: %s",
+                "Supabase final report update attempt %d/%d failed for report_id %s: %s",
                 attempts, max_retries, report_id, str(e),
                 exc_info=True
             )
             if attempts < max_retries:
                 logger.info(
-                    "[NO-OP] Retrying final report update in %s seconds for report_id: %s",
+                    "Retrying final report update in %s seconds for report_id: %s",
                     retry_delay, report_id
                 )
                 time.sleep(retry_delay)
             else:
                 logger.error(
-                    "[NO-OP] All retry attempts failed for report_id %s. No further retries will be made.",
+                    "All retry attempts failed for report_id %s. No further retries will be made.",
                     report_id
                 )
 
@@ -144,11 +140,11 @@ def notify_supabase_final_report(report_id: int, final_report_data: Dict[str, An
     Now also a NO-OP for DB writes.
     """
     logger.debug(
-        "[NO-OP] Queuing final report upsert to Supabase in a background thread for report_id=%s, user_id=%s",
+        "Queuing final report upsert to Supabase in a background thread for report_id=%s, user_id=%s",
         report_id, user_id
     )
-    #Thread(
-    #    target=_notify_supabase_final_report,
-    #    args=(report_id, final_report_data, user_id),
-    #    daemon=True
-    #).start()
+    Thread(
+        target=_notify_supabase_final_report,
+        args=(report_id, final_report_data, user_id),
+        daemon=True
+    ).start()

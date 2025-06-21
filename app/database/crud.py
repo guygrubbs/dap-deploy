@@ -6,8 +6,15 @@ from sqlalchemy.orm import Session
 
 from app.database.models import AnalysisRequest
 
-# NOTE: The create_analysis_request_entry function has been removed, since new 
-# analysis requests are inserted on the front-end via Supabase (status 'pending').
+def create_analysis_request_entry(
+    db: Session, request_data: dict
+) -> AnalysisRequest:
+    """Create a new analysis request entry."""
+    new_request = AnalysisRequest(**request_data)
+    db.add(new_request)
+    db.commit()
+    db.refresh(new_request)
+    return new_request
 
 # READ
 def get_analysis_request_by_id(

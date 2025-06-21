@@ -91,7 +91,7 @@ def upload_pdf_to_supabase(
     report_id: Union[str, uuid.UUID],
     pdf_file_path: str,
     name: str = "there",
-    bucket_name: str = "report-pdfs",
+    bucket_name: str = "deal-reports",
     user_email: Union[str, List[str], None] = None
 ) -> dict:
     """

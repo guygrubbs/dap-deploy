@@ -1,8 +1,18 @@
 # app/api/ai/orchestrator.py
 
+import json
 import logging
 import time
 import os
+from typing import Any, Dict
+
+try:
+    import sanitize_html
+except ModuleNotFoundError:
+    import re
+    def sanitize_html(text: str) -> str:
+        """Extremely naive HTML tag stripper (replace in production)."""
+        return re.sub(r"<[^>]+?>", "", text)
 
 from app.api.ai.agents import (
     ResearcherAgent,                 # Step 1: gather external context
@@ -12,8 +22,18 @@ from app.api.ai.agents import (
     GoToMarketAgent,                 # Section 4: Go-To-Market (GTM) Strategy & Customer Traction
     LeadershipTeamAgent,             # Section 5: Leadership & Team
     InvestorFitAgent,                # Section 6: Investor Fit, Exit Strategy & Funding Narrative
-    RecommendationsAgent             # Section 7: Final Recommendations & Next Steps
+    RecommendationsAgent,            # Section 7: Final Recommendations & Next Steps
+    ExecutiveSummaryJSONAgent,
+    StrategicRecommendationsJSONAgent,
+    MarketAnalysisJSONAgent,
+    FinancialOverviewJSONAgent,
+    CompetitiveLandscapeJSONAgent,
+    ActionPlanJSONAgent,
+    InvestmentReadinessJSONAgent,
+    KeyMetricsJSONAgent,
+    FinancialProjectionsJSONAgent,
 )
+
 
 from app.matching_engine.retrieval_utils import (
     retrieve_relevant_chunks,
@@ -22,6 +42,29 @@ from app.matching_engine.retrieval_utils import (
 
 logger = logging.getLogger(__name__)
 
+
+# --------------------------------------------------------------------------- #
+# Helpers – recurse through JSON & sanitise string values
+# --------------------------------------------------------------------------- #
+
+def _cleanse_json(value: Any) -> Any:
+    """Recursively sanitise *string* leaves, leave numbers/lists/dicts intact."""
+    if isinstance(value, str):
+        return sanitize_html(value)
+    if isinstance(value, list):
+        return [_cleanse_json(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _cleanse_json(v) for k, v in value.items()}
+    return value
+
+
+def _safe_parse(json_str: str, field_name: str) -> Any | None:
+    """Load JSON, log & discard on error."""
+    try:
+        return json.loads(json_str)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("JSON parse error for %s: %s", field_name, exc, exc_info=True)
+        return None
 
 def generate_with_retry(agent, context: dict, section_name: str, max_attempts: int = 3, delay: int = 60) -> str:
     """
@@ -695,3 +738,63 @@ def generate_report(request_params: dict) -> dict:
 
     logger.info("Report generation complete. Section statuses: %s", status_summary)
     return full_report
+
+
+# --------------------------------------------------------------------------- #
+# Main orchestration function
+# --------------------------------------------------------------------------- #
+
+def generate_report_summaries(full_report_sections: Dict[str, str]) -> Dict[str, Any]:
+    """
+    Call each JSON agent, validate + sanitise output, return payload ready for DB.
+
+    Parameters
+    ----------
+    full_report_sections
+        Dict where keys are section labels (e.g. 'Problem', 'Solution', ...),
+        values are the *plain‑text* body — we just concatenate them for context.
+    """
+    logger.info("Starting JSON‑summary generation from full report text.")
+    report_text = "\n\n".join(full_report_sections.values()).strip()
+
+    # Instantiate agents
+    agents_map = {
+        "executive_summary": ExecutiveSummaryJSONAgent(),
+        "strategic_recommendations": StrategicRecommendationsJSONAgent(),
+        "market_analysis": MarketAnalysisJSONAgent(),
+        "financial_overview": FinancialOverviewJSONAgent(),
+        "competitive_landscape": CompetitiveLandscapeJSONAgent(),
+        "action_plan": ActionPlanJSONAgent(),
+        "investment_readiness": InvestmentReadinessJSONAgent(),
+        "key_metrics": KeyMetricsJSONAgent(),
+        "financial_projections": FinancialProjectionsJSONAgent(),
+    }
+
+    raw_outputs: Dict[str, str] = {}
+    for key, agent in agents_map.items():
+        raw_outputs[key] = agent.generate_json(report_text)
+
+    clean_payload: Dict[str, Any] = {}
+    for field, raw_json in raw_outputs.items():
+        if not raw_json:
+            logger.warning("No JSON produced for %s – storing placeholder.", field)
+            clean_payload[field] = "{}" if field not in ("key_metrics", "financial_projections") else {}
+            continue
+
+        data = _safe_parse(raw_json, field)
+        if data is None:
+            # Fallback placeholder – keeps DB constraints happy
+            clean_payload[field] = "{}" if field not in ("key_metrics", "financial_projections") else {}
+            continue
+
+        # Sanitise all string values (no‑op for numbers)
+        data = _cleanse_json(data)
+
+        # For JSONB fields store the *dict*, else store minified JSON string
+        if field in ("key_metrics", "financial_projections"):
+            clean_payload[field] = data
+        else:
+            clean_payload[field] = json.dumps(data, separators=(",", ":"))  # compact string
+
+    logger.info("JSON‑summary generation complete.")
+    return clean_payload
