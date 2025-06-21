@@ -207,7 +207,7 @@ def generate_full_report(
                     "deal_id": deal_id,
                     "company_name": req.company_name,
                     "request_id": None,                # no async job ID in sync flow
-                    "is_public_sample": req.is_public_sample,
+                    "is_public_sample": "False",
                     **summaries_payload,
                 }
             ).execute()

@@ -18,7 +18,7 @@ except ModuleNotFoundError:
 def _openai_chat_completion(messages: list[dict[str, str]]) -> str:
     """Centralised OpenAI call – keeps each agent tiny."""
     model = os.getenv("OPENAI_MODEL", "o1")
-    resp = openai.ChatCompletion.create(model=model, messages=messages, temperature=0.3)
+    resp = openai.ChatCompletion.create(model=model, messages=messages)
     return resp["choices"][0]["message"]["content"].strip()
 
 # --------------------------------------------------------------------------- #
