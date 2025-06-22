@@ -54,22 +54,25 @@ def convert_markdown_to_html(markdown_text, section_number=1, section_title=None
     if section_title:
         escaped_title = re.escape(section_title)
         escaped_num   = re.escape(str(section_number))
-        patterns = [
-            rf"^### \*\*Section {escaped_num}: {escaped_title}\*\*.*$",
-            rf"^### Section {escaped_num}: {escaped_title}.*$",
-            rf"^## Section {escaped_num}: {escaped_title}.*$",
-            rf"^# Section {escaped_num}: {escaped_title}.*$",
-            rf"^#### {escaped_title}.*$",
-            rf"^### {escaped_title}.*$",
-            rf"^## {escaped_title}.*$",
-            rf"^# {escaped_title}.*$"
-        ]
-        for p in patterns:
-            markdown_text = re.sub(p, "", markdown_text, flags=re.MULTILINE)
 
-        # Remove any leftover anchor IDs like {#some-anchor}
-        anchor_pattern = r" \{#.*?\}"
-        markdown_text = re.sub(anchor_pattern, "", markdown_text, flags=re.MULTILINE)
+        # ------------------------------------------------------------------
+        # NEW: one generic pattern handles any heading level (##, ###, etc.)
+        #      It also tolerates bold/italic markdown (**title**, *title*)
+        #      and optional "Section N:" prefixes.
+        # ------------------------------------------------------------------
+        generic = rf"""
+            ^\s*
+            \#{{1,6}}\s*
+            (?P<BOLD>\*{{0,2}})?
+            (Section\s+{escaped_num}:\s+)?
+            {escaped_title}
+            (?P=BOLD)?
+            \s*(\{{#.*?\}})?\s*$
+        """
+        markdown_text = re.sub(
+            generic, "", markdown_text,
+            flags=re.IGNORECASE | re.MULTILINE | re.VERBOSE
+        )
 
     # 3) Replace special emoji indicators with HTML elements for consistent rendering
     markdown_text = markdown_text.replace("🟢", '<span class="indicator green"></span>')
@@ -254,15 +257,24 @@ def generate_pdf(
             section["clean_title"]
         )
 
-        # Insert IDs for subsections
+        # ------------------------------------------------------------
+        # Inject an ID into each subsection heading
+        # Supports both <h2> (##) and <h3> (###) variants
+        # ------------------------------------------------------------
         for j, subsection in enumerate(section["subsections"]):
-            subsection_id = subsection["id"]
+            subsection_id    = subsection["id"]
             subsection_title = clean_title(subsection["title"])
             subsection_title_pattern = re.escape(subsection_title)
-            heading_pattern = f'<h3>(\\d+\\)\\s*)?{subsection_title_pattern}</h3>'
-            replacement = f'<h3 id="{subsection_id}">\\1{subsection_title}</h3>'
-            content_html = re.sub(heading_pattern, replacement, content_html)
 
+            for heading_level in ("h2", "h3"):
+                heading_pattern = (
+                    rf'<{heading_level}>(\d+\)\s*)?{subsection_title_pattern}</{heading_level}>'
+                )
+                replacement = (
+                    rf'<{heading_level} id="{subsection_id}">\1{subsection_title}</{heading_level}>'
+                )
+                content_html = re.sub(heading_pattern, replacement, content_html)
+        
         # Replace placeholders with user-supplied data
         content_html = content_html.replace("{founder_name}", founder_name)
         content_html = content_html.replace("{founder_company}", founder_company)
@@ -277,7 +289,7 @@ def generate_pdf(
 
     # 6) Fill in the template with dynamic fields
     date_str = datetime.now().strftime("%b %d, %Y")
-    final_prepared_by = prepared_by or "Brendan Smith, Get Fresh Ventures"
+    final_prepared_by = prepared_by or "Diraj Goel, Get Fresh Ventures"
 
     filled_html = template_html.format(
         report_id=report_id,

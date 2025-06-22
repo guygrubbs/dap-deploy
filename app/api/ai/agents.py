@@ -239,62 +239,74 @@ class ExecutiveSummaryAgent(BaseAIAgent):
 # ---------------------------------------------------------------
 class MarketAnalysisAgent(BaseAIAgent):
     """
-    AI Agent for Section 2: Market Opportunity & Competitive Landscape
-    — updated to:
-      • Adapt tone and depth to the company’s stage (`early-stage`, `growth`, etc.)
-      • Add a “Competitive Action Items” subsection with 2-3 strategic responses
-      • Call out customer-retention dynamics whenever relevant
-      • Highlight compliance / market-entry constraints (e.g., SOC 2, GDPR)
-      • Preserve all existing markdown anchors and heading hierarchy
+    AI Agent for **Section 2 – Market Opportunity & Competitive Landscape**
+
+    Key updates (2025‑06):
+    • Inject richer competitor detail → include **capital raised (latest public round)** and an explicit
+      “Similarity vs Subject” column.
+    • Preserve existing heading / anchor scheme so downstream PDF pipeline remains intact.
+    • Still adapts depth and tone to company stage.
+    • Keeps “Competitive Action Items”, retention call‑outs, and compliance flags.
     """
+
     def __init__(self):
+        # ------------------------------------------------------------------
+        # Template – every anchor / heading must stay unchanged
+        # ------------------------------------------------------------------
         prompt_template = (
-            "You are an expert market analyst writing **Section 2: Market Opportunity & Competitive Landscape** "
-            "in Markdown.  Tailor your analysis to the startup’s **stage** and **audience**:\n"
-            "• If **{funding_stage}** is early (pre-MVP / pre-revenue) → emphasize market potential, unmet needs, and validation hurdles.\n"
-            "• If later stage → focus on evidence, scaling metrics, and efficiency benchmarks.\n\n"
+            "You are an expert market analyst drafting **Section 2: Market Opportunity & Competitive Landscape** "
+            "in **Markdown**.\n\n"
 
             "**Company:** {founder_company}\n"
             "**Stage:** {funding_stage}\n"
             "**Industry / Domain:** {industry}\n\n"
+
             "Retrieved Context:\n{retrieved_context}\n\n"
 
             "## Your Task\n"
-            "Generate **Section 2** in the exact markdown layout below.  "
-            "After competitor analysis, include **2-3 tactical recommendations** on how the company can out-maneuver rivals.  "
-            "Note any **customer-retention trends**, plus **regulatory or compliance constraints** that could impact market entry.\n\n"
+            "Write Section 2 using the exact heading hierarchy below.  "
+            "Tailor emphasis according to **{funding_stage}**:\n"
+            "• *Early‑stage* → spotlight market potential, unmet needs, and validation hurdles.\n"
+            "• *Growth / Later‑stage* → emphasise traction proof, scaling metrics, and efficiency benchmarks.\n\n"
+
+            "Also **expand the competitor grid** as follows:\n"
+            "• Add each rival’s **latest known funding raised** (publicly disclosed).\n"
+            "• Briefly state **how they are most similar** and **how they differ** from the subject company.\n"
+            "• Minimum 3 competitors if data is available; otherwise mark “Not publicly available”.\n\n"
+
+            "Finally, include **2‑3 Tactical Recommendations** under *Competitive Action Items*.\n\n"
 
             "### **Section 2: Market Opportunity & Competitive Landscape** {{#section-2:-market-opportunity-&-competitive-landscape}}\n\n"
 
             "#### Market Overview {{#market-overview}}\n"
-            "Provide a concise stage-appropriate overview of the market (problem, target users, key trends).\n\n"
+            "Concise, stage‑appropriate overview of problem, target users, and structural trends.\n\n"
 
             "#### Market Size & Growth Projections {{#market-size-&-growth-projections:}}\n"
             "- **Total Addressable Market (TAM):**\n"
             "- **Annual Growth Rate:**\n"
-            "- **Adoption / Retention Trends:** _(mention if long-term customer relationships are critical in this market)_\n\n"
+            "- **Adoption / Retention Trends:** _(note if long‑term retention is critical)_\n\n"
 
             "#### Competitive Positioning {{#competitive-positioning}}\n"
-            "Summarize the company’s core advantages vs. competitors, factoring in {funding_stage} context.\n\n"
+            "Summarise the company’s core advantages vs rivals, calibrated to {funding_stage}.\n\n"
 
             "##### Competitive Landscape {{#competitive-landscape}}\n"
-            "| Competitor | Market Focus | Key Strengths | Weaknesses / Gaps |\n"
-            "| ---------- | ------------ | ------------- | ----------------- |\n"
-            "|            |              |               |                   |\n\n"
+            "| Competitor | Latest Funding ($) | Market Focus | Similarities | Key Strengths | Differences / Gaps |\n"
+            "| ---------- | ------------------ | ------------ | ------------ | ------------- | ------------------ |\n"
+            "|            |                    |              |              |               |                    |\n\n"
 
             "##### Competitive Action Items {{#competitive-action-items}}\n"
-            "- **Action 1:** _e.g., “Leverage lower pricing to undercut Competitor A’s enterprise premium.”_\n"
-            "- **Action 2:** _e.g., “Develop missing Feature X to neutralize Competitor B’s advantage.”_\n"
-            "- **Action 3:** _(optional)_\n\n"
+            "- **Action 1:**\n"
+            "- **Action 2:**\n"
+            "- **Action 3:** _(optional)_\n\n"
 
             "#### Key Market Takeaways {{#key-market-takeaways:}}\n"
             "- Bullet summary of the most important insights (size, growth, competition, retention cues).\n\n"
 
             "##### Challenges & Expansion Opportunities {{#challenges-&-expansion-opportunities}}\n"
             "###### Challenges {{#challenges:}}\n"
-            "- List regulatory hurdles, competitive barriers, retention risks, etc.\n\n"
+            "- Regulatory hurdles, competitive barriers, retention risks, etc.\n\n"
             "###### Opportunities for Market Expansion {{#opportunities-for-market-expansion:}}\n"
-            "✅ Describe adjacent verticals / geographies the startup could pursue after initial traction.\n\n"
+            "✅ Adjacent verticals / geographies to pursue post‑traction.\n\n"
 
             "#### Market Fit Assessment {{#market-fit-assessment}}\n"
             "| Market Factor | Status* | Evidence (1 sentence) |\n"
@@ -306,13 +318,12 @@ class MarketAnalysisAgent(BaseAIAgent):
             "\n\n"
 
             "### Instructions\n"
-            "1. Output **valid Markdown** only; keep every heading & anchor unchanged except where new anchors are specified above.\n"
-            "2. All color-coded ratings must reflect evidence from `retrieved_context` (do **not** leave static placeholders).\n"
-            "3. If data is missing, state “*Not publicly available*”.\n"
-            "4. Replace [🟢/🟡/🔴] with the correct color to match the rating for the category.\n"
-            "5. Use plain words such as Strong / Moderate / Weak and a matching color emoji.\n"
-            "6. Base each status on retrieved evidence.\n"
+            "1. Output **valid Markdown only** – keep every heading & anchor unchanged.\n"
+            "2. Populate competitor grid with funding amounts & similarity/difference notes; mark as *Not publicly available* if data is missing.\n"
+            "3. Ratings must be evidence‑based; replace [🟢/🟡/🔴] accordingly.\n"
+            "4. Use plain descriptors (Strong / Moderate / Weak) to justify each rating.\n"
         )
+
         super().__init__(prompt_template)
 
 
@@ -520,116 +531,92 @@ class GoToMarketAgent(BaseAIAgent):
 # ---------------------------------------------------------------
 class LeadershipTeamAgent(BaseAIAgent):
     """
-    AI Agent for Section 5: Leadership & Team
+    AI Agent for **Section 5 – Leadership & Team**
 
-    Desired Markdown structure:
-    ### **Section 5: Leadership & Team** {{#section-5:-leadership-&-team}
-
-    #### **Leadership Expertise & Strategic Decision-Making** {{#leadership-expertise-&-strategic-decision-making}
-    Leadership Expertise & Strategic Decision-Making
-
-    | Leadership Role | Experience & Contributions | Identified Gaps |
-    | ----- | ----- | ----- |
-    | **Co-Founder & CEO** |  |  |
-    | **Co-Founder & Business Development Lead** |  |  |
-    | **Sales & Business Development Team** |  |  |
-    | **Engineering & Product Development** |  |  |
-
-    ✅ **Strengths:**  
-    ⚠ **Challenges:** 
-
-    #### **Organizational Structure & Growth Plan** {{#organizational-structure-&-growth-plan}
-    | Functional Area | Current Status | Planned Expansion | Impact on Scalability |
-    | ----- | ----- | ----- | ----- |
-    | **Product & Engineering** |  |  |  |
-    | **Sales & Business Development** |  |  |  |
-    | **Customer Success & Support** |  |  |  |
-
-    ✅  
-    ⚠ 
-
-    #### **Strategic Hiring Roadmap** {{#strategic-hiring-roadmap}
-    | Role | Current Status | Planned Hiring Timeline | Impact |
-    | ----- | ----- | ----- | ----- |
-    | **CTO / Senior Product Leader** |  |  |  |
-    | **Outbound Sales & BD Team Expansion** |  |  |  |
-    | **Customer Success & Ops Growth** |  |  |  |
-
-    ✅  
-    ⚠ 
-
-    #### **Leadership Stability & Investor Confidence** {{#leadership-stability-&-investor-confidence}
-    * **Investor View:**   
-    * **Identified Risks:**   
-    * **Mitigation Strategy:** 
-
-    #### **Leadership & Organizational Stability Assessment** {{#leadership-&-organizational-stability-assessment}
-    | Leadership Category | Assessment |
-    | ----- | ----- |
-    | **Strategic Vision & Execution** | 🟢 Strong |
-    | **Technical Leadership Depth** | 🟡 Needs Improvement |
-    | **Sales & Business Development Scalability** | 🟡 Needs Expansion |
-    | **Team Stability & Succession Planning** | 🟡 Moderate Risk |
+    ► 2025‑06 revisions (based on reviewer feedback)
+    ------------------------------------------------------------------
+    1. Add a “Key Personnel Snapshot” table – names, pedigree, recent news, red‑flag notes.
+    2. Insert a new subsection **Use of Funds vs Identified Gaps** to verify that the
+       stated funding allocation actually closes the talent / capability gaps surfaced in
+       this section.
+    3. Maintain all original anchors so the downstream PDF compositor keeps working.
     """
+
     def __init__(self):
         prompt_template = (
-            "You are an expert at drafting **Section 5: Leadership & Team** in Markdown format. "
-            "Use **the exact headings, subheadings, anchor links, and tables** provided below, "
-            "incorporating details from '{{retrieved_context}}' and mentioning color-coded references if relevant."
-            "Wherever [🟢/🟡/🔴] is used, repplace with the appropriate color for the assessment based on evidence.\n\n"
+            "You are an expert analyst drafting **Section 5: Leadership & Team** in **Markdown**.  "
+            "Follow the exact heading / anchor framework below.\n\n"
 
-            "Company: {founder_company}\n"
-            "Retrieved Context:\n"
-            "{retrieved_context}\n\n"
+            "**Company:** {founder_company}\n"
+            "Retrieved Context:\n{retrieved_context}\n\n"
 
             "## Your Task\n"
-            "Generate **Section 5** in the following markdown structure:\n\n"
+            "• Populate every table cell with evidence‑based detail.  Use *Not publicly available* where data is missing.\n"
+            "• In “Key Personnel Snapshot” add **names** of all disclosed execs or key hires plus any notable advisors.  \n"
+            "  – Column ‘Recent News / Media’ should cite noteworthy press (funding rounds, awards, controversies).  \n"
+            "  – Column ‘Concerns / Red Flags’ flags lawsuits, departures, reputation risks that may hurt investability.\n"
+            "• In “Use of Funds vs Identified Gaps” analyse whether the stated raise (see Section 3) addresses gaps "
+            "found in leadership, hiring or compliance.\n"
+            "• Replace every [🟢/🟡/🔴] with the correct colour rating and one‑word descriptor (Strong 🟢 etc.).\n\n"
+
             "### **Section 5: Leadership & Team** {{#section-5:-leadership-&-team}}\n\n"
+
             "#### **Leadership Expertise & Strategic Decision-Making** {{#leadership-expertise-&-strategic-decision-making}}\n"
             "Leadership Expertise & Strategic Decision-Making\n\n"
             "| Leadership Role | Experience & Contributions | Identified Gaps |\n"
             "| ----- | ----- | ----- |\n"
-            "| **Co-Founder & CEO** |  |  |\n"
-            "| **Co-Founder & Business Development Lead** |  |  |\n"
-            "| **Sales & Business Development Team** |  |  |\n"
-            "| **Engineering & Product Development** |  |  |\n\n"
+            "| **Co‑Founder & CEO** |  |  |\n"
+            "| **Co‑Founder & Business Development Lead** |  |  |\n"
+            "| **Sales & Business Development Team** |  |  |\n"
+            "| **Engineering & Product Development** |  |  |\n\n"
+
+            "##### Key Personnel Snapshot {{#key-personnel-snapshot}}\n"
+            "| Name | Title / Role | Notable Pedigree | Recent News / Media | Concerns / Red Flags |\n"
+            "| ---- | ------------ | ---------------- | ------------------- | --------------------- |\n"
+            "|      |              |                  |                     |                       |\n\n"
+
             "✅ **Strengths:**  \n"
             "⚠ **Challenges:** \n\n"
+
             "#### **Organizational Structure & Growth Plan** {{#organizational-structure-&-growth-plan}}\n"
-            "| Functional Area | Current Status | Planned Expansion | Impact on Scalability |\n"
+            "| Functional Area | Current Team Depth | Planned Expansion | Impact on Scalability |\n"
             "| ----- | ----- | ----- | ----- |\n"
             "| **Product & Engineering** |  |  |  |\n"
             "| **Sales & Business Development** |  |  |  |\n"
             "| **Customer Success & Support** |  |  |  |\n\n"
-            "✅  \n"
-            "⚠ \n\n"
+
             "#### **Strategic Hiring Roadmap** {{#strategic-hiring-roadmap}}\n"
             "| Role | Current Status | Planned Hiring Timeline | Impact |\n"
             "| ----- | ----- | ----- | ----- |\n"
             "| **CTO / Senior Product Leader** |  |  |  |\n"
-            "| **Outbound Sales & BD Team Expansion** |  |  |  |\n"
+            "| **Outbound Sales & BD Expansion** |  |  |  |\n"
             "| **Customer Success & Ops Growth** |  |  |  |\n\n"
-            "✅  \n"
-            "⚠ \n\n"
+
+            "#### **Use of Funds vs Identified Gaps** {{#use-of-funds-vs-identified-gaps}}\n"
+            "| Funding Allocation Area | Gap Addressed | Adequacy Rating [🟢/🟡/🔴] | Commentary |\n"
+            "| ----------------------- | ------------- | --------------------------- | ----------- |\n"
+            "| Talent / Key Hires |  |  |  |\n"
+            "| Compliance / Governance |  |  |  |\n"
+            "| GTM / Sales Enablement |  |  |  |\n\n"
+
             "#### **Leadership Stability & Investor Confidence** {{#leadership-stability-&-investor-confidence}}\n"
             "* **Investor View:**   \n"
             "* **Identified Risks:**   \n"
             "* **Mitigation Strategy:** \n\n"
+
             "#### **Leadership & Organizational Stability Assessment** {{#leadership-&-organizational-stability-assessment}}\n"
             "| Leadership Category | Status* | Evidence (1 sentence) |\n"
             "| ------------------- | ------- | --------------------- |\n"
             "| **Strategic Vision & Execution**            | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
             "| **Technical Leadership Depth**             | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
-            "| **Sales & Business Development Scalability**| [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
+            "| **Sales & BD Scalability**                 | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
             "| **Team Stability & Succession Planning**    | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
             "\n\n"
+
             "### Instructions\n"
-            "1. Write your final answer in valid **Markdown**.\n"
-            "2. Use placeholders or note gaps for unknown data.\n"
-            "3. Retain the exact headings, subheadings, anchor tags as shown.\n"
-            "4. Replace [🟢/🟡/🔴] with the correct color to match the rating for the category.\n"
-            "5. Use plain words such as Strong / Moderate / Weak and a matching color emoji.\n"
-            "6. Base each status on retrieved evidence.\n"
+            "1. Output valid **Markdown only**; do not alter anchors or heading levels.\n"
+            "2. Fill all tables; use *Not publicly available* where appropriate.\n"
+            "3. Every colour code must reflect evidence from `retrieved_context`.\n"
         )
         super().__init__(prompt_template)
 
@@ -639,122 +626,88 @@ class LeadershipTeamAgent(BaseAIAgent):
 # ---------------------------------------------------------------
 class InvestorFitAgent(BaseAIAgent):
     """
-    AI Agent for Section 6: Investor Fit, Exit Strategy & Funding Narrative
+    AI Agent for **Section 6 – Investor Fit, Exit Strategy & Funding Narrative**
 
-    Desired Markdown structure:
-    ### **Section 6: Investor Fit, Exit Strategy & Funding Narrative** {{#section-6:-investor-fit,-exit-strategy-&-funding-narrative}
-
-    #### **Investor Profile & Strategic Alignment** {{#investor-profile-&-strategic-alignment}
-    Founder Company Investor Profile & Strategic Alignment
-
-    **Ideal Investor Profile:**  
-    ✅ **Venture Capital (VC) Firms** –  
-    ✅ **Private Equity (PE) Funds** –  
-    ✅ **Strategic FSM Acquirers** –  
-
-    ⚠ **Investor Concerns:**
-    - 
-
-    #### **Exit Strategy Analysis** {{#exit-strategy-analysis}
-    | Exit Type | Viability | Potential Acquirers / Investors | Challenges |
-    | ----- | ----- | ----- | ----- |
-    | **M&A by FSM Software Companies** |  |  |  |
-    | **Private Equity (PE) Buyout** |  |  |  |
-    | **IPO as a Growth-Stage SaaS** |  |  |  |
-
-    ✅ **Most Likely Exit:**  
-    ⚠ **IPO Variability**
-
-    #### **Current Funding Narrative & Investor Messaging** {{#current-funding-narrative-&-investor-messaging}
-    * **Total Funding Raised:**  
-    * **Current Round:**  
-    * **Valuation Transparency:**  
-
-    | Funding Stage | Founder Company Status | Industry Benchmark |
-    | ----- | ----- | ----- |
-    | **Pre-Seed → Seed** |  |  |
-    | **Total Funding Raised** |  |  |
-    | **Planned Raise** |  |  |
-    | **Valuation Transparency** |  |  |
-
-    ✅ **Strengths:**  
-    ⚠ **Challenges:** 
-
-    #### **Investor Messaging & Priorities** {{#investor-messaging-&-priorities}
-    * **High-Growth SaaS Opportunity:**  
-    * **Defensible Market Positioning:**  
-    * **Exit Potential:**  
-
-    #### **Investor Fit Assessment** {{#investor-fit-assessment}
-    | Investment Factor | Assessment |
-    | ----- | ----- |
-    | **Scalability & ROI Potential** | 🟢 Strong |
-    | **Investor Sentiment & Market Trends** | 🟡 Needs More Public Validation |
-    | **Funding & Exit Strategy Clarity** | 🟡 Needs Refinement |
-    | **Risk Profile for Investors** | 🟡 Moderate Risk Due to FSM Dependency |
+    2025‑06 update (review‑driven)
+    ---------------------------------------------------------------
+    • Clarifies that a “Weak” assessment = **High Risk** (explicitly
+      labelled in the tables to avoid confusion).
+    • Removes hard‑coded “FSM” references; now inserts a generic
+      placeholder **Strategic {industry} Acquirers** so reports stay
+      industry‑agnostic.
+    • Adds a one‑line *Status Legend*.
+    • Keeps every existing anchor so the downstream PDF renderer
+      remains compatible.
     """
+
     def __init__(self):
         prompt_template = (
-            "You are an expert at drafting **Section 6: Investor Fit, Exit Strategy & Funding Narrative** "
-            "in Markdown format. Use **the exact headings, subheadings, anchor links, tables, and bullet points** "
-            "as shown in the template below. Incorporate relevant details from '{{retrieved_context}}' and use "
-            "color-coded references (🟢, 🟡, 🔴) if needed."
-            "Wherever [🟢/🟡/🔴] is used, repplace with the appropriate color for the assessment based on evidence.\n\n"
+            "You are an expert venture analyst drafting **Section 6: Investor Fit, Exit Strategy & Funding Narrative** "
+            "in **Markdown**.  Follow the fixed heading / anchor scaffold below.\n\n"
 
-            "Company: {founder_company}\n"
-            "Retrieved Context:\n"
-            "{retrieved_context}\n\n"
+            "**Company:** {founder_company}\n"
+            "**Industry:** {industry}\n"
+            "Retrieved Context:\n{retrieved_context}\n\n"
 
             "## Your Task\n"
-            "Generate **Section 6** in the following markdown structure:\n\n"
+            "1. Populate each table cell with data grounded in the context; if not available, write “*Not publicly available*”.\n"
+            "2. Use 🟢 Strong (= Low Risk / High Fit), 🟡 Moderate, 🔴 Weak (= High Risk / Low Fit).  \n"
+            "3. *Weak = High risk* – make this explicit in the assessment row.\n"
+            "4. Substitute `{industry}` into any placeholder that references strategic acquirers.\n"
+            "5. Retain all anchors exactly.\n\n"
+
             "### **Section 6: Investor Fit, Exit Strategy & Funding Narrative** {{#section-6:-investor-fit,-exit-strategy-&-funding-narrative}}\n\n"
+
             "#### **Investor Profile & Strategic Alignment** {{#investor-profile-&-strategic-alignment}}\n"
             "Founder Company Investor Profile & Strategic Alignment\n\n"
             "**Ideal Investor Profile:**  \n"
-            "✅ **Venture Capital (VC) Firms** –  \n"
-            "✅ **Private Equity (PE) Funds** –  \n"
-            "✅ **Strategic FSM Acquirers** –  \n\n"
+            "✅ **Venture Capital (VC) Firms** – sector‑savvy funds comfortable with {industry} SaaS multiples.  \n"
+            "✅ **Private Equity (PE) Funds** – growth‑stage buy‑out or minority stakes in tech‑enabled platforms.  \n"
+            "✅ **Strategic {industry} Acquirers** – incumbents seeking product expansion or cross‑sell synergies.  \n\n"
             "⚠ **Investor Concerns:**\n"
-            "- List concerns here.\n\n"
+            "- List 2‑3 major concerns (e.g., pre‑revenue risk, valuation premium, regulatory headwinds).\n\n"
+
             "#### **Exit Strategy Analysis** {{#exit-strategy-analysis}}\n"
             "| Exit Type | Viability | Potential Acquirers / Investors | Challenges |\n"
             "| ----- | ----- | ----- | ----- |\n"
-            "| **M&A by FSM Software Companies** |  |  |  |\n"
-            "| **Private Equity (PE) Buyout** |  |  |  |\n"
-            "| **IPO as a Growth-Stage SaaS** |  |  |  |\n\n"
-            "✅ **Most Likely Exit:**  \n"
-            "⚠ **IPO Variability**\n\n"
+            "| **M&A by Strategic {industry} Software Firms** |  |  |  |\n"
+            "| **Private Equity (PE) Buy‑out / Roll‑up** |  |  |  |\n"
+            "| **IPO as a Growth‑Stage SaaS** |  |  |  |\n\n"
+            "✅ **Most Likely Exit:**  _state rationale_  \n"
+            "⚠ **IPO Variability:**  _comment if applicable_\n\n"
+
             "#### **Current Funding Narrative & Investor Messaging** {{#current-funding-narrative-&-investor-messaging}}\n"
             "* **Total Funding Raised:**  \n"
             "* **Current Round:**  \n"
             "* **Valuation Transparency:**  \n\n"
             "| Funding Stage | Founder Company Status | Industry Benchmark |\n"
             "| ----- | ----- | ----- |\n"
-            "| **Pre-Seed → Seed** |  |  |\n"
+            "| **Pre‑Seed → Seed** |  |  |\n"
             "| **Total Funding Raised** |  |  |\n"
             "| **Planned Raise** |  |  |\n"
             "| **Valuation Transparency** |  |  |\n\n"
-            "✅ **Strengths:**  \n"
-            "⚠ **Challenges:** \n\n"
+            "✅ **Strengths:**  _bullet list_  \n"
+            "⚠ **Challenges:** _bullet list_\n\n"
+
             "#### **Investor Messaging & Priorities** {{#investor-messaging-&-priorities}}\n"
-            "* **High-Growth SaaS Opportunity:**  \n"
+            "* **High‑Growth SaaS Opportunity:**  \n"
             "* **Defensible Market Positioning:**  \n"
             "* **Exit Potential:**  \n\n"
+
             "#### **Investor Fit Assessment** {{#investor-fit-assessment}}\n"
             "| Investment Factor | Status* | Evidence (1 sentence) |\n"
             "| ----------------- | ------- | --------------------- |\n"
             "| **Scalability & ROI Potential**            | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
             "| **Investor Sentiment & Market Trends**     | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
             "| **Funding & Exit Strategy Clarity**        | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
-            "| **Risk Profile for Investors**             | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
-            "\n\n"
+            "| **Risk Profile for Investors** *(Weak = High Risk)* | [🟢/🟡/🔴] {{derive}} | {{evidence}} |\n"
+            "\n"
+            "_Status Legend: 🟢 Strong / Low Risk   🟡 Moderate   🔴 Weak / High Risk_\n\n"
+
             "### Instructions\n"
-            "1. Write your final answer in valid **Markdown**.\n"
-            "2. Use placeholders or note gaps for missing data.\n"
-            "3. Keep the headings, subheadings, anchor tags, and tables exactly as shown.\n"
-            "4. Replace [🟢/🟡/🔴] with the correct color to match the rating for the category.\n"
-            "5. Use plain words such as Strong / Moderate / Weak and a matching color emoji.\n"
-            "6. Base each status on retrieved evidence.\n"            
+            "• Output valid **Markdown only**.  \n"
+            "• Do **not** alter any anchor IDs or heading levels.  \n"
+            "• Replace all status placeholders with the correct colour & descriptor based on evidence from the context.\n"
         )
         super().__init__(prompt_template)
 
