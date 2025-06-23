@@ -67,7 +67,7 @@ def convert_markdown_to_html(markdown_text, section_number=1, section_title=None
             (Section\s+{escaped_num}:\s+)?
             {escaped_title}
             (?P=BOLD)?
-            \s*(\{{#.*?\}})?\s*$
+            \s*(\{{\#.*?\}})?\s*$
         """
         markdown_text = re.sub(
             generic, "", markdown_text,
