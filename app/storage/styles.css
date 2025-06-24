@@ -1,17 +1,19 @@
 @page {
-  size: letter;
+  size: Letter;
   margin: 2.5cm 2cm;
   @bottom-right {
-    content: counter(page);
-    font-family: 'Arial', sans-serif;
-    font-size: 10pt;
+      content: counter(page);
+      font-family: 'Arial', sans-serif;
+      font-size: 10pt;
   }
-  /* Bottom corner decoration applied at page level for consistent positioning */
+  /* Bottom corner decoration now applied at page level for consistent positioning */
   background-image: url("data:image/svg+xml,%3Csvg width='300' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolygon points='0,100 300,100 300,0' fill='%23f0f0f0' /%3E%3Cpolygon points='0,100 300,100 300,30' fill='%23e8e8e8' /%3E%3Cpolygon points='0,100 300,100 300,60' fill='%23e0e0e0' /%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right bottom;
   background-size: 300px;
 }
+
+/* The @page :first rule was removed to allow uniform page numbering on the cover page */
 
 body {
   font-family: 'Arial', sans-serif;
@@ -28,7 +30,7 @@ body {
   page-break-after: always;
   margin: 0;
   padding: 0;
-  min-height: 27.9cm; /* Approximate letter page height */
+  min-height: 27.9cm;  /* Adjusted for US Letter page height (11 inches) */
 }
 
 .page-content {
@@ -44,13 +46,13 @@ body {
   right: 0;
   width: 30%;
   height: 100%;
-  /* Light diagonal hatch background on the right side of each page */
+  /* Diagonal stripe pattern background on the right side */
   background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='diagonalHatch' width='10' height='10' patternTransform='rotate(45 0 0)' patternUnits='userSpaceOnUse'%3E%3Cline x1='0' y1='0' x2='0' y2='10' style='stroke:%23f0f0f0; stroke-width:1' /%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100' height='100' fill='%23f8f8f8' /%3E%3Crect width='100' height='100' fill='url(%23diagonalHatch)' opacity='0.5' /%3E%3C/svg%3E");
   background-repeat: repeat;
   z-index: 0;
 }
 
-/* Removed the .page::after pseudo-element since decoration is handled by @page */
+/* Remove any obsolete pseudo-element decoration (decoration moved to @page) */
 .page::after {
   display: none;
 }
@@ -63,20 +65,23 @@ body {
   font-size: 10pt;
   color: #666;
 }
+
 .page-number::before {
   content: "-";
 }
 .page-number::after {
   content: "-";
 }
-/* Note: Page numbers (with hyphens) will appear in the HTML view but be hidden in print/PDF. */
+
+/* Hide the manual page numbers when printing/exporting to PDF, 
+   since we use @page counter for actual page numbering */
 @media print {
   .page-number {
-    display: none;
+      display: none;
   }
 }
 
-/* Cover Page Header Styling */
+/* Header (Cover Page) */
 .header {
   margin-bottom: 2cm;
 }
@@ -113,6 +118,7 @@ h1 {
   margin-bottom: 1cm;
   text-align: center;
 }
+
 .meta-info {
   margin-bottom: 1cm;
 }
@@ -120,7 +126,7 @@ h1 {
   margin: 5px 0;
 }
 
-/* Table of Contents Styles */
+/* Table of Contents */
 .toc {
   margin-top: 1cm;
 }
@@ -140,6 +146,8 @@ h1 {
   position: relative;
   bottom: 4px;
 }
+/* (Removed .toc-page-number since page numbers are not explicitly shown in TOC entries) */
+
 .toc a {
   color: #1a365d;
   text-decoration: none;
@@ -148,7 +156,7 @@ h1 {
   text-decoration: underline;
 }
 
-/* Section Content Styles */
+/* Section Styles */
 h2 {
   font-size: 16pt;
   color: #1a365d;
@@ -168,7 +176,7 @@ h4 {
   margin-bottom: 0.2cm;
 }
 
-/* Table Styles */
+/* Table styles with section-specific header colors */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -182,7 +190,6 @@ th, td {
 th {
   font-weight: bold;
 }
-/* Section-specific table header background colors for distinction */
 .section-1 th {
   background-color: #d3e5f3;  /* Light blue */
   color: #1a365d;
@@ -211,11 +218,12 @@ th {
   background-color: #e6e6d3;  /* Light olive */
   color: #5c5c2a;
 }
+
 tr:nth-child(even) {
   background-color: #f8f9fa;
 }
 
-/* Status Indicator Dots */
+/* Assessment Indicators */
 .indicator {
   display: inline-block;
   width: 12px;
@@ -223,21 +231,11 @@ tr:nth-child(even) {
   border-radius: 50%;
   margin-right: 5px;
 }
-.green {
-  background-color: #4caf50;
-}
-.yellow {
-  background-color: #ffc107;
-}
-.red {
-  background-color: #f44336;
-}
+.green { background-color: #4caf50; }
+.yellow { background-color: #ffc107; }
+.red { background-color: #f44336; }
 
-/* Custom Lists */
-ul, ol {
-  margin: 0.3cm 0;
-  padding-left: 1cm;
-}
+/* Custom Check and Warning Lists */
 .check-list {
   list-style-type: none;
   padding-left: 0.5cm;
@@ -275,14 +273,14 @@ ul, ol {
   margin-right: 5px;
 }
 
-/* Horizontal Rule Separator */
+/* Horizontal rule separator */
 hr {
   border: none;
   border-top: 1px solid #cbd5e0;
   margin: 1cm 0;
 }
 
-/* Highlighted Text Box */
+/* Highlighted text box */
 .highlight-box {
   border: 1px solid #4299e1;
   padding: 0 5px;
@@ -290,7 +288,7 @@ hr {
   margin: 0 2px;
 }
 
-/* Maturity Model Label */
+/* Maturity model label styling */
 .maturity-label {
   font-weight: bold;
   margin-right: 8px;
