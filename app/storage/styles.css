@@ -2,11 +2,11 @@
   size: letter;
   margin: 2.5cm 2cm;
   @bottom-right {
-      content: counter(page);
-      font-family: 'Arial', sans-serif;
-      font-size: 10pt;
+    content: counter(page);
+    font-family: 'Arial', sans-serif;
+    font-size: 10pt;
   }
-  /* Bottom corner decoration moved here for better positioning in PDF */
+  /* Bottom corner decoration applied at page level for consistent positioning */
   background-image: url("data:image/svg+xml,%3Csvg width='300' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolygon points='0,100 300,100 300,0' fill='%23f0f0f0' /%3E%3Cpolygon points='0,100 300,100 300,30' fill='%23e8e8e8' /%3E%3Cpolygon points='0,100 300,100 300,60' fill='%23e0e0e0' /%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right bottom;
@@ -44,12 +44,13 @@ body {
   right: 0;
   width: 30%;
   height: 100%;
+  /* Light diagonal hatch background on the right side of each page */
   background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='diagonalHatch' width='10' height='10' patternTransform='rotate(45 0 0)' patternUnits='userSpaceOnUse'%3E%3Cline x1='0' y1='0' x2='0' y2='10' style='stroke:%23f0f0f0; stroke-width:1' /%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100' height='100' fill='%23f8f8f8' /%3E%3Crect width='100' height='100' fill='url(%23diagonalHatch)' opacity='0.5' /%3E%3C/svg%3E");
   background-repeat: repeat;
   z-index: 0;
 }
 
-/* Remove the after pseudo-element - decoration is now at page level */
+/* Removed the .page::after pseudo-element since decoration is handled by @page */
 .page::after {
   display: none;
 }
@@ -62,39 +63,33 @@ body {
   font-size: 10pt;
   color: #666;
 }
-
 .page-number::before {
   content: "-";
 }
-
 .page-number::after {
   content: "-";
 }
-
-/* Hide page numbers in the center for actual PDF */
+/* Note: Page numbers (with hyphens) will appear in the HTML view but be hidden in print/PDF. */
 @media print {
   .page-number {
-      display: none;
+    display: none;
   }
 }
 
-/* Header */
+/* Cover Page Header Styling */
 .header {
   margin-bottom: 2cm;
 }
-
 .logo-container {
   text-align: center;
   margin-bottom: 20px;
 }
-
 .logo {
   height: 40px;
   width: auto;
   display: block;
   margin: 0 auto;
 }
-
 .company-name {
   font-size: 24pt;
   font-weight: bold;
@@ -102,7 +97,6 @@ body {
   margin-bottom: 5px;
   text-align: center;
 }
-
 .tagline {
   font-size: 12pt;
   text-transform: uppercase;
@@ -119,31 +113,26 @@ h1 {
   margin-bottom: 1cm;
   text-align: center;
 }
-
 .meta-info {
   margin-bottom: 1cm;
 }
-
 .meta-info p {
   margin: 5px 0;
 }
 
-/* Table of Contents */
+/* Table of Contents Styles */
 .toc {
   margin-top: 1cm;
 }
-
 .toc h2 {
   font-size: 14pt;
   margin-bottom: 10px;
 }
-
 .toc-item {
   display: flex;
   justify-content: space-between;
   margin-bottom: 5px;
 }
-
 .toc-leader {
   flex-grow: 1;
   border-bottom: 1px dotted #999;
@@ -151,32 +140,27 @@ h1 {
   position: relative;
   bottom: 4px;
 }
-
-/* TOC Links */
 .toc a {
   color: #1a365d;
   text-decoration: none;
 }
-
 .toc a:hover {
   text-decoration: underline;
 }
 
-/* Section Styles */
+/* Section Content Styles */
 h2 {
   font-size: 16pt;
   color: #1a365d;
   margin-top: 1cm;
   margin-bottom: 0.5cm;
 }
-
 h3 {
   font-size: 13pt;
   color: #2c5282;
   margin-top: 0.8cm;
   margin-bottom: 0.3cm;
 }
-
 h4 {
   font-size: 12pt;
   color: #2d3748;
@@ -184,65 +168,54 @@ h4 {
   margin-bottom: 0.2cm;
 }
 
-/* Table styles with section-based colors */
+/* Table Styles */
 table {
   width: 100%;
   border-collapse: collapse;
   margin: 0.5cm 0;
 }
-
 th, td {
   border: 1px solid #cbd5e0;
   padding: 8px 12px;
   text-align: left;
 }
-
-/* Default table header style */
 th {
   font-weight: bold;
 }
-
-/* Section-specific table header colors */
+/* Section-specific table header background colors for distinction */
 .section-1 th {
   background-color: #d3e5f3;  /* Light blue */
   color: #1a365d;
 }
-
 .section-2 th {
   background-color: #d4e9d8;  /* Light green */
   color: #1e5631;
 }
-
 .section-3 th {
   background-color: #f5e6d3;  /* Light orange */
   color: #8c4510;
 }
-
 .section-4 th {
   background-color: #e5d3e8;  /* Light purple */
   color: #5b2175;
 }
-
 .section-5 th {
   background-color: #f3d3d8;  /* Light red */
   color: #881337;
 }
-
 .section-6 th {
   background-color: #d3e8e8;  /* Light teal */
   color: #115e59;
 }
-
 .section-7 th {
   background-color: #e6e6d3;  /* Light olive */
   color: #5c5c2a;
 }
-
 tr:nth-child(even) {
   background-color: #f8f9fa;
 }
 
-/* Assessment Indicators */
+/* Status Indicator Dots */
 .indicator {
   display: inline-block;
   width: 12px;
@@ -250,30 +223,25 @@ tr:nth-child(even) {
   border-radius: 50%;
   margin-right: 5px;
 }
-
 .green {
   background-color: #4caf50;
 }
-
 .yellow {
   background-color: #ffc107;
 }
-
 .red {
   background-color: #f44336;
 }
 
-/* Lists */
+/* Custom Lists */
 ul, ol {
   margin: 0.3cm 0;
   padding-left: 1cm;
 }
-
 .check-list {
   list-style-type: none;
   padding-left: 0.5cm;
 }
-
 .check-list li::before {
   content: "✓";
   color: #4caf50;
@@ -282,12 +250,10 @@ ul, ol {
   width: 1em;
   margin-left: -1em;
 }
-
 .warning-list {
   list-style-type: none;
   padding-left: 0.5cm;
 }
-
 .warning-list li::before {
   content: "⚠";
   color: #ffc107;
@@ -296,14 +262,12 @@ ul, ol {
   width: 1em;
   margin-left: -1em;
 }
-
 .warning-symbol::before {
   content: "⚠";
   color: #ffc107;
   font-weight: bold;
   margin-right: 5px;
 }
-
 .check-symbol::before {
   content: "✓";
   color: #4caf50;
@@ -311,14 +275,14 @@ ul, ol {
   margin-right: 5px;
 }
 
-/* Separator line */
+/* Horizontal Rule Separator */
 hr {
   border: none;
   border-top: 1px solid #cbd5e0;
   margin: 1cm 0;
 }
 
-/* Text highlight boxes */
+/* Highlighted Text Box */
 .highlight-box {
   border: 1px solid #4299e1;
   padding: 0 5px;
@@ -326,7 +290,7 @@ hr {
   margin: 0 2px;
 }
 
-/* Maturity Model label */
+/* Maturity Model Label */
 .maturity-label {
   font-weight: bold;
   margin-right: 8px;
