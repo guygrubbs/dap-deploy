@@ -277,7 +277,7 @@ def generate_pdf(
 
     # 6) Fill in the template with dynamic fields
     date_str = datetime.now().strftime("%b %d, %Y")
-    final_prepared_by = prepared_by or "Diraj Goel, Get Fresh Ventures"
+    final_prepared_by = prepared_by or "Diraj Goel, GetReady.VC"
 
     filled_html = template_html.format(
         report_id=report_id,

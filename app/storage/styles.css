@@ -4,7 +4,7 @@
   @bottom-right {
       content: counter(page);
       font-family: 'Arial', sans-serif;
-      font-size: 10pt;
+      font-size: 11pt;
   }
   /* Bottom corner decoration now applied at page level for consistent positioning */
   background-image: url("data:image/svg+xml,%3Csvg width='300' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolygon points='0,100 300,100 300,0' fill='%23f0f0f0' /%3E%3Cpolygon points='0,100 300,100 300,30' fill='%23e8e8e8' /%3E%3Cpolygon points='0,100 300,100 300,60' fill='%23e0e0e0' /%3E%3C/svg%3E");
@@ -176,19 +176,30 @@ h4 {
   margin-bottom: 0.2cm;
 }
 
+h5 {
+  font-size: 12pt;
+  color: #2d3748;
+  margin-top: 0.6cm;
+  margin-bottom: 0.2cm;
+}
+
 /* Table styles with section-specific header colors */
 table {
   width: 100%;
   border-collapse: collapse;
   margin: 0.5cm 0;
+  page-break-inside: avoid;  /* Older CSS name for avoiding page breaks inside */
+  break-inside: avoid;       /* Standard CSS3 name, ensures no column/page breaks inside */                                                                                
 }
 th, td {
   border: 1px solid #cbd5e0;
   padding: 8px 12px;
   text-align: left;
+  page-break-inside: avoid;                         
 }
 th {
   font-weight: bold;
+  page-break-inside: avoid;                         
 }
 .section-1 th {
   background-color: #d3e5f3;  /* Light blue */
@@ -236,6 +247,45 @@ tr:nth-child(even) {
 .red { background-color: #f44336; }
 
 /* Custom Check and Warning Lists */
+.green {
+  background-color: #4caf50;
+}
+
+.yellow {
+  background-color: #ffc107;
+}
+
+.red {
+  background-color: #f44336;
+}
+
+/* Status labels */
+.status-green, .status-yellow, .status-red {
+  font-weight: bold;
+  border-radius: 3px;
+  padding: 2px 6px;
+}
+
+.status-green {
+  background-color: #4caf50;
+  color: #fff;
+}
+
+.status-yellow {
+  background-color: #ffc107;
+  color: #000;
+}
+
+.status-red {
+  background-color: #f44336;
+  color: #fff;
+}
+
+/* Lists */
+ul, ol {
+  margin: 0.3cm 0;
+  padding-left: 1cm;
+}
 .check-list {
   list-style-type: none;
   padding-left: 0.5cm;
