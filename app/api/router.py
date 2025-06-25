@@ -68,19 +68,19 @@ def generate_full_report(
         # 2. Prepare parameters for AI generation (merge form inputs and defaults)
         params: Dict[str, Any] = (req.parameters or {}).copy()
         # Extract founder company from additional_info (prefix "Founder Company: ")
-        founder_co = ""
-        if req.additional_info:
-            founder_co = req.additional_info.split("\n")[0].replace("Founder Company:", "").strip()
-        founder_co = founder_co or "Unknown Company"
+        # founder_co = ""
+        # if req.additional_info:
+        #     founder_co = req.additional_info.split("\n")[0].replace("Founder Company:", "").strip()
+        # founder_co = founder_co or "Unknown Company"
 
         # Build the report title dynamically to include founder name & company:contentReference[oaicite:1]{index=1}
         title_str = f"Founder Due Diligence Report for "
-        title_str += f"{req.founder_name + ' - ' if req.founder_name else ''}{founder_co or 'Startup'}"
+        title_str += f"{req.founder_name + ' - ' if req.founder_name else ''}{req.company_name or 'Startup'}"
         params.update({
             "title": title_str,
             "requestor_name": req.requestor_name,
-            "company": req.company_name,
-            "founder_company": founder_co,
+            "company": "DealIntel.VC",
+            "founder_company": req.company_name,
             "founder_name": req.founder_name or "",
             "industry": req.industry or "",
             "funding_stage": req.funding_stage or "",
@@ -153,12 +153,12 @@ def generate_full_report(
         updated_req.updated_at = datetime.utcnow()
         db.commit()  # commit all the above changes
 
-        # 8. Create a new internal deal entry and a summary placeholder
-        deal_id = f"deal_{int(time.time())}_{uuid.uuid4().hex[:8]}"  # unique deal identifier
+        # 8. Create a new internal deal entry and a summary placeholder, actually just use the id sent for the request for the other table entries
+        # deal_id = f"deal_{int(time.time())}_{uuid.uuid4().hex[:8]}"  # unique deal identifier
         try:
             # Insert into deal_reports (PDF link initially included, since we have it now)
             supabase.table("deal_reports").insert({
-                "deal_id": deal_id,
+                "deal_id": request_id,
                 "company_name": founder_co or "Unknown Company",
                 "pdf_url": supabase_info.get("public_url") or None,
                 "pdf_file_path": supabase_info.get("storage_path") or None
@@ -168,7 +168,7 @@ def generate_full_report(
         try:
             # Insert into deal_report_summaries with placeholder content:contentReference[oaicite:3]{index=3}:contentReference[oaicite:4]{index=4}
             supabase.table("deal_report_summaries").insert({
-                "deal_id": deal_id,
+                "deal_id": request_id,
                 "company_name": founder_co or "Unknown Company",
                 "executive_summary": f"Analysis report submitted to external API with ID: {req.id}. Report generation is in progress.",
                 "strategic_recommendations": "Report generation in progress via external API",
