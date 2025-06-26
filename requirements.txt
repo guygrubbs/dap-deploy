@@ -17,3 +17,5 @@ pytesseract==0.3.13
 markdown==3.7.0
 lxml==5.3.0
 weasyprint==63.0
+pydantic[email]
+pydantic

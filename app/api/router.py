@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 # ─────────── app imports ──────────────────────────────────────────────────────
 # REMOVED: AnalysisRequestIn import (no longer used, as front-end inserts directly)
-from schemas import (
+from app.api.schemas import (
     AnalysisRequestOut,
     ReportContentResponse,
     ReportSection,
@@ -75,7 +75,7 @@ def generate_full_report(
 
         # Build the report title dynamically to include founder name & company:contentReference[oaicite:1]{index=1}
         title_str = f"Founder Due Diligence Report for "
-        title_str += f"{req.founder_name + ' - ' if req.founder_name else ''}{req.company_name or 'Startup'}"
+        title_str += f"{req.company_name or 'Startup'}"
         params.update({
             "title": title_str,
             "requestor_name": req.requestor_name,
@@ -122,7 +122,7 @@ def generate_full_report(
             report_title=title_str,
             tier2_sections=sections_for_pdf,
             founder_name=req.founder_name or "",
-            founder_company=founder_co,
+            founder_company=req.company_name or "",
             founder_type=req.company_type or "",
             output_path=None,
         )
@@ -159,7 +159,7 @@ def generate_full_report(
             # Insert into deal_reports (PDF link initially included, since we have it now)
             supabase.table("deal_reports").insert({
                 "deal_id": request_id,
-                "company_name": founder_co or "Unknown Company",
+                "company_name": req.company_name or "Unknown Company",
                 "pdf_url": supabase_info.get("public_url") or None,
                 "pdf_file_path": supabase_info.get("storage_path") or None
             }).execute()
@@ -169,7 +169,7 @@ def generate_full_report(
             # Insert into deal_report_summaries with placeholder content:contentReference[oaicite:3]{index=3}:contentReference[oaicite:4]{index=4}
             supabase.table("deal_report_summaries").insert({
                 "deal_id": request_id,
-                "company_name": founder_co or "Unknown Company",
+                "company_name": req.company_name or "Unknown Company",
                 "executive_summary": f"Analysis report submitted to external API with ID: {req.id}. Report generation is in progress.",
                 "strategic_recommendations": "Report generation in progress via external API",
                 "market_analysis": "Analysis pending via external API service",
