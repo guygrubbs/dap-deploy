@@ -167,7 +167,7 @@ def generate_pdf(
     founder_name: str = "Founder Name",
     founder_company: str = "Founder Company",
     founder_type: str = "Founder Type",
-    prepared_by: Optional[str] = "Shweta Mokashi, Right Hand Operation",
+    prepared_by: Optional[str] = "Shweta Mokashi, DealIntel.VC",
     output_path: str = None
 ) -> Union[bytes, str]:
     """
@@ -284,7 +284,7 @@ def generate_pdf(
 
     # 6) Fill in the template with dynamic values
     date_str = datetime.now().strftime("%b %d, %Y")
-    final_prepared_by = prepared_by or "Shweta Mokashi, Right Hand Operation"
+    final_prepared_by = prepared_by or "Shweta Mokashi, DealIntel.VC"
 
     filled_html = template_html.format(
         report_id=report_id,
