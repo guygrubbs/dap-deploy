@@ -167,7 +167,7 @@ def generate_pdf(
     founder_name: str = "Founder Name",
     founder_company: str = "Founder Company",
     founder_type: str = "Founder Type",
-    prepared_by: Optional[str] = "Shweta Mokashi, Right Hand Operation",
+    prepared_by: Optional[str] = "Shweta Mokashi, DealIntel.VC",
     output_path: str = None
 ) -> Union[bytes, str]:
     """

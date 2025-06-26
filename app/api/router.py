@@ -96,20 +96,20 @@ def generate_full_report(
         # 2. Prepare parameters for AI generation (merge form inputs and defaults)
         params: Dict[str, Any] = (req.parameters or {}).copy()
         # Extract founder company from additional_info (prefix "Founder Company: ")
-        founder_co = ""
-        if req.additional_info:
-            founder_co = req.additional_info.split("\n")[0].replace("Founder Company:", "").strip()
-        founder_co = founder_co or "Unknown Company"
+        # founder_co = ""
+        # if req.additional_info:
+        #     founder_co = req.additional_info.split("\n")[0].replace("Founder Company:", "").strip()
+        # founder_co = founder_co or "Unknown Company"
 
         # Build the report title dynamically to include founder name & company:contentReference[oaicite:1]{index=1}
         title_str = f"Founder Due Diligence Report for "
-        title_str += f"{req.founder_name + ' - ' if req.founder_name else ''}{founder_co or 'Startup'}"
+        title_str += f"{req.company_name or 'Startup'}"
         params.update({
             "title": title_str,
             "requestor_name": req.requestor_name,
             "company": req.company_name,
-            "founder_company": founder_co,
-            "founder_name": req.founder_name or "",
+            "company": "DealIntel.VC",
+            "founder_company": req.company_name,
             "industry": req.industry or "",
             "funding_stage": req.funding_stage or "",
             "company_type": req.company_type or "",
@@ -133,13 +133,13 @@ def generate_full_report(
 
         # 5. Build PDF from the generated sections
         section_map = {
-            "executive_summary_investment_rationale": "Section 1: Executive Summary",
-            "market_opportunity_competitive_landscape": "Section 2: Market Opportunity",
-            "financial_performance_investment_readiness": "Section 3: Financials",
-            "go_to_market_strategy_customer_traction": "Section 4: GTM & Traction",
+            "executive_summary_investment_rationale": "Section 1: Executive Summary & Investment Rationale",
+            "market_opportunity_competitive_landscape": "Section 2: Market Opportunity & Competitive Landscape",
+            "financial_performance_investment_readiness": "Section 3: Financial Performance & Investment Readiness",
+            "go_to_market_strategy_customer_traction": "Section 4: Go-To-Market (GTM) Strategy & Customer Traction",
             "leadership_team": "Section 5: Leadership & Team",
-            "investor_fit_exit_strategy_funding": "Section 6: Investor Fit & Exit",
-            "final_recommendations_next_steps": "Section 7: Recommendations",
+            "investor_fit_exit_strategy_funding": "Section 6: Investor Fit, Exit Strategy & Funding Narrative",
+            "final_recommendations_next_steps": "Section 7: Final Recommendations & Next Steps",
         }
         sections_for_pdf = [
             {"id": f"sec_{i}", "title": section_map.get(key, key), "content": body}
@@ -150,7 +150,7 @@ def generate_full_report(
             report_title=title_str,
             tier2_sections=sections_for_pdf,
             founder_name=req.founder_name or "",
-            founder_company=founder_co,
+            founder_company=req.company_name or "",
             founder_type=req.company_type or "",
             output_path="",
         )
@@ -194,7 +194,7 @@ def generate_full_report(
             # Insert into deal_reports (PDF link initially included, since we have it now)
             supabase.table("deal_reports").insert({
                 "deal_id": deal_id,
-                "company_name": founder_co or "Unknown Company",
+                "company_name": req.company_name or "Unknown Company",
                 "pdf_url": supabase_info.get("public_url") or None,
                 "pdf_file_path": supabase_info.get("storage_path") or None
             }).execute()
