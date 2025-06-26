@@ -158,7 +158,7 @@ def generate_full_report(
         try:
             # Insert into deal_reports (PDF link initially included, since we have it now)
             supabase.table("deal_reports").insert({
-                "deal_id": request_id,
+                "deal_id": str(request_id),
                 "company_name": req.company_name or "Unknown Company",
                 "pdf_url": supabase_info.get("public_url") or None,
                 "pdf_file_path": supabase_info.get("storage_path") or None
@@ -168,7 +168,7 @@ def generate_full_report(
         try:
             # Insert into deal_report_summaries with placeholder content:contentReference[oaicite:3]{index=3}:contentReference[oaicite:4]{index=4}
             supabase.table("deal_report_summaries").insert({
-                "deal_id": request_id,
+                "deal_id": str(request_id),
                 "company_name": req.company_name or "Unknown Company",
                 "executive_summary": f"Analysis report submitted to external API with ID: {req.id}. Report generation is in progress.",
                 "strategic_recommendations": "Report generation in progress via external API",
