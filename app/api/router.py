@@ -105,13 +105,13 @@ def generate_full_report(
 
         # 5. Build PDF from the generated sections
         section_map = {
-            "executive_summary_investment_rationale": "Section 1: Executive Summary",
-            "market_opportunity_competitive_landscape": "Section 2: Market Opportunity",
-            "financial_performance_investment_readiness": "Section 3: Financials",
-            "go_to_market_strategy_customer_traction": "Section 4: GTM & Traction",
+            "executive_summary_investment_rationale": "Section 1: Executive Summary & Investment Rationale",
+            "market_opportunity_competitive_landscape": "Section 2: Market Opportunity & Competitive Landscape",
+            "financial_performance_investment_readiness": "Section 3: Financial Performance & Investment Readiness",
+            "go_to_market_strategy_customer_traction": "Section 4: Go-To-Market (GTM) Strategy & Customer Traction",
             "leadership_team": "Section 5: Leadership & Team",
-            "investor_fit_exit_strategy_funding": "Section 6: Investor Fit & Exit",
-            "final_recommendations_next_steps": "Section 7: Recommendations",
+            "investor_fit_exit_strategy_funding": "Section 6: Investor Fit, Exit Strategy & Funding Narrative",
+            "final_recommendations_next_steps": "Section 7: Final Recommendations & Next Steps",
         }
         sections_for_pdf = [
             {"id": f"sec_{i}", "title": section_map.get(key, key), "content": body}
